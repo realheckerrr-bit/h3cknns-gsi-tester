@@ -92,6 +92,10 @@ public final class QemuBootSession {
         }
     }
 
+    public boolean isRunning() {
+        return QemuRunner.isRunning(nativeHandle);
+    }
+
     public void stop() {
         QemuRunner.stop(nativeHandle);
     }

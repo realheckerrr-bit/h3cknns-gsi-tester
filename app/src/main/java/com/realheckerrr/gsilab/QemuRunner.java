@@ -40,7 +40,13 @@ public final class QemuRunner {
         if (handle != 0) nativeStop(handle);
     }
 
+    public static boolean isRunning(long handle) {
+        return handle != 0 && nativeIsRunning(handle);
+    }
+
     private static native long nativeStart(String enginePath, String[] arguments);
 
     private static native void nativeStop(long handle);
+
+    private static native boolean nativeIsRunning(long handle);
 }

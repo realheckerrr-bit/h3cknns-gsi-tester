@@ -1,6 +1,7 @@
 #include <jni.h>
 
 #include <android/log.h>
+#include <atomic>
 #include <dlfcn.h>
 #include <pthread.h>
 #include <stdlib.h>
@@ -21,6 +22,7 @@ struct Runner {
     pthread_t thread{};
     int argc = 0;
     char** argv = nullptr;
+    std::atomic<bool> running{false};
 };
 
 void free_args(Runner* runner) {
@@ -32,6 +34,7 @@ void free_args(Runner* runner) {
 
 void* qemu_thread(void* opaque) {
     auto* runner = static_cast<Runner*>(opaque);
+    runner->running.store(true);
     auto init = reinterpret_cast<qemu_init_fn>(dlsym(runner->library, "qemu_init"));
     auto loop = reinterpret_cast<qemu_main_loop_fn>(dlsym(runner->library, "qemu_main_loop"));
     auto cleanup = reinterpret_cast<qemu_cleanup_fn>(dlsym(runner->library, "qemu_cleanup"));
@@ -51,6 +54,7 @@ void* qemu_thread(void* opaque) {
             legacy_main(runner->argc, runner->argv, nullptr);
         }
     }
+    runner->running.store(false);
     return nullptr;
 }
 
@@ -104,4 +108,10 @@ Java_com_realheckerrr_gsilab_QemuRunner_nativeStop(JNIEnv*, jclass, jlong handle
     free_args(runner);
     dlclose(runner->library);
     delete runner;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_realheckerrr_gsilab_QemuRunner_nativeIsRunning(JNIEnv*, jclass, jlong handle) {
+    auto* runner = reinterpret_cast<Runner*>(handle);
+    return runner != nullptr && runner->running.load() ? JNI_TRUE : JNI_FALSE;
 }

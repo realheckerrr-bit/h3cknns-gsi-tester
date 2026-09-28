@@ -57,11 +57,18 @@ public final class MainActivity extends Activity {
     private MaterialButton bootButton;
     private MaterialButton exportButton;
     private QemuBootSession session;
+    private Boolean lastQemuRunning;
     private final Runnable consolePoller = new Runnable() {
         @Override
         public void run() {
             if (session == null || analysis == null || guestAnalysis == null) return;
+            boolean running = session.isRunning();
+            if (lastQemuRunning == null || lastQemuRunning != running) {
+                appendLog(running ? "QEMU process is running." : "QEMU exited; inspect the serial log for the boot failure.");
+                lastQemuRunning = running;
+            }
             reportText.setText(analysis.render() + "\n" + guestAnalysis.render()
+                    + "\n\nQEMU STATE\n  process: " + (running ? "running" : "exited")
                     + "\n\nQEMU CONSOLE\n" + session.readConsole());
             mainHandler.postDelayed(this, 1000L);
         }
@@ -376,6 +383,7 @@ public final class MainActivity extends Activity {
                     QemuBootSession started = QemuBootSession.start(this, selectedFile, guestFile);
                     mainHandler.post(() -> {
                         session = started;
+                        lastQemuRunning = null;
                         bootButton.setEnabled(true);
                         bootButton.setText("Stop test VM");
                         appendLog("QEMU thread started; reading console.log.");
@@ -394,6 +402,7 @@ public final class MainActivity extends Activity {
     private void stopTestVm() {
         QemuBootSession stopping = session;
         session = null;
+        lastQemuRunning = null;
         mainHandler.removeCallbacks(consolePoller);
         bootButton.setText("Start headless test VM");
         bootButton.setEnabled(false);
