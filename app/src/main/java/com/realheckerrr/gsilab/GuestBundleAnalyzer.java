@@ -35,9 +35,11 @@ public final class GuestBundleAnalyzer {
                 String name = entry.getName().replace('\\', '/');
                 String base = name.substring(name.lastIndexOf('/') + 1).toLowerCase(Locale.US);
                 if (kernel == null && (base.equals("kernel") || base.equals("kernel-ranchu") || base.equals("kernel-ranchu-64"))) kernel = name;
-                if (ramdisk == null && base.equals("ramdisk.img")) ramdisk = name;
-                if (vendor == null && (base.equals("vendor.img") || base.equals("vendor_a.img"))) vendor = name;
-                if (userdata == null && (base.equals("userdata.img") || base.equals("userdata-qemu.img"))) userdata = name;
+                if (ramdisk == null && (base.equals("ramdisk.img") || base.equals("ramdisk.img.gz"))) ramdisk = name;
+                if (vendor == null && (base.equals("vendor.img") || base.equals("vendor.img.gz")
+                        || base.equals("vendor_a.img") || base.equals("vendor_a.img.gz"))) vendor = name;
+                if (userdata == null && (base.equals("userdata.img") || base.equals("userdata.img.gz")
+                        || base.equals("userdata-qemu.img") || base.equals("userdata-qemu.img.gz"))) userdata = name;
                 if (qemu == null && (base.equals("qemu-system-aarch64") || base.equals("libqemu-system-aarch64.so"))) qemu = name;
             }
         }

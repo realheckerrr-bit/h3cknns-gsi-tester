@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.util.Enumeration;
 import java.util.Locale;
+import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
@@ -32,9 +33,9 @@ public final class BootAssets {
         if (!output.isDirectory() && !output.mkdirs()) throw new IOException("Cannot create VM working directory.");
         File systemSource = new File(output, "system.source.img");
         if (gsi.getName().toLowerCase(Locale.US).endsWith(".zip")) {
-            copyEntry(gsi, "system.img", systemSource);
+            copyEntry(gsi, systemSource, "system.img", "system.img.gz");
         } else {
-            copy(gsi, systemSource);
+            copyMaybeGzip(gsi, systemSource);
         }
         File system = materializeImage(systemSource, new File(output, "system.img"));
 
@@ -54,19 +55,24 @@ public final class BootAssets {
             ZipEntry entry = findEntry(zip, names);
             if (entry == null) return null;
             String base = entry.getName().substring(entry.getName().lastIndexOf('/') + 1);
-            File target = new File(output, safeName(base));
-            try (InputStream input = zip.getInputStream(entry); FileOutputStream out = new FileOutputStream(target)) {
+            File target = new File(output, safeName(stripGzipSuffix(base)));
+            try (InputStream raw = zip.getInputStream(entry);
+                 InputStream input = maybeGzip(raw, base);
+                 FileOutputStream out = new FileOutputStream(target)) {
                 copy(input, out);
             }
             return target;
         }
     }
 
-    private static void copyEntry(File archive, String wantedBase, File target) throws IOException {
+    private static void copyEntry(File archive, File target, String... wantedBases) throws IOException {
         try (ZipFile zip = new ZipFile(archive)) {
-            ZipEntry entry = findEntry(zip, wantedBase);
-            if (entry == null) throw new IOException("GSI ZIP does not contain " + wantedBase + ".");
-            try (InputStream input = zip.getInputStream(entry); FileOutputStream out = new FileOutputStream(target)) {
+            ZipEntry entry = findEntry(zip, wantedBases);
+            if (entry == null) throw new IOException("GSI ZIP does not contain system.img or system.img.gz.");
+            String base = entry.getName().substring(entry.getName().lastIndexOf('/') + 1);
+            try (InputStream raw = zip.getInputStream(entry);
+                 InputStream input = maybeGzip(raw, base);
+                 FileOutputStream out = new FileOutputStream(target)) {
                 copy(input, out);
             }
         }
@@ -95,6 +101,7 @@ public final class BootAssets {
             long totalBlocks = littleInt(header, 16);
             int totalChunks = (int) littleInt(header, 20);
             if (fileHeaderSize < 28 || chunkHeaderSize < 12 || blockSize == 0) throw new IOException("Invalid sparse image header.");
+            skipFully(input, fileHeaderSize - 28L);
             output.setLength(totalBlocks * blockSize);
             long outputPosition = 0;
             byte[] buffer = new byte[1024 * 1024];
@@ -104,6 +111,7 @@ public final class BootAssets {
                 long chunkBlocks = littleInt(chunk, 4);
                 long totalSize = littleInt(chunk, 8);
                 long outputBytes = chunkBlocks * blockSize;
+                if (totalSize < chunkHeaderSize) throw new IOException("Sparse chunk has an invalid size.");
                 if (type == 0xCAC1) {
                     long payload = totalSize - chunkHeaderSize;
                     if (payload != outputBytes) throw new IOException("Sparse RAW chunk size mismatch.");
@@ -120,9 +128,9 @@ public final class BootAssets {
                         written += count;
                     }
                 } else if (type == 0xCAC3) {
-                    input.skip(totalSize - chunkHeaderSize);
+                    skipFully(input, totalSize - chunkHeaderSize);
                 } else if (type == 0xCAC4) {
-                    input.skip(totalSize - chunkHeaderSize);
+                    skipFully(input, totalSize - chunkHeaderSize);
                 } else {
                     throw new IOException(String.format(Locale.US, "Unknown sparse chunk type 0x%04x", type));
                 }
@@ -143,6 +151,18 @@ public final class BootAssets {
         try (InputStream input = new FileInputStream(source); FileOutputStream output = new FileOutputStream(target)) {
             copy(input, output);
         }
+    }
+
+    private static void copyMaybeGzip(File source, File target) throws IOException {
+        try (InputStream raw = new FileInputStream(source);
+             InputStream input = maybeGzip(raw, source.getName());
+             FileOutputStream output = new FileOutputStream(target)) {
+            copy(input, output);
+        }
+    }
+
+    private static InputStream maybeGzip(InputStream input, String name) throws IOException {
+        return name.toLowerCase(Locale.US).endsWith(".gz") ? new GZIPInputStream(input) : input;
     }
 
     private static void copy(InputStream input, FileOutputStream output) throws IOException {
@@ -173,6 +193,19 @@ public final class BootAssets {
         return bytes;
     }
 
+    private static void skipFully(InputStream input, long bytes) throws IOException {
+        long skipped = 0;
+        while (skipped < bytes) {
+            long value = input.skip(bytes - skipped);
+            if (value > 0) {
+                skipped += value;
+                continue;
+            }
+            if (input.read() == -1) throw new IOException("Unexpected end of sparse image.");
+            skipped++;
+        }
+    }
+
     private static long littleInt(byte[] bytes, int offset) {
         return (bytes[offset] & 0xFFL) | ((bytes[offset + 1] & 0xFFL) << 8)
                 | ((bytes[offset + 2] & 0xFFL) << 16) | ((bytes[offset + 3] & 0xFFL) << 24);
@@ -184,5 +217,11 @@ public final class BootAssets {
 
     private static String safeName(String name) {
         return name.replaceAll("[^A-Za-z0-9._-]", "_");
+    }
+
+    private static String stripGzipSuffix(String name) {
+        return name.toLowerCase(Locale.US).endsWith(".gz")
+                ? name.substring(0, name.length() - 3)
+                : name;
     }
 }

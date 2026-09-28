@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import java.util.zip.GZIPInputStream;
 
 /** Small, dependency-free GSI preflight analyzer. It never mounts or modifies an image. */
 public final class GsiAnalyzer {
@@ -42,7 +43,8 @@ public final class GsiAnalyzer {
                 entries++;
                 if (entry.isDirectory()) continue;
                 String name = entry.getName().replace('\\', '/');
-                if (name.equals("system.img") || name.endsWith("/system.img")) {
+                if (name.equals("system.img") || name.endsWith("/system.img")
+                        || name.equals("system.img.gz") || name.endsWith("/system.img.gz")) {
                     if (system == null || name.equals("system.img")) system = entry;
                 }
             }
@@ -51,8 +53,13 @@ public final class GsiAnalyzer {
                 return new GsiAnalysis(input.getName(), "ZIP", "missing", 0, "unknown", sha256(input), false, warnings, errors);
             }
             ImageScan scan;
-            try (InputStream stream = zip.getInputStream(system)) {
+            String systemName = system.getName();
+            try (InputStream raw = zip.getInputStream(system);
+                 InputStream stream = maybeGzip(raw, systemName)) {
                 scan = scan(stream);
+            }
+            if (systemName.toLowerCase(Locale.US).endsWith(".gz")) {
+                warnings.add("system.img.gz was decompressed before header analysis.");
             }
             if (scan.format.equals("unknown")) {
                 warnings.add("system.img is not identified as Android sparse or raw ext4 from its header.");
@@ -68,8 +75,12 @@ public final class GsiAnalyzer {
         List<String> warnings = new ArrayList<>();
         List<String> errors = new ArrayList<>();
         ImageScan scan;
-        try (InputStream stream = new FileInputStream(input)) {
+        try (InputStream raw = new FileInputStream(input);
+             InputStream stream = maybeGzip(raw, input.getName())) {
             scan = scan(stream);
+        }
+        if (input.getName().toLowerCase(Locale.US).endsWith(".gz")) {
+            warnings.add("gzip input was decompressed before header analysis.");
         }
         if (scan.format.equals("unknown")) {
             warnings.add("Image header is not recognized as Android sparse or raw ext4.");
@@ -114,6 +125,10 @@ public final class GsiAnalyzer {
         try (InputStream stream = new FileInputStream(input)) {
             return stream.read() == 'P' && stream.read() == 'K';
         }
+    }
+
+    private static InputStream maybeGzip(InputStream input, String name) throws IOException {
+        return name.toLowerCase(Locale.US).endsWith(".gz") ? new GZIPInputStream(input) : input;
     }
 
     private static long littleEndianInt(byte[] bytes, int offset) {
