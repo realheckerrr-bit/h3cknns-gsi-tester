@@ -6,7 +6,22 @@ h3cknn's GSI tester is a from-scratch Android test harness for importing and pre
 
 This first milestone intentionally does not claim that a normal APK can boot every GSI. A GSI is the generic system partition, not a complete device. A bootable guest also needs a compatible kernel, generic ramdisk, vendor/ODM interface, device model, and a VM engine. Android's Virtualization Framework is privileged and its reference AVF app flow is built around Microdroid; it is not a drop-in “boot arbitrary GSI” API for ordinary Play/sideloaded apps.
 
-The app therefore refuses to fake a boot. The **VM backend** button probes ARM64, AVF availability, and the privileged VM permission, then states exactly what is missing. The code leaves a clean backend seam for the next milestone: a privileged AVF/crosvm integration or a bundled QEMU engine paired with a complete Android guest bundle.
+The app therefore refuses to fake a boot. The **VM backend** button probes ARM64, AVF availability, the privileged VM permission, and the presence of a bundled QEMU engine. The app now also accepts a guest-bundle ZIP and produces an inspectable QEMU launch plan when the bundle has a kernel, `ramdisk.img`, and `vendor.img`.
+
+### Guest bundle format
+
+The second input is a ZIP containing the device-independent boot assets needed alongside the GSI:
+
+```text
+guest.zip
+├── kernel                 # or kernel-ranchu / kernel-ranchu-64
+├── ramdisk.img
+├── vendor.img
+├── userdata.img           # optional, created or supplied per test run
+└── libqemu-system-aarch64.so  # optional for future bundled-engine builds
+```
+
+The analyzer only inspects names and hashes; it does not execute or mount imported files.
 
 ## Build
 
