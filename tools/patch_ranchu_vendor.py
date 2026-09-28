@@ -38,7 +38,7 @@ def main():
         changed = 0
         with open(path, "r+b") as file, mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_WRITE) as image:
             line_starts = set()
-            for needle in (b"logical", b"/metadata"):
+            for needle in (b"logical", b"/metadata", b"super"):
                 cursor = 0
                 while True:
                     match = image.find(needle, cursor)
@@ -52,6 +52,9 @@ def main():
                 if end < 0:
                     end = len(image)
                 original = image[start:end]
+                if len(original) < 512 and all(byte in (9, 10, 13) or 32 <= byte < 127 for byte in original):
+                    if b"super" in original.lower() or b"metadata" in original.lower():
+                        print(f"{path}: candidate {original.rstrip()!r}")
                 updated = transform(original)
                 if updated != original:
                     if len(updated) != len(original):
