@@ -17,7 +17,7 @@ def unpack_image(data):
     if data[:6] == b"\xfd7zXZ\x00":
         return lzma.decompress(data), "xz"
     if data[:4] == b"\x02\x21\x4c\x18":
-        return subprocess.run(["lz4", "-d", "-c", "-"], input=data, check=True, capture_output=True).stdout, "lz4"
+        return subprocess.run(["lz4", "-d", "-l", "-c", "-"], input=data, check=True, capture_output=True).stdout, "lz4"
     return data, "raw"
 
 
@@ -27,7 +27,7 @@ def pack_image(data, compression):
     if compression == "xz":
         return lzma.compress(data, format=lzma.FORMAT_XZ)
     if compression == "lz4":
-        return subprocess.run(["lz4", "-z", "-c", "-"], input=data, check=True, capture_output=True).stdout
+        return subprocess.run(["lz4", "-z", "-l", "-c", "-"], input=data, check=True, capture_output=True).stdout
     return data
 
 
