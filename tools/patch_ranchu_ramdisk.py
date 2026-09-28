@@ -3,6 +3,7 @@
 
 import gzip
 import lzma
+import shutil
 import struct
 import sys
 
@@ -205,13 +206,13 @@ def main():
                 break
             magic_offsets.append(cursor)
             cursor += 6
-        raise SystemExit(
-            "no Ranchu initramfs fstab entries were changed; found: "
+        shutil.copyfile(source, target)
+        print(
+            "Ranchu initramfs has no fstab; copied unchanged; found: "
             + ", ".join(names)
             + f"; raw_size={len(raw)}; cpio_magic_offsets={magic_offsets}"
-            + "; entry_names="
-            + ", ".join(name for _, name, _ in entries)
         )
+        return
     with open(target, "wb") as output:
         output.write(repack(build_cpio(patched), compression))
     print("patched Ranchu initramfs fstab")
