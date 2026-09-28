@@ -53,6 +53,9 @@ jobs:
           if [[ -n "$userdata_entry" ]]; then
             unzip -p guest/emulator.zip "$userdata_entry" > guest/userdata.img
             test -s guest/userdata.img
+          else
+            truncate -s 2G guest/userdata.img
+            mkfs.ext4 -F -L userdata guest/userdata.img >/dev/null
           fi
           test -s guest/userdata.img
 
