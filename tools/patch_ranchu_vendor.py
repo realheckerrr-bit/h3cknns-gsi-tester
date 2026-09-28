@@ -2,6 +2,7 @@
 """Patch Ranchu vendor fstab for separate direct system/vendor test disks."""
 
 import re
+import mmap
 import sys
 
 
@@ -33,25 +34,32 @@ def transform(line):
 
 
 def main():
-    path = sys.argv[1]
-    data = bytearray(open(path, "rb").read())
-    changed = 0
-    start = 0
-    for end in range(len(data) + 1):
-        if end != len(data) and data[end] != 10:
-            continue
-        original = bytes(data[start:end])
-        updated = transform(original)
-        if updated != original:
-            data[start:end] = updated
-            changed += 1
-        start = end + 1
-    if changed == 0:
-        print("no Ranchu fstab entries needed patching")
-        return
-    with open(path, "wb") as output:
-        output.write(data)
-    print(f"patched {changed} Ranchu vendor fstab lines")
+    for path in sys.argv[1:]:
+        changed = 0
+        with open(path, "r+b") as file, mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_WRITE) as image:
+            line_starts = set()
+            for needle in (b"logical", b"/metadata"):
+                cursor = 0
+                while True:
+                    match = image.find(needle, cursor)
+                    if match < 0:
+                        break
+                    start = image.rfind(b"\n", 0, match) + 1
+                    line_starts.add(start)
+                    cursor = match + len(needle)
+            for start in sorted(line_starts):
+                end = image.find(b"\n", start)
+                if end < 0:
+                    end = len(image)
+                original = image[start:end]
+                updated = transform(original)
+                if updated != original:
+                    if len(updated) != len(original):
+                        raise ValueError("patched fstab line changed ext4 file size")
+                    image[start:end] = updated
+                    changed += 1
+            image.flush()
+        print(f"{path}: patched {changed} Ranchu vendor fstab lines")
 
 
 if __name__ == "__main__":
