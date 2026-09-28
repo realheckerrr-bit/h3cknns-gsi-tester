@@ -83,7 +83,7 @@ def parse_cpio(data):
         header = data[offset:offset + 110]
         if header[:6] not in (b"070701", b"070702"):
             raise ValueError(f"ramdisk is not newc at offset {offset}: {header[:32].hex()}")
-        fields = [int(header[i:i + 8], 16) for i in range(14, 110, 8)]
+        fields = [int(header[i:i + 8], 16) for i in range(6, 110, 8)]
         size = fields[6]
         namesize = fields[11]
         name_start = offset + 110
@@ -107,13 +107,13 @@ def build_cpio(entries):
     for original_header, name, content in entries:
         header = bytearray(original_header)
         name_bytes = name.encode("utf-8") + b"\0"
-        fields = [int(header[i:i + 8], 16) for i in range(14, 110, 8)]
+        fields = [int(header[i:i + 8], 16) for i in range(6, 110, 8)]
         fields[6] = len(content)
         fields[11] = len(name_bytes)
         fields[12] = 0
         header[:6] = b"070701"
         for index, value in enumerate(fields):
-            start = 14 + index * 8
+            start = 6 + index * 8
             header[start:start + 8] = f"{value:08x}".encode("ascii")
         output.extend(header)
         output.extend(name_bytes)
@@ -122,7 +122,7 @@ def build_cpio(entries):
         output.extend(b"\0" * (align4(len(output)) - len(output)))
     trailer_name = b"TRAILER!!!\0"
     trailer = bytearray(b"070701" + b"00000000" * 13)
-    trailer[14 + 11 * 8:14 + 12 * 8] = f"{len(trailer_name):08x}".encode("ascii")
+    trailer[6 + 11 * 8:6 + 12 * 8] = f"{len(trailer_name):08x}".encode("ascii")
     output.extend(trailer)
     output.extend(trailer_name)
     output.extend(b"\0" * (align4(len(output)) - len(output)))
