@@ -21,6 +21,8 @@ def transform(line):
         return b"#" + line[1:] if line[:1] != b"#" else line
     if "first_stage_mount" not in trimmed or "logical" not in trimmed:
         return line
+    if mountpoint in ("/system", "/vendor") and len(columns) > 2 and columns[2] == "erofs":
+        return b"#" + line[1:] if line[:1] != b"#" else line
     if mountpoint == "/system":
         columns[0] = "/dev/block/vdb"
     elif mountpoint == "/vendor":
