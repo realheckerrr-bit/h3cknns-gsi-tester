@@ -22,9 +22,9 @@ def transform(line):
     if "first_stage_mount" not in trimmed or "logical" not in trimmed:
         return line
     if mountpoint == "/system":
-        columns[0] = "/dev/block/vda"
+        columns[0] = "/dev/block/vdb"
     elif mountpoint == "/vendor":
-        columns[0] = "/dev/block/vdb1"
+        columns[0] = "/dev/block/vda1"
     else:
         return b"#" + line[1:] if line[:1] != b"#" else line
     for index, column in enumerate(columns):

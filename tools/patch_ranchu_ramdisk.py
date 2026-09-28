@@ -290,8 +290,8 @@ def main():
         patched.append((header, name, content))
     if not changed:
         content = (
-            b"/dev/block/vda /system ext4 ro wait,first_stage_mount\n"
-            b"/dev/block/vdb1 /vendor ext4 ro wait,first_stage_mount\n"
+            b"/dev/block/vdb /system ext4 ro wait,first_stage_mount\n"
+            b"/dev/block/vda1 /vendor ext4 ro wait,first_stage_mount\n"
         )
         # The official Ranchu ramdisk may contain several concatenated CPIO
         # archives, so flatten all of the decoded frames into one archive.
