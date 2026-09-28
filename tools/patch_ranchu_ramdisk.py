@@ -3,7 +3,6 @@
 
 import gzip
 import lzma
-import shutil
 import struct
 import sys
 
@@ -150,6 +149,16 @@ def build_cpio(entries):
     return bytes(output)
 
 
+def make_header(name, content):
+    name_bytes = name.encode("utf-8") + b"\0"
+    fields = [0, 0o100644, 0, 0, 1, 0, len(content), 0, 0, 0, 0, len(name_bytes), 0]
+    header = bytearray(b"070701" + b"00000000" * 13)
+    for index, value in enumerate(fields):
+        start = 6 + index * 8
+        header[start:start + 8] = f"{value:08x}".encode("ascii")
+    return bytes(header)
+
+
 def patch_fstab(content):
     text = content.decode("utf-8", "replace")
     result = []
@@ -197,22 +206,13 @@ def main():
             changed |= entry_changed
         patched.append((header, name, content))
     if not changed:
-        names = [name for _, name, _ in entries if "fstab" in name.lower()]
-        magic_offsets = []
-        cursor = 0
-        while len(magic_offsets) < 32:
-            cursor = raw.find(b"070701", cursor)
-            if cursor < 0:
-                break
-            magic_offsets.append(cursor)
-            cursor += 6
-        shutil.copyfile(source, target)
-        print(
-            "Ranchu initramfs has no fstab; copied unchanged; found: "
-            + ", ".join(names)
-            + f"; raw_size={len(raw)}; cpio_magic_offsets={magic_offsets}"
+        content = (
+            b"/dev/block/vda /system ext4 ro wait,first_stage_mount\n"
+            b"/dev/block/vdb1 /vendor ext4 ro wait,first_stage_mount\n"
         )
-        return
+        patched.append((make_header("fstab.ranchu", content), "fstab.ranchu", content))
+        changed = True
+        print("injected direct-disk Ranchu initramfs fstab")
     with open(target, "wb") as output:
         output.write(repack(build_cpio(patched), compression))
     print("patched Ranchu initramfs fstab")
