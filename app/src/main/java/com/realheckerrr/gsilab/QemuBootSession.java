@@ -85,7 +85,7 @@ public final class QemuBootSession {
                 + (readOnly ? ",readonly=on" : ""));
         args.add("-device");
         args.add((nonTransitional ? "virtio-blk-pci-non-transitional" : "virtio-blk-pci")
-                + ",scsi=off,drive=" + id);
+                + ",romfile=,scsi=off,drive=" + id);
     }
 
     public String readConsole() {

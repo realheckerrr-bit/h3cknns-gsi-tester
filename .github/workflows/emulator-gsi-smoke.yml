@@ -82,9 +82,9 @@ jobs:
             -kernel guest/kernel-ranchu -initrd guest/ramdisk.img \
             -append 'console=ttyAMA0,115200 androidboot.console=ttyAMA1 androidboot.hardware=ranchu androidboot.verifiedbootstate=orange' \
             -drive if=none,format=raw,id=system,file=$PWD/guest/system.img,readonly=on \
-            -device virtio-blk-pci,scsi=off,drive=system \
+            -device virtio-blk-pci,romfile=,scsi=off,drive=system \
             -drive if=none,format=raw,id=vendor,file=$PWD/guest/vendor.img,readonly=on \
-            -device virtio-blk-pci,scsi=off,drive=vendor \
+            -device virtio-blk-pci,romfile=,scsi=off,drive=vendor \
             -display none -monitor none -serial file:$PWD/serial.log -no-reboot \
             > qemu.stdout 2> qemu.stderr &
           qemu_pid=$!
