@@ -86,6 +86,7 @@ jobs:
             fi
           done
           echo '--- vendor filesystem root ---'
+          fdisk -l guest/vendor.img 2>&1 | head -80 || true
           debugfs -R 'ls -p /' guest/vendor.img 2>&1 | head -80 || true
           echo '--- vendor etc listing ---'
           debugfs -R 'ls -p /etc' guest/vendor.img 2>&1 | head -120 || true
