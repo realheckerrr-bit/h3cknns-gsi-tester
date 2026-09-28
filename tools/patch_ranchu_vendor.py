@@ -58,6 +58,7 @@ def main():
                         raise ValueError("patched fstab line changed ext4 file size")
                     image[start:end] = updated
                     changed += 1
+                    print(f"{path}: {original.rstrip()!r} -> {updated.rstrip()!r}")
             image.flush()
         print(f"{path}: patched {changed} Ranchu vendor fstab lines")
 
