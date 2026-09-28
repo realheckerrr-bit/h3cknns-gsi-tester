@@ -189,6 +189,8 @@ def main():
             "no Ranchu initramfs fstab entries were changed; found: "
             + ", ".join(names)
             + f"; raw_size={len(raw)}; cpio_magic_offsets={magic_offsets}"
+            + "; entry_names="
+            + ", ".join(name for _, name, _ in entries)
         )
     with open(target, "wb") as output:
         output.write(repack(build_cpio(patched), compression))
