@@ -24,7 +24,7 @@ def transform(line):
     if mountpoint == "/system":
         columns[0] = "/dev/block/vda"
     elif mountpoint == "/vendor":
-        columns[0] = "/dev/block/vdb"
+        columns[0] = "/dev/block/vdb1"
     else:
         return b"#" + line[1:] if line[:1] != b"#" else line
     for index, column in enumerate(columns):
