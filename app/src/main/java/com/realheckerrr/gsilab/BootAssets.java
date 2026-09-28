@@ -39,10 +39,12 @@ public final class BootAssets {
         }
         File system = materializeImage(systemSource, new File(output, "system.img"));
 
-        File kernel = copyBundleEntry(guestBundle, output, "kernel", "kernel-ranchu", "kernel-ranchu-64");
-        File ramdisk = copyBundleEntry(guestBundle, output, "ramdisk.img");
-        File vendor = copyBundleEntry(guestBundle, output, "vendor.img", "vendor_a.img");
-        File userdata = copyBundleEntry(guestBundle, output, "userdata.img", "userdata-qemu.img");
+        File kernel = copyBundleEntry(guestBundle, output, "kernel", "kernel.gz", "kernel-ranchu", "kernel-ranchu.gz",
+                "kernel-ranchu-64", "kernel-ranchu-64.gz");
+        File ramdisk = copyBundleEntry(guestBundle, output, "ramdisk.img", "ramdisk.img.gz");
+        File vendor = copyBundleEntry(guestBundle, output, "vendor.img", "vendor.img.gz", "vendor_a.img", "vendor_a.img.gz");
+        File userdata = copyBundleEntry(guestBundle, output, "userdata.img", "userdata.img.gz",
+                "userdata-qemu.img", "userdata-qemu.img.gz");
         if (kernel == null || ramdisk == null || vendor == null) {
             throw new IOException("Guest bundle is missing kernel, ramdisk.img, or vendor.img.");
         }
