@@ -52,9 +52,22 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p cf-image
+          viewer_url="https://ci.android.com/builds/submitted/${BUILD_ID}/${TARGET}/latest/aosp_cf_arm64_only_phone-img-${BUILD_ID}.zip"
+          curl --fail --location --retry 3 --retry-delay 3 -o cf-image/viewer.html "$viewer_url"
+          artifact_url=$(python3 - cf-image/viewer.html <<'PY'
+          import json
+          import re
+          import sys
+
+          html = open(sys.argv[1], encoding="utf-8").read()
+          match = re.search(r'"artifactUrl":"([^"]+)"', html)
+          if not match:
+              raise SystemExit("ci.android.com did not expose a signed artifact URL")
+          print(json.loads('"' + match.group(1) + '"'))
+          PY
+          )
           curl --fail --location --retry 3 --retry-delay 3 \
-            -o cf-image/cuttlefish.zip \
-            "https://ci.android.com/builds/submitted/${BUILD_ID}/${TARGET}/latest/aosp_cf_arm64_only_phone-img-${BUILD_ID}.zip"
+            -o cf-image/cuttlefish.zip "$artifact_url"
           unzip -q cf-image/cuttlefish.zip -d cf-image/root
 
       - name: Download and verify official ARM64 GSI
