@@ -14,43 +14,62 @@ def align4(value):
 
 def decode_lz4(data):
     output = bytearray()
-    offset = 4
+    offset = 0
+    magic = b"\x02\x21\x4c\x18"
     while offset + 4 <= len(data):
+        # Android boot images may concatenate legacy LZ4 frames for the
+        # platform ramdisk and the module ramdisk.  Skip zero padding between
+        # frames and continue instead of silently dropping later modules.
+        if data[offset:offset + 4] != magic:
+            next_magic = data.find(magic, offset)
+            if next_magic < 0:
+                break
+            offset = next_magic
+        offset += 4
         block_size = struct.unpack_from("<I", data, offset)[0]
         offset += 4
-        if block_size == 0:
-            break
-        block = data[offset:offset + block_size]
-        offset += block_size
-        position = 0
-        while position < len(block):
-            token = block[position]
-            position += 1
-            literal_length = token >> 4
-            if literal_length == 15:
-                while block[position] == 255:
-                    literal_length += 255
-                    position += 1
-                literal_length += block[position]
+        while block_size != 0:
+            block = data[offset:offset + block_size]
+            if len(block) != block_size:
+                raise ValueError("truncated legacy LZ4 block")
+            offset += block_size
+            position = 0
+            while position < len(block):
+                token = block[position]
                 position += 1
-            output.extend(block[position:position + literal_length])
-            position += literal_length
-            if position == len(block):
+                literal_length = token >> 4
+                if literal_length == 15:
+                    while position < len(block) and block[position] == 255:
+                        literal_length += 255
+                        position += 1
+                    if position >= len(block):
+                        raise ValueError("truncated legacy LZ4 literal length")
+                    literal_length += block[position]
+                    position += 1
+                output.extend(block[position:position + literal_length])
+                position += literal_length
+                if position == len(block):
+                    break
+                match_offset = block[position] | (block[position + 1] << 8)
+                position += 2
+                match_length = token & 15
+                if match_length == 15:
+                    while position < len(block) and block[position] == 255:
+                        match_length += 255
+                        position += 1
+                    if position >= len(block):
+                        raise ValueError("truncated legacy LZ4 match length")
+                    match_length += block[position]
+                    position += 1
+                if match_offset == 0 or match_offset > len(output):
+                    raise ValueError("invalid legacy LZ4 match offset")
+                start = len(output) - match_offset
+                for index in range(match_length + 4):
+                    output.append(output[start + index])
+            if offset + 4 > len(data):
                 break
-            match_offset = block[position] | (block[position + 1] << 8)
-            position += 2
-            match_length = token & 15
-            if match_length == 15:
-                while block[position] == 255:
-                    match_length += 255
-                    position += 1
-                match_length += block[position]
-                position += 1
-            if match_offset == 0 or match_offset > len(output):
-                raise ValueError("invalid legacy LZ4 match offset")
-            start = len(output) - match_offset
-            for index in range(match_length + 4):
-                output.append(output[start + index])
+            block_size = struct.unpack_from("<I", data, offset)[0]
+            offset += 4
     return bytes(output)
 
 
@@ -252,23 +271,12 @@ def main():
             b"/dev/block/vda /system ext4 ro wait,first_stage_mount\n"
             b"/dev/block/vdb1 /vendor ext4 ro wait,first_stage_mount\n"
         )
-        # Rebuild only the first archive and preserve every later archive byte
-        # for byte.  The official Ranchu ramdisk carries kernel modules in a
-        # later concatenated CPIO archive; flattening it can drop entries that
-        # init expects to load.
-        first_archive = parse_archive(raw, 0)
-        if first_archive is None:
-            raise ValueError("could not locate the first Ranchu initramfs archive")
-        first_entries, first_end = first_archive
-        print(
-            "first archive entries:", len(first_entries),
-            "end:", first_end,
-            "raw:", len(raw),
-            "suffix magic:", raw[first_end:first_end + 6].hex(),
-            "module entries:", [name for _, name, _ in first_entries if "/modules/" in name],
-        )
-        first_entries.append((make_header("fstab.ranchu", content), "fstab.ranchu", content))
-        patched_raw = build_cpio(first_entries) + raw[first_end:]
+        # The official Ranchu ramdisk may contain several concatenated CPIO
+        # archives, so flatten all of the decoded frames into one archive.
+        # This keeps every kernel module alongside the injected fstab.
+        patched_entries = parse_cpio(raw)
+        patched_entries.append((make_header("fstab.ranchu", content), "fstab.ranchu", content))
+        patched_raw = build_cpio(patched_entries)
         with open(target, "wb") as output:
             output.write(repack(patched_raw, compression))
         print("inserted direct-disk Ranchu initramfs fstab")
