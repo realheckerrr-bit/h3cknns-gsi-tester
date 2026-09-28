@@ -55,8 +55,11 @@ def decode_lz4(data):
 
 def encode_lz4(data):
     output = bytearray(b"\x02\x21\x4c\x18")
-    for offset in range(0, len(data), 65536):
-        chunk = data[offset:offset + 65536]
+    # The Android/Linux legacy stream format uses one fixed 8 MiB block
+    # (except for the final block).  Smaller blocks can be decoded by the
+    # desktop tools but are not accepted reliably by the kernel unpacker.
+    for offset in range(0, len(data), 8 * 1024 * 1024):
+        chunk = data[offset:offset + 8 * 1024 * 1024]
         literal_length = len(chunk)
         token = min(literal_length, 15) << 4
         block = bytearray([token])
