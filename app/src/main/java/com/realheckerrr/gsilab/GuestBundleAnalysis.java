@@ -12,6 +12,8 @@ public final class GuestBundleAnalysis {
     public final String ramdisk;
     public final String vendor;
     public final String userdata;
+    public final String cache;
+    public final String encryptionKey;
     public final String qemu;
     public final String sha256;
     public final boolean bootCandidate;
@@ -25,6 +27,8 @@ public final class GuestBundleAnalysis {
             String ramdisk,
             String vendor,
             String userdata,
+            String cache,
+            String encryptionKey,
             String qemu,
             String sha256,
             boolean bootCandidate,
@@ -36,6 +40,8 @@ public final class GuestBundleAnalysis {
         this.ramdisk = ramdisk;
         this.vendor = vendor;
         this.userdata = userdata;
+        this.cache = cache;
+        this.encryptionKey = encryptionKey;
         this.qemu = qemu;
         this.sha256 = sha256;
         this.bootCandidate = bootCandidate;
@@ -52,6 +58,8 @@ public final class GuestBundleAnalysis {
         out.append("  ramdisk: ").append(value(ramdisk)).append('\n');
         out.append("  vendor: ").append(value(vendor)).append('\n');
         out.append("  userdata: ").append(value(userdata)).append('\n');
+        out.append("  cache: ").append(value(cache)).append('\n');
+        out.append("  encryption key: ").append(value(encryptionKey)).append('\n');
         out.append("  bundled QEMU: ").append(value(qemu)).append('\n');
         out.append("  SHA-256: ").append(sha256).append('\n');
         out.append("  boot assets: ").append(bootCandidate ? "present" : "incomplete").append('\n');

@@ -22,6 +22,8 @@ public final class GuestBundleAnalyzer {
         String ramdisk = null;
         String vendor = null;
         String userdata = null;
+        String cache = null;
+        String encryptionKey = null;
         String qemu = null;
         String superImage = null;
         String bootImage = null;
@@ -48,6 +50,8 @@ public final class GuestBundleAnalyzer {
                         || base.equals("vendor_a.img") || base.equals("vendor_a.img.gz") || base.equals("vendor_a.img.xz"))) vendor = name;
                 if (userdata == null && (base.equals("userdata.img") || base.equals("userdata.img.gz") || base.equals("userdata.img.xz")
                         || base.equals("userdata-qemu.img") || base.equals("userdata-qemu.img.gz") || base.equals("userdata-qemu.img.xz"))) userdata = name;
+                if (cache == null && (base.equals("cache.img") || base.equals("cache.img.gz") || base.equals("cache.img.xz"))) cache = name;
+                if (encryptionKey == null && (base.equals("encryptionkey.img") || base.equals("encryptionkey.img.gz") || base.equals("encryptionkey.img.xz"))) encryptionKey = name;
                 if (qemu == null && (base.equals("qemu-system-aarch64") || base.equals("libqemu-system-aarch64.so"))) qemu = name;
                 if (superImage == null && (base.equals("super.img") || base.equals("super.img.gz") || base.equals("super.img.xz"))) superImage = name;
                 if (bootImage == null && (base.equals("boot.img") || base.equals("boot.img.gz") || base.equals("boot.img.xz"))) bootImage = name;
@@ -74,7 +78,7 @@ public final class GuestBundleAnalyzer {
         if (vendor == null) errors.add("The bundle has no vendor.img or super.img; a GSI cannot provide the hardware interface.");
         if (qemu == null) warnings.add("The bundle has no engine override; normal APK builds provide the QEMU runtime separately.");
         boolean candidate = errors.isEmpty();
-        return new GuestBundleAnalysis(input.getName(), entries, kernel, ramdisk, vendor, userdata, qemu,
+        return new GuestBundleAnalysis(input.getName(), entries, kernel, ramdisk, vendor, userdata, cache, encryptionKey, qemu,
                 GsiAnalyzer.sha256(input), candidate, warnings, errors);
     }
 }

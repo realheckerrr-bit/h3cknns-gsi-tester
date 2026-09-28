@@ -53,16 +53,16 @@ public final class QemuBootSession {
                 ? "console=ttyAMA0,115200 androidboot.console=ttyAMA1 androidboot.hardware=ranchu "
                 + "androidboot.verifiedbootstate=orange"
                 : "console=ttyAMA0,115200 androidboot.hardware=generic");
-        addDrive(args, "system", assets.system, true);
+        addDrive(args, "system", assets.system, true, assets.cuttlefish);
         if (assets.ranchu) {
-            if (assets.cache != null) addDrive(args, "cache", assets.cache, false);
-            if (assets.userdata != null) addDrive(args, "userdata", assets.userdata, false);
-            addDrive(args, "vendor", assets.vendor, true);
-            if (assets.encryptionKey != null) addDrive(args, "encryptionkey", assets.encryptionKey, true);
+            if (assets.cache != null) addDrive(args, "cache", assets.cache, false, false);
+            if (assets.userdata != null) addDrive(args, "userdata", assets.userdata, false, false);
+            addDrive(args, "vendor", assets.vendor, true, false);
+            if (assets.encryptionKey != null) addDrive(args, "encryptionkey", assets.encryptionKey, true, false);
         } else {
-            if (assets.userdata != null) addDrive(args, "userdata", assets.userdata, false);
-            if (assets.cache != null) addDrive(args, "cache", assets.cache, false);
-            addDrive(args, "vendor", assets.vendor, true);
+            if (assets.userdata != null) addDrive(args, "userdata", assets.userdata, false, assets.cuttlefish);
+            if (assets.cache != null) addDrive(args, "cache", assets.cache, false, assets.cuttlefish);
+            addDrive(args, "vendor", assets.vendor, true, assets.cuttlefish);
         }
         if (assets.cuttlefish) {
             args.add("-device"); args.add("virtio-gpu-pci,id=gpu0");
@@ -78,12 +78,14 @@ public final class QemuBootSession {
         return new QemuBootSession(work, log, handle);
     }
 
-    private static void addDrive(List<String> args, String id, File image, boolean readOnly) {
+    private static void addDrive(List<String> args, String id, File image, boolean readOnly,
+                                 boolean nonTransitional) {
         args.add("-drive");
         args.add("if=none,format=raw,id=" + id + ",file=" + image.getAbsolutePath()
                 + (readOnly ? ",readonly=on" : ""));
         args.add("-device");
-        args.add("virtio-blk-pci,scsi=off,drive=" + id);
+        args.add((nonTransitional ? "virtio-blk-pci-non-transitional" : "virtio-blk-pci")
+                + ",scsi=off,drive=" + id);
     }
 
     public String readConsole() {

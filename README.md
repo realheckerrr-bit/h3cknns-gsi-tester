@@ -31,7 +31,13 @@ not treated as a universal Cuttlefish replacement.
 
 For the recommended QEMU `virt` profile, use an ARM64 Cuttlefish image archive from [AOSP Continuous Integration](https://ci.android.com/builds/branches/aosp-android-latest-release/grid?legacy=1), target `aosp_cf_arm64_only_phone-userdebug`: `aosp_cf_arm64_only_phone-img-<build>.zip`. It contains the Cuttlefish kernel/ramdisk, `super.img`, and userdata; the app extracts the logical `vendor_a` partition from `super.img` and uses the selected GSI as the system image. Choose the matching 4K or 16K Cuttlefish artifacts for the page size of the GSI. AOSP's [Cuttlefish setup guide](https://source.android.com/docs/devices/cuttlefish/get-started) describes the same ARM64 target.
 
+That Cuttlefish image ZIP is the intended ready-made base guest: select it directly in **BASE GUEST BUNDLE**; it does not need to be repacked. The app extracts `boot.img` (kernel and ramdisk), `vendor_a` from `super.img`, and `userdata.img` into private storage. The archive and GSI should come from compatible Android generations and page-size variants.
+
+For a concrete test pair, the official Android Developers GSI page currently publishes an ARM64 AOSP GSI for Android 17 QPR2 (`CP41.260831.007`): [download the GSI ZIP](https://dl.google.com/developers/android/cinnamonbun/images/gsi/aosp_arm64-exp-CP41.260831.007-16416850-5e61c946.zip) and verify SHA-256 `5e61c946ee45680365336968827bf62509d90f66ed78938f88e4deedda40a7fe`. Use the Cuttlefish artifact from the same Android generation when available.
+
 Official ARM64 Android Emulator SDK archives (`kernel-ranchu`, `ramdisk.img`, `vendor.img.gz`) are recognized as guest inputs, but they target Google's `ranchu` machine rather than this app's `virt` profile. A Pixel factory image is even more hardware-specific; its vendor and ramdisk are not a generic QEMU base and are intentionally not treated as a universal fallback.
+
+If a Cuttlefish artifact is not available, the official SDK Manager package `system-images;android-35;google_apis;arm64-v8a` is another source for a test guest. Its direct package URL is [`arm64-v8a-35_r08.zip`](https://dl.google.com/android/repository/sys-img/google_apis/arm64-v8a-35_r08.zip); it contains the expected emulator files, including `kernel-ranchu`, `ramdisk.img`, `vendor.img.gz`, `userdata.img`, and `encryptionkey.img`. Import that ZIP as-is for inspection or experimentation, but prefer Cuttlefish for a real bundled-`virt` boot attempt.
 
 Gzip assets are expanded into private app storage and imported files are never mounted or modified.
 

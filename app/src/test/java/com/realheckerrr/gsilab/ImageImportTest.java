@@ -96,6 +96,8 @@ public final class ImageImportTest {
         assertEquals("cache.img", assets.cache.getName());
         assertEquals("encryptionkey.img", assets.encryptionKey.getName());
         assertEquals("libqemu-system-aarch64.so", assets.qemu.getName());
+        assertEquals("cache.img", report.cache);
+        assertEquals("encryptionkey.img", report.encryptionKey);
     }
 
     @Test
