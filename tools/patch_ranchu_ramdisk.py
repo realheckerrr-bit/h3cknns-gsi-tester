@@ -13,6 +13,21 @@ def align4(value):
 
 
 def decode_lz4(data):
+    # The reference tool understands the exact concatenated legacy-frame
+    # stream emitted by Android's boot-image tooling.
+    try:
+        result = subprocess.run(
+            ["lz4", "-d", "-q", "-c", "-"],
+            input=data,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        if result.stdout:
+            return result.stdout
+    except (OSError, subprocess.CalledProcessError):
+        pass
+
     output = bytearray()
     offset = 0
     magic = b"\x02\x21\x4c\x18"
