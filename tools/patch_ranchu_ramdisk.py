@@ -177,9 +177,18 @@ def main():
         patched.append((header, name, content))
     if not changed:
         names = [name for _, name, _ in entries if "fstab" in name.lower()]
+        magic_offsets = []
+        cursor = 0
+        while len(magic_offsets) < 32:
+            cursor = raw.find(b"070701", cursor)
+            if cursor < 0:
+                break
+            magic_offsets.append(cursor)
+            cursor += 6
         raise SystemExit(
             "no Ranchu initramfs fstab entries were changed; found: "
             + ", ".join(names)
+            + f"; raw_size={len(raw)}; cpio_magic_offsets={magic_offsets}"
         )
     with open(target, "wb") as output:
         output.write(repack(build_cpio(patched), compression))
