@@ -98,8 +98,10 @@ jobs:
           [[ -n "$boot_img" && -n "$super_img" && -n "$userdata_img" ]]
 
           mkdir -p boot vendor
-          direct_kernel=$(find "$image_dir" -type f \( -name kernel -o -name kernel-ranchu -o -name kernel_16k \) -print -quit)
-          direct_ramdisk=$(find "$image_dir" -type f \( -name ramdisk.img -o -name ramdisk \) -print -quit)
+          echo 'Cuttlefish boot-related files:'
+          find "$image_dir" -type f | grep -Ei '/(kernel|ramdisk|boot|init_boot|vendor_boot)' | head -80 || true
+          direct_kernel=$(find "$image_dir" -type f \( -name kernel -o -name kernel-ranchu -o -name kernel_16k -o -name 'kernel-*' \) ! -name '*cmdline*' -print -quit)
+          direct_ramdisk=$(find "$image_dir" -type f \( -name ramdisk.img -o -name ramdisk -o -name 'ramdisk-*' \) -print -quit)
           if [[ -n "$direct_kernel" && -n "$direct_ramdisk" ]]; then
             cp "$direct_kernel" boot/kernel
             cp "$direct_ramdisk" boot/ramdisk
