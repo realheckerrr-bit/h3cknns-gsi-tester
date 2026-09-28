@@ -85,6 +85,10 @@ jobs:
               sed -n '1,120p' "guest/$fstab"
             fi
           done
+          echo '--- vendor filesystem root ---'
+          debugfs -R 'ls -p /' guest/vendor.img 2>&1 | head -80 || true
+          echo '--- vendor etc listing ---'
+          debugfs -R 'ls -p /etc' guest/vendor.img 2>&1 | head -120 || true
 
       - name: Run the app-equivalent Ranchu headless QEMU boot
         shell: bash
