@@ -21,7 +21,7 @@ guest.zip
 └── libqemu-system-aarch64.so  # optional engine override
 ```
 
-For the recommended QEMU `virt` profile, use an ARM64 Cuttlefish image archive from the AOSP Continuous Integration site: `aosp_cf_arm64_only_phone-img-<build>.zip`. It contains the Cuttlefish kernel/ramdisk, `super.img`, and userdata; the app extracts the logical `vendor_a` partition from `super.img` and uses the selected GSI as the system image. Choose the matching 4K or 16K Cuttlefish artifacts for the page size of the GSI.
+For the recommended QEMU `virt` profile, use an ARM64 Cuttlefish image archive from [AOSP Continuous Integration](https://ci.android.com/builds/branches/aosp-android-latest-release/grid?legacy=1), target `aosp_cf_arm64_only_phone-userdebug`: `aosp_cf_arm64_only_phone-img-<build>.zip`. It contains the Cuttlefish kernel/ramdisk, `super.img`, and userdata; the app extracts the logical `vendor_a` partition from `super.img` and uses the selected GSI as the system image. Choose the matching 4K or 16K Cuttlefish artifacts for the page size of the GSI. AOSP's [Cuttlefish setup guide](https://source.android.com/docs/devices/cuttlefish/get-started) describes the same ARM64 target.
 
 Official ARM64 Android Emulator SDK archives (`kernel-ranchu`, `ramdisk.img`, `vendor.img.gz`) are recognized as guest inputs, but they target Google's `ranchu` machine rather than this app's `virt` profile. A Pixel factory image is even more hardware-specific; its vendor and ramdisk are not a generic QEMU base and are intentionally not treated as a universal fallback.
 
