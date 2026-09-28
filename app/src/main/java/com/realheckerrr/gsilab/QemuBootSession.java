@@ -59,9 +59,9 @@ public final class QemuBootSession {
                 : "console=ttyAMA0,115200 androidboot.hardware=generic");
         addDrive(args, "system", assets.system, true, assets.cuttlefish, rom);
         if (assets.ranchu) {
+            addDrive(args, "vendor", assets.vendor, true, false, rom);
             if (assets.cache != null) addDrive(args, "cache", assets.cache, false, false, rom);
             if (assets.userdata != null) addDrive(args, "userdata", assets.userdata, false, false, rom);
-            addDrive(args, "vendor", assets.vendor, true, false, rom);
             if (assets.encryptionKey != null) addDrive(args, "encryptionkey", assets.encryptionKey, true, false, rom);
         } else {
             if (assets.userdata != null) addDrive(args, "userdata", assets.userdata, false, assets.cuttlefish, rom);

@@ -72,6 +72,9 @@ jobs:
           fi
           test -s guest/system.img
 
+      - name: Adapt Ranchu ramdisk for direct GSI system and vendor disks
+        run: python3 tools/patch_ranchu_ramdisk.py guest/ramdisk.img guest/ramdisk.patched.img
+
       - name: Run the app-equivalent Ranchu headless QEMU boot
         shell: bash
         run: |
@@ -81,7 +84,7 @@ jobs:
           qemu-system-aarch64 \
             -M virt,gic-version=3 \
             -cpu max -m 2048 -smp 4 -rtc base=utc \
-            -kernel guest/kernel-ranchu -initrd guest/ramdisk.img \
+            -kernel guest/kernel-ranchu -initrd guest/ramdisk.patched.img \
             -append 'console=ttyAMA0,115200 androidboot.console=ttyAMA1 androidboot.hardware=ranchu androidboot.verifiedbootstate=orange' \
             -drive if=none,format=raw,id=system,file=$PWD/guest/system.img,readonly=on \
             -device virtio-blk-pci,romfile=$rom_path,scsi=off,drive=system \

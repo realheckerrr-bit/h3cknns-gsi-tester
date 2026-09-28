@@ -92,6 +92,9 @@ public final class BootAssets {
         if (kernel == null || ramdisk == null || vendor == null) {
             throw new IOException("Guest bundle is missing kernel, ramdisk.img, or vendor.img.");
         }
+        if (ranchu) {
+            ramdisk = RanchuRamdiskPatcher.patch(ramdisk, new File(output, "ramdisk.ranchu.direct.img"));
+        }
         if (vendor != null && isSparse(vendor)) vendor = materializeImage(vendor, new File(output, "vendor.raw.img"));
         return new BootAssets(system, kernel, ramdisk, vendor, userdata, cache, encryptionKey, qemu, rom, cuttlefish, ranchu);
     }
