@@ -210,9 +210,11 @@ def main():
             b"/dev/block/vda /system ext4 ro wait,first_stage_mount\n"
             b"/dev/block/vdb1 /vendor ext4 ro wait,first_stage_mount\n"
         )
-        patched.append((make_header("fstab.ranchu", content), "fstab.ranchu", content))
-        changed = True
-        print("injected direct-disk Ranchu initramfs fstab")
+        appended = build_cpio([(make_header("fstab.ranchu", content), "fstab.ranchu", content)])
+        with open(target, "wb") as output:
+            output.write(repack(raw + appended, compression))
+        print("appended direct-disk Ranchu initramfs fstab")
+        return
     with open(target, "wb") as output:
         output.write(repack(build_cpio(patched), compression))
     print("patched Ranchu initramfs fstab")
