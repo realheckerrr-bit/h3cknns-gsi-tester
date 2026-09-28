@@ -207,8 +207,8 @@ def main():
         patched.append((header, name, content))
     if not changed:
         content = (
-            b"/dev/block/vda /system ext4 ro wait,first_stage_mount\n"
-            b"/dev/block/vdb1 /vendor ext4 ro wait,first_stage_mount\n"
+            b"/dev/block/by-name/system /system ext4 ro wait,first_stage_mount\n"
+            b"/dev/block/by-name/vendor /vendor ext4 ro wait,first_stage_mount\n"
         )
         patched.append((make_header("fstab.ranchu", content), "fstab.ranchu", content))
         changed = True
