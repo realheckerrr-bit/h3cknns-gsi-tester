@@ -61,7 +61,12 @@ public final class ImageImportTest {
         File gsi = tempFile("gsi.img.gz");
         writeGzip(gsi, ext4);
         File output = Files.createTempDirectory("gsi-vm-").toFile();
-        BootAssets assets = BootAssets.prepare(gsi, guest, output);
+        BootAssets assets;
+        try {
+            assets = BootAssets.prepare(gsi, guest, output);
+        } catch (IOException error) {
+            throw new AssertionError("BootAssets failed: " + error.getMessage(), error);
+        }
 
         assertTrue(report.bootCandidate);
         assertEquals("vendor.img.gz", report.vendor);
