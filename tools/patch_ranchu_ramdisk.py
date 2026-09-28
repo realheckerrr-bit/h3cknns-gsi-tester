@@ -3,7 +3,7 @@
 
 import gzip
 import lzma
-import subprocess
+import struct
 import sys
 
 
@@ -17,7 +17,7 @@ def unpack_image(data):
     if data[:6] == b"\xfd7zXZ\x00":
         return lzma.decompress(data), "xz"
     if data[:4] == b"\x02\x21\x4c\x18":
-        return subprocess.run(["lz4", "-d", "-l", "-c", "-"], input=data, check=True, capture_output=True).stdout, "lz4"
+        return decode_legacy_lz4(data), "lz4"
     return data, "raw"
 
 
@@ -27,8 +27,53 @@ def pack_image(data, compression):
     if compression == "xz":
         return lzma.compress(data, format=lzma.FORMAT_XZ)
     if compression == "lz4":
-        return subprocess.run(["lz4", "-z", "-l", "-c", "-"], input=data, check=True, capture_output=True).stdout
+        return gzip.compress(data, compresslevel=9, mtime=0)
     return data
+
+
+def decode_legacy_lz4(data):
+    output = bytearray()
+    offset = 4
+    while offset + 4 <= len(data):
+        block_size = struct.unpack_from("<I", data, offset)[0]
+        offset += 4
+        if block_size == 0:
+            break
+        block = data[offset:offset + block_size]
+        offset += block_size
+        position = 0
+        while position < len(block):
+            token = block[position]
+            position += 1
+            literal_length = token >> 4
+            if literal_length == 15:
+                while position < len(block) and block[position] == 255:
+                    literal_length += 255
+                    position += 1
+                literal_length += block[position]
+                position += 1
+            output.extend(block[position:position + literal_length])
+            position += literal_length
+            if position == len(block):
+                break
+            if position + 2 > len(block):
+                raise ValueError("truncated legacy LZ4 match")
+            match_offset = block[position] | (block[position + 1] << 8)
+            position += 2
+            match_length = token & 15
+            if match_length == 15:
+                while position < len(block) and block[position] == 255:
+                    match_length += 255
+                    position += 1
+                match_length += block[position]
+                position += 1
+            match_length += 4
+            if match_offset == 0 or match_offset > len(output):
+                raise ValueError("invalid legacy LZ4 match offset")
+            start = len(output) - match_offset
+            for index in range(match_length):
+                output.append(output[start + index])
+    return bytes(output)
 
 
 def parse_cpio(data):

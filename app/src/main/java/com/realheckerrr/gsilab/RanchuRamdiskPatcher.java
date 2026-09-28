@@ -1,7 +1,5 @@
 package com.realheckerrr.gsilab;
 
-import net.jpountz.lz4.LZ4FrameInputStream;
-import net.jpountz.lz4.LZ4FrameOutputStream;
 import org.tukaani.xz.XZInputStream;
 import org.tukaani.xz.XZOutputStream;
 import org.tukaani.xz.LZMA2Options;
@@ -14,6 +12,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Arrays;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -165,17 +164,18 @@ public final class RanchuRamdiskPatcher {
         InputStream input = new ByteArrayInputStream(data);
         if (compression == Compression.GZIP) input = new GZIPInputStream(input);
         else if (compression == Compression.XZ) input = new XZInputStream(input);
-        else input = new LZ4FrameInputStream(input);
+        else return decompressLegacyLz4(data);
         return readAll(input);
     }
 
     private static byte[] compress(byte[] data, Compression compression) throws IOException {
         if (compression == Compression.RAW) return data;
+        if (compression == Compression.LZ4) compression = Compression.GZIP;
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         OutputStream output;
         if (compression == Compression.GZIP) output = new GZIPOutputStream(bytes);
         else if (compression == Compression.XZ) output = new XZOutputStream(bytes, new LZMA2Options());
-        else output = new LZ4FrameOutputStream(bytes);
+        else output = new GZIPOutputStream(bytes);
         output.write(data);
         output.close();
         return bytes.toByteArray();
@@ -183,6 +183,71 @@ public final class RanchuRamdiskPatcher {
 
     private static byte[] readFile(File file) throws IOException {
         try (FileInputStream input = new FileInputStream(file)) { return readAll(input); }
+    }
+
+    private static byte[] decompressLegacyLz4(byte[] data) throws IOException {
+        byte[] output = new byte[Math.max(1024 * 1024, data.length * 2)];
+        int outputLength = 0;
+        int offset = 4;
+        while (offset + 4 <= data.length) {
+            int blockSize = littleInt(data, offset);
+            offset += 4;
+            if (blockSize == 0) break;
+            if (blockSize < 0 || offset + blockSize > data.length) throw new IOException("Truncated legacy LZ4 block.");
+            int position = offset;
+            int end = offset + blockSize;
+            offset = end;
+            while (position < end) {
+                int token = data[position++] & 0xff;
+                int literalLength = token >>> 4;
+                if (literalLength == 15) {
+                    int value;
+                    do {
+                        if (position >= end) throw new IOException("Truncated legacy LZ4 literal.");
+                        value = data[position++] & 0xff;
+                        literalLength += value;
+                    } while (value == 255);
+                }
+                output = ensureCapacity(output, outputLength + literalLength);
+                if (position + literalLength > end) throw new IOException("Truncated legacy LZ4 literal data.");
+                System.arraycopy(data, position, output, outputLength, literalLength);
+                position += literalLength;
+                outputLength += literalLength;
+                if (position == end) break;
+                if (position + 2 > end) throw new IOException("Truncated legacy LZ4 match.");
+                int matchOffset = (data[position] & 0xff) | ((data[position + 1] & 0xff) << 8);
+                position += 2;
+                int matchLength = token & 15;
+                if (matchLength == 15) {
+                    int value;
+                    do {
+                        if (position >= end) throw new IOException("Truncated legacy LZ4 match length.");
+                        value = data[position++] & 0xff;
+                        matchLength += value;
+                    } while (value == 255);
+                }
+                matchLength += 4;
+                if (matchOffset == 0 || matchOffset > outputLength) throw new IOException("Invalid legacy LZ4 match offset.");
+                output = ensureCapacity(output, outputLength + matchLength);
+                for (int i = 0; i < matchLength; i++) {
+                    output[outputLength] = output[outputLength - matchOffset];
+                    outputLength++;
+                }
+            }
+        }
+        return Arrays.copyOf(output, outputLength);
+    }
+
+    private static byte[] ensureCapacity(byte[] data, int required) {
+        if (required <= data.length) return data;
+        int size = data.length;
+        while (size < required) size *= 2;
+        return Arrays.copyOf(data, size);
+    }
+
+    private static int littleInt(byte[] bytes, int offset) {
+        return (bytes[offset] & 0xff) | ((bytes[offset + 1] & 0xff) << 8)
+                | ((bytes[offset + 2] & 0xff) << 16) | ((bytes[offset + 3] & 0xff) << 24);
     }
 
     private static byte[] readAll(InputStream input) throws IOException {
