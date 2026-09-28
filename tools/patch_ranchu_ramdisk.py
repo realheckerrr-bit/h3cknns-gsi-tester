@@ -269,7 +269,7 @@ def patch_fstab(content):
         if mountpoint == "/system":
             columns[0] = "/dev/block/vdb"
         elif mountpoint == "/vendor":
-            columns[0] = "/dev/block/vda1"
+            columns[0] = "/dev/block/vda"
         else:
             changed = True
             continue
@@ -295,7 +295,7 @@ def main():
     if not changed:
         content = (
             b"/dev/block/vdb /system ext4 ro wait,first_stage_mount\n"
-            b"/dev/block/vda1 /vendor ext4 ro wait,first_stage_mount\n"
+            b"/dev/block/vda /vendor ext4 ro wait,first_stage_mount\n"
         )
         # The official Ranchu ramdisk may contain several concatenated CPIO
         # archives, so flatten all of the decoded frames into one archive.
