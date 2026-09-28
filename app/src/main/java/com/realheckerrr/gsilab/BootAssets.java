@@ -47,6 +47,22 @@ public final class BootAssets {
                 "kernel-ranchu-64", "kernel-ranchu-64.gz", "kernel_16k", "kernel_16k.gz");
         File ramdisk = copyBundleEntry(guestBundle, output, "ramdisk.img", "ramdisk.img.gz", "ramdisk_16k.img",
                 "ramdisk_16k.img.gz");
+        File bootImage = copyBundleEntry(guestBundle, output, "boot.img");
+        File initBootImage = copyBundleEntry(guestBundle, output, "init_boot.img", "init_boot.img.gz");
+        File vendorBootImage = copyBundleEntry(guestBundle, output, "vendor_boot.img", "vendor_boot.img.gz");
+        if (kernel == null && bootImage != null) {
+            kernel = AndroidBootImage.extractKernel(bootImage, new File(output, "kernel.from-boot.img"));
+        }
+        if (ramdisk == null && bootImage != null) {
+            ramdisk = AndroidBootImage.extractRamdisk(bootImage, new File(output, "ramdisk.from-boot.img"));
+        }
+        if (ramdisk == null && initBootImage != null) {
+            ramdisk = AndroidBootImage.extractRamdisk(initBootImage, new File(output, "ramdisk.from-init_boot.img"));
+        }
+        if (ramdisk == null && vendorBootImage != null) {
+            ramdisk = AndroidBootImage.extractVendorRamdisk(vendorBootImage,
+                    new File(output, "ramdisk.from-vendor_boot.img"));
+        }
         File vendor = copyBundleEntry(guestBundle, output, "vendor.img", "vendor.img.gz", "vendor_a.img", "vendor_a.img.gz");
         File userdata = copyBundleEntry(guestBundle, output, "userdata.img", "userdata.img.gz",
                 "userdata-qemu.img", "userdata-qemu.img.gz");

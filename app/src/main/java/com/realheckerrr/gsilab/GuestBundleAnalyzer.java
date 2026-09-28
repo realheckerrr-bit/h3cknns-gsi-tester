@@ -24,6 +24,9 @@ public final class GuestBundleAnalyzer {
         String userdata = null;
         String qemu = null;
         String superImage = null;
+        String bootImage = null;
+        String initBootImage = null;
+        String vendorBootImage = null;
         int entries = 0;
         List<String> warnings = new ArrayList<>();
         List<String> errors = new ArrayList<>();
@@ -47,7 +50,20 @@ public final class GuestBundleAnalyzer {
                         || base.equals("userdata-qemu.img") || base.equals("userdata-qemu.img.gz"))) userdata = name;
                 if (qemu == null && (base.equals("qemu-system-aarch64") || base.equals("libqemu-system-aarch64.so"))) qemu = name;
                 if (superImage == null && (base.equals("super.img") || base.equals("super.img.gz"))) superImage = name;
+                if (bootImage == null && (base.equals("boot.img") || base.equals("boot.img.gz"))) bootImage = name;
+                if (initBootImage == null && (base.equals("init_boot.img") || base.equals("init_boot.img.gz"))) initBootImage = name;
+                if (vendorBootImage == null && (base.equals("vendor_boot.img") || base.equals("vendor_boot.img.gz"))) vendorBootImage = name;
             }
+        }
+        if (kernel == null && bootImage != null) {
+            kernel = bootImage + " (embedded kernel)";
+            warnings.add("kernel will be extracted from boot.img during boot preparation.");
+        }
+        if (ramdisk == null && (bootImage != null || initBootImage != null || vendorBootImage != null)) {
+            String source = vendorBootImage != null ? vendorBootImage
+                    : (initBootImage != null ? initBootImage : bootImage);
+            ramdisk = source + " (embedded ramdisk)";
+            warnings.add("ramdisk will be extracted from the Android boot image during boot preparation.");
         }
         if (kernel == null) errors.add("The bundle has no ARM64 kernel file (kernel or kernel-ranchu).");
         if (ramdisk == null) errors.add("The bundle has no ramdisk.img.");

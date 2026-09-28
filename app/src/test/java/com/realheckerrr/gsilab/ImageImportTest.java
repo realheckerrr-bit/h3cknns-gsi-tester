@@ -102,6 +102,29 @@ public final class ImageImportTest {
         assertArrayEquals(vendor, Files.readAllBytes(assets.vendor.toPath()));
     }
 
+    @Test
+    public void extractsPixelStyleBootAndVendorBootImages() throws Exception {
+        byte[] kernel = new byte[]{9, 8, 7};
+        byte[] ramdisk = new byte[]{6, 5, 4, 3};
+        File guest = tempFile("pixel-guest.zip");
+        try (ZipOutputStream zip = new ZipOutputStream(new FileOutputStream(guest))) {
+            put(zip, "boot.img", bootV3(kernel));
+            put(zip, "vendor_boot.img", vendorBootV3(ramdisk));
+            put(zip, "vendor.img", ext4Image(4096));
+        }
+        File gsi = tempFile("pixel-gsi.img");
+        Files.write(gsi.toPath(), ext4Image(4096));
+        File output = Files.createTempDirectory("pixel-boot-vm-").toFile();
+
+        GuestBundleAnalysis report = GuestBundleAnalyzer.analyze(guest);
+        BootAssets assets = BootAssets.prepare(gsi, guest, output);
+
+        assertTrue(report.bootCandidate);
+        assertTrue(report.kernel.contains("embedded kernel"));
+        assertArrayEquals(kernel, Files.readAllBytes(assets.kernel.toPath()));
+        assertArrayEquals(ramdisk, Files.readAllBytes(assets.ramdisk.toPath()));
+    }
+
     private static byte[] ext4Image(int size) {
         byte[] image = new byte[size];
         image[1080] = 0x53;
@@ -117,6 +140,40 @@ public final class ImageImportTest {
         zip.putNextEntry(new ZipEntry(name));
         zip.write(bytes);
         zip.closeEntry();
+    }
+
+    private static byte[] bootV3(byte[] kernel) {
+        int page = 4096;
+        byte[] image = new byte[page + kernel.length];
+        writeAscii(image, 0, "ANDROID!");
+        writeInt(image, 8, kernel.length);
+        writeInt(image, 12, 0);
+        writeInt(image, 40, 3);
+        System.arraycopy(kernel, 0, image, page, kernel.length);
+        return image;
+    }
+
+    private static byte[] vendorBootV3(byte[] ramdisk) {
+        int page = 4096;
+        byte[] image = new byte[page + ramdisk.length];
+        writeAscii(image, 0, "VNDRBOOT");
+        writeInt(image, 8, 3);
+        writeInt(image, 12, page);
+        writeInt(image, 24, ramdisk.length);
+        System.arraycopy(ramdisk, 0, image, page, ramdisk.length);
+        return image;
+    }
+
+    private static void writeAscii(byte[] output, int offset, String value) {
+        byte[] bytes = value.getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+        System.arraycopy(bytes, 0, output, offset, bytes.length);
+    }
+
+    private static void writeInt(byte[] output, int offset, int value) {
+        output[offset] = (byte) value;
+        output[offset + 1] = (byte) (value >>> 8);
+        output[offset + 2] = (byte) (value >>> 16);
+        output[offset + 3] = (byte) (value >>> 24);
     }
 
     private static void writeGzip(File target, byte[] bytes) throws IOException {
