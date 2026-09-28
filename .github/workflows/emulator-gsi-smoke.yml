@@ -76,7 +76,7 @@ jobs:
         run: |
           python3 tools/patch_ranchu_vendor.py guest/vendor.img
           for fstab in fstab.ranchu fstab.ranchu.initrd fstab.emulator fstab.goldfish; do
-            if debugfs -R "dump -p etc/$fstab guest/$fstab" guest/vendor.img >/dev/null 2>&1; then
+            if debugfs -R "cat etc/$fstab" guest/vendor.img > "guest/$fstab" 2>/dev/null; then
               echo "--- etc/$fstab ---"
               sed -n '1,120p' "guest/$fstab"
             fi
