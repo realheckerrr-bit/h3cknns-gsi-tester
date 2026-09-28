@@ -1,0 +1,107 @@
+name: Android Emulator GSI boot smoke test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  boot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install ARM QEMU and archive tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends qemu-system-arm unzip xz-utils
+
+      - name: Download official ARM64 Emulator guest pack
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p guest
+          curl --fail --location --retry 3 --retry-delay 3 \
+            -o guest/emulator.zip \
+            https://dl.google.com/android/repository/sys-img/google_apis/arm64-v8a-35_r08.zip
+          for asset in kernel-ranchu ramdisk.img userdata.img encryptionkey.img; do
+            unzip -p guest/emulator.zip "*/$asset" > "guest/$asset"
+            test -s "guest/$asset"
+          done
+          unzip -p guest/emulator.zip '*/vendor.img.gz' | gzip -dc > guest/vendor.img
+          test -s guest/vendor.img
+
+      - name: Download and verify official Android 15 ARM64 AOSP GSI
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 --retry-delay 3 \
+            -o guest/gsi.zip \
+            https://dl.google.com/developers/android/vic/images/gsi/aosp_arm64-exp-AP4A.241205.013-12621605-14e72a7c.zip
+          echo '14e72a7c1b6b6600ba4f7b6057c79e531bbb9aa763e9e998ab5e1a8709e5075b  guest/gsi.zip' | sha256sum --check --status
+          system_entry=$(unzip -Z1 guest/gsi.zip | grep -E '(^|/)system\.img(\.gz)?$' | head -1)
+          [[ -n "$system_entry" ]]
+          if [[ "$system_entry" == *.gz ]]; then
+            unzip -p guest/gsi.zip "$system_entry" | gzip -dc > guest/system.img
+          else
+            unzip -p guest/gsi.zip "$system_entry" > guest/system.img
+          fi
+          test -s guest/system.img
+
+      - name: Run the app-equivalent Ranchu headless QEMU boot
+        shell: bash
+        run: |
+          set -uo pipefail
+          qemu-system-aarch64 \
+            -M virt,gic-version=3 \
+            -cpu max -m 2048 -smp 4 -rtc base=utc \
+            -kernel guest/kernel-ranchu -initrd guest/ramdisk.img \
+            -append 'console=ttyAMA0,115200 androidboot.console=ttyAMA1 androidboot.hardware=ranchu androidboot.verifiedbootstate=orange' \
+            -drive if=none,format=raw,id=system,file=$PWD/guest/system.img,readonly=on \
+            -device virtio-blk-pci,scsi=off,drive=system \
+            -drive if=none,format=raw,id=userdata,file=$PWD/guest/userdata.img \
+            -device virtio-blk-pci,scsi=off,drive=userdata \
+            -drive if=none,format=raw,id=vendor,file=$PWD/guest/vendor.img,readonly=on \
+            -device virtio-blk-pci,scsi=off,drive=vendor \
+            -drive if=none,format=raw,id=encryptionkey,file=$PWD/guest/encryptionkey.img,readonly=on \
+            -device virtio-blk-pci,scsi=off,drive=encryptionkey \
+            -display none -monitor none -serial file:$PWD/serial.log -no-reboot \
+            > qemu.stdout 2> qemu.stderr &
+          qemu_pid=$!
+          booted=0
+          for _ in $(seq 1 240); do
+            if grep -Eiq "starting service 'zygote'|sys.boot_completed=1|AndroidRuntime" serial.log 2>/dev/null; then
+              booted=1
+              break
+            fi
+            if ! kill -0 "$qemu_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          if kill -0 "$qemu_pid" 2>/dev/null; then
+            kill "$qemu_pid" 2>/dev/null || true
+            wait "$qemu_pid" 2>/dev/null || true
+          else
+            wait "$qemu_pid" 2>/dev/null || true
+          fi
+          cat serial.log 2>/dev/null || true
+          cat qemu.stderr 2>/dev/null || true
+          if [[ "$booted" != 1 ]]; then
+            echo 'No Android boot marker was observed in the serial log.' >&2
+            exit 1
+          fi
+
+      - name: Upload boot logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-emulator-gsi-boot-logs
+          path: |
+            serial.log
+            qemu.stdout
+            qemu.stderr
+          if-no-files-found: ignore
