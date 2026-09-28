@@ -169,6 +169,7 @@ def patch_fstab(content):
 def main():
     source, target = sys.argv[1:3]
     raw, compression = unpack_image(open(source, "rb").read())
+    print(f"decoded ramdisk: compression={compression} size={len(raw)} prefix={raw[:32].hex()}")
     entries = parse_cpio(raw)
     changed = False
     patched = []
