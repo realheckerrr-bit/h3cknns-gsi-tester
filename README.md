@@ -21,7 +21,11 @@ guest.zip
 └── libqemu-system-aarch64.so  # optional engine override
 ```
 
-The app also accepts an official ARM64 Android Emulator SDK system-image archive directly. Those archives commonly contain `kernel-ranchu`, `ramdisk.img`, `vendor.img.gz`, `userdata.img`, and `system.img.gz`; the selected GSI replaces the archive's system image for the test run. Gzip assets are expanded into private app storage and imported files are never mounted or modified.
+For the recommended QEMU `virt` profile, use an ARM64 Cuttlefish image archive from the AOSP Continuous Integration site: `aosp_cf_arm64_only_phone-img-<build>.zip`. It contains the Cuttlefish kernel/ramdisk, `super.img`, and userdata; the app extracts the logical `vendor_a` partition from `super.img` and uses the selected GSI as the system image. Choose the matching 4K or 16K Cuttlefish artifacts for the page size of the GSI.
+
+Official ARM64 Android Emulator SDK archives (`kernel-ranchu`, `ramdisk.img`, `vendor.img.gz`) are recognized as guest inputs, but they target Google's `ranchu` machine rather than this app's `virt` profile. A Pixel factory image is even more hardware-specific; its vendor and ramdisk are not a generic QEMU base and are intentionally not treated as a universal fallback.
+
+Gzip assets are expanded into private app storage and imported files are never mounted or modified.
 
 The analyzer only inspects names, headers, and hashes. The VM backend is the only component that executes a boot attempt.
 

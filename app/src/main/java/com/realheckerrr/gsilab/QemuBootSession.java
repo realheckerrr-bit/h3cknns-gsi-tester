@@ -31,13 +31,17 @@ public final class QemuBootSession {
         File log = new File(work, "console.log");
         if (log.exists() && !log.delete()) throw new IOException("Cannot reset console log.");
         List<String> args = new ArrayList<>();
-        args.add("-M"); args.add("virt,gic-version=3");
-        args.add("-cpu"); args.add("max");
+        args.add("-M"); args.add(assets.cuttlefish ? "virt,gic-version=2" : "virt,gic-version=3");
+        args.add("-cpu"); args.add(assets.cuttlefish ? "cortex-a53" : "max");
         args.add("-m"); args.add("2048");
         args.add("-smp"); args.add("4");
         args.add("-kernel"); args.add(assets.kernel.getAbsolutePath());
         args.add("-initrd"); args.add(assets.ramdisk.getAbsolutePath());
-        args.add("-append"); args.add("console=ttyAMA0,115200 androidboot.hardware=generic");
+        args.add("-append");
+        args.add(assets.cuttlefish
+                ? "console=ttyS0,115200 androidboot.console=ttyS1 androidboot.hardware=vsoc "
+                + "androidboot.slot_suffix=_a androidboot.verifiedbootstate=orange"
+                : "console=ttyAMA0,115200 androidboot.hardware=generic");
         addDrive(args, "system", assets.system, true);
         addDrive(args, "vendor", assets.vendor, true);
         if (assets.userdata != null) addDrive(args, "userdata", assets.userdata, false);

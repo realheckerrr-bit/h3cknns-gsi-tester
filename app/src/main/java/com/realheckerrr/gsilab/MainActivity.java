@@ -117,7 +117,7 @@ public final class MainActivity extends Activity {
 
         page.addView(sectionTitle("4  VM BACKEND"));
         TextView backendNote = text(
-                "The guest ZIP must contain a compatible ARM64 kernel, ramdisk.img, and vendor.img. The app also needs a bundled QEMU system engine. This button produces a transparent launch plan and refuses to fake a boot when those pieces are unavailable.",
+                "Use a matching ARM64 Cuttlefish guest archive when possible: its kernel/ramdisk and super.img provide a QEMU virt profile, and the app extracts vendor_a automatically. Pixel factory and ranchu emulator images are hardware-specific and may not boot on virt. This button produces a transparent launch plan and refuses to fake a boot when required pieces are unavailable.",
                 14, Color.rgb(174, 187, 197));
         backendNote.setPadding(0, 8, 0, 12);
         page.addView(backendNote);

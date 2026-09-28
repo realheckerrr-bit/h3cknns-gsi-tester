@@ -21,14 +21,16 @@ public final class BootAssets {
     public final File vendor;
     public final File userdata;
     public final File qemu;
+    public final boolean cuttlefish;
 
-    private BootAssets(File system, File kernel, File ramdisk, File vendor, File userdata, File qemu) {
+    private BootAssets(File system, File kernel, File ramdisk, File vendor, File userdata, File qemu, boolean cuttlefish) {
         this.system = system;
         this.kernel = kernel;
         this.ramdisk = ramdisk;
         this.vendor = vendor;
         this.userdata = userdata;
         this.qemu = qemu;
+        this.cuttlefish = cuttlefish;
     }
 
     public static BootAssets prepare(File gsi, File guestBundle, File output) throws IOException {
@@ -42,17 +44,24 @@ public final class BootAssets {
         File system = materializeImage(systemSource, new File(output, "system.img"));
 
         File kernel = copyBundleEntry(guestBundle, output, "kernel", "kernel.gz", "kernel-ranchu", "kernel-ranchu.gz",
-                "kernel-ranchu-64", "kernel-ranchu-64.gz");
-        File ramdisk = copyBundleEntry(guestBundle, output, "ramdisk.img", "ramdisk.img.gz");
+                "kernel-ranchu-64", "kernel-ranchu-64.gz", "kernel_16k", "kernel_16k.gz");
+        File ramdisk = copyBundleEntry(guestBundle, output, "ramdisk.img", "ramdisk.img.gz", "ramdisk_16k.img",
+                "ramdisk_16k.img.gz");
         File vendor = copyBundleEntry(guestBundle, output, "vendor.img", "vendor.img.gz", "vendor_a.img", "vendor_a.img.gz");
         File userdata = copyBundleEntry(guestBundle, output, "userdata.img", "userdata.img.gz",
                 "userdata-qemu.img", "userdata-qemu.img.gz");
         File qemu = copyBundleEntry(guestBundle, output, "libqemu-system-aarch64.so", "qemu-system-aarch64");
+        File superImage = copyBundleEntry(guestBundle, output, "super.img", "super.img.gz");
+        boolean cuttlefish = superImage != null || (kernel != null && kernel.getName().startsWith("kernel_16k"));
+        if (vendor == null && superImage != null) {
+            File rawSuper = materializeImage(superImage, new File(output, "super.raw.img"));
+            vendor = LogicalPartitionExtractor.extract(rawSuper, "vendor", new File(output, "vendor.from-super.img"));
+        }
         if (kernel == null || ramdisk == null || vendor == null) {
             throw new IOException("Guest bundle is missing kernel, ramdisk.img, or vendor.img.");
         }
         if (vendor != null && isSparse(vendor)) vendor = materializeImage(vendor, new File(output, "vendor.raw.img"));
-        return new BootAssets(system, kernel, ramdisk, vendor, userdata, qemu);
+        return new BootAssets(system, kernel, ramdisk, vendor, userdata, qemu, cuttlefish);
     }
 
     private static File copyBundleEntry(File bundle, File output, String... names) throws IOException {

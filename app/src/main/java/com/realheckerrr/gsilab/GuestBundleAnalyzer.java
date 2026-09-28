@@ -23,6 +23,7 @@ public final class GuestBundleAnalyzer {
         String vendor = null;
         String userdata = null;
         String qemu = null;
+        String superImage = null;
         int entries = 0;
         List<String> warnings = new ArrayList<>();
         List<String> errors = new ArrayList<>();
@@ -36,18 +37,25 @@ public final class GuestBundleAnalyzer {
                 String base = name.substring(name.lastIndexOf('/') + 1).toLowerCase(Locale.US);
                 if (kernel == null && (base.equals("kernel") || base.equals("kernel.gz")
                         || base.equals("kernel-ranchu") || base.equals("kernel-ranchu.gz")
-                        || base.equals("kernel-ranchu-64") || base.equals("kernel-ranchu-64.gz"))) kernel = name;
-                if (ramdisk == null && (base.equals("ramdisk.img") || base.equals("ramdisk.img.gz"))) ramdisk = name;
+                        || base.equals("kernel-ranchu-64") || base.equals("kernel-ranchu-64.gz")
+                        || base.equals("kernel_16k") || base.equals("kernel_16k.gz"))) kernel = name;
+                if (ramdisk == null && (base.equals("ramdisk.img") || base.equals("ramdisk.img.gz")
+                        || base.equals("ramdisk_16k.img") || base.equals("ramdisk_16k.img.gz"))) ramdisk = name;
                 if (vendor == null && (base.equals("vendor.img") || base.equals("vendor.img.gz")
                         || base.equals("vendor_a.img") || base.equals("vendor_a.img.gz"))) vendor = name;
                 if (userdata == null && (base.equals("userdata.img") || base.equals("userdata.img.gz")
                         || base.equals("userdata-qemu.img") || base.equals("userdata-qemu.img.gz"))) userdata = name;
                 if (qemu == null && (base.equals("qemu-system-aarch64") || base.equals("libqemu-system-aarch64.so"))) qemu = name;
+                if (superImage == null && (base.equals("super.img") || base.equals("super.img.gz"))) superImage = name;
             }
         }
         if (kernel == null) errors.add("The bundle has no ARM64 kernel file (kernel or kernel-ranchu).");
         if (ramdisk == null) errors.add("The bundle has no ramdisk.img.");
-        if (vendor == null) errors.add("The bundle has no vendor.img; a GSI cannot provide the hardware interface.");
+        if (vendor == null && superImage != null) {
+            vendor = superImage + " (vendor logical partition)";
+            warnings.add("vendor will be extracted from the Cuttlefish super image at boot preparation time.");
+        }
+        if (vendor == null) errors.add("The bundle has no vendor.img or super.img; a GSI cannot provide the hardware interface.");
         if (qemu == null) warnings.add("The bundle has no engine override; normal APK builds provide the QEMU runtime separately.");
         boolean candidate = errors.isEmpty();
         return new GuestBundleAnalysis(input.getName(), entries, kernel, ramdisk, vendor, userdata, qemu,

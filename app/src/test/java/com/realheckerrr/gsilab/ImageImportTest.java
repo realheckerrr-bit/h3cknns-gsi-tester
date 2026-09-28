@@ -8,6 +8,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.file.Files;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
@@ -77,6 +78,30 @@ public final class ImageImportTest {
         assertEquals("libqemu-system-aarch64.so", assets.qemu.getName());
     }
 
+    @Test
+    public void extractsCuttlefishVendorFromSuperImage() throws Exception {
+        byte[] vendor = ext4Image(4096);
+        File superImage = tempFile("super.img");
+        writeSuperImage(superImage, vendor);
+        File guest = tempFile("cuttlefish.zip");
+        try (ZipOutputStream zip = new ZipOutputStream(new FileOutputStream(guest))) {
+            put(zip, "kernel_16k", new byte[]{1, 2, 3});
+            put(zip, "ramdisk_16k.img", new byte[]{4, 5});
+            put(zip, "super.img", Files.readAllBytes(superImage.toPath()));
+        }
+        File gsi = tempFile("gsi.img");
+        Files.write(gsi.toPath(), ext4Image(4096));
+        File output = Files.createTempDirectory("cuttlefish-vm-").toFile();
+
+        GuestBundleAnalysis report = GuestBundleAnalyzer.analyze(guest);
+        BootAssets assets = BootAssets.prepare(gsi, guest, output);
+
+        assertTrue(report.bootCandidate);
+        assertTrue(report.vendor.contains("vendor logical partition"));
+        assertTrue(assets.cuttlefish);
+        assertArrayEquals(vendor, Files.readAllBytes(assets.vendor.toPath()));
+    }
+
     private static byte[] ext4Image(int size) {
         byte[] image = new byte[size];
         image[1080] = 0x53;
@@ -106,5 +131,86 @@ public final class ImageImportTest {
             gzip.write(bytes);
         }
         return output.toByteArray();
+    }
+
+    private static void writeSuperImage(File target, byte[] vendor) throws IOException {
+        long metadataOffset = 8192L;
+        int metadataHeaderSize = 128;
+        int partitionsOffset = 0;
+        int extentsOffset = 52;
+        int blockDevicesOffset = 76;
+        long vendorOffset = 128L * 512L;
+        try (RandomAccessFile output = new RandomAccessFile(target, "rw")) {
+            output.setLength(131072L);
+            output.seek(0);
+            writeInt(output, 0x616C4467L);
+            writeInt(output, 52);
+            output.seek(40);
+            writeInt(output, 4096);
+            writeInt(output, 1);
+            writeInt(output, 4096);
+
+            output.seek(metadataOffset);
+            writeInt(output, 0x414C5030L);
+            writeShort(output, 10);
+            writeShort(output, 0);
+            writeInt(output, metadataHeaderSize);
+            output.seek(metadataOffset + 44);
+            writeInt(output, 52 + 24 + 68);
+            output.seek(metadataOffset + 80);
+            writeInt(output, partitionsOffset);
+            writeInt(output, 1);
+            writeInt(output, 52);
+            writeInt(output, extentsOffset);
+            writeInt(output, 1);
+            writeInt(output, 24);
+            writeInt(output, 76);
+            writeInt(output, 0);
+            writeInt(output, 0);
+            writeInt(output, blockDevicesOffset);
+            writeInt(output, 1);
+            writeInt(output, 68);
+
+            long tableBase = metadataOffset + metadataHeaderSize;
+            output.seek(tableBase);
+            writeAscii(output, "vendor_a", 36);
+            writeInt(output, 0);
+            writeInt(output, 0);
+            writeInt(output, 1);
+            writeInt(output, 0);
+            writeLong(output, 8);
+            writeInt(output, 0);
+            writeLong(output, 128);
+            writeInt(output, 0);
+            output.seek(tableBase + blockDevicesOffset);
+            writeLong(output, 128);
+            writeInt(output, 4096);
+            writeInt(output, 0);
+            writeLong(output, 131072);
+            writeAscii(output, "super", 36);
+            writeInt(output, 0);
+            output.seek(vendorOffset);
+            output.write(vendor);
+        }
+    }
+
+    private static void writeAscii(RandomAccessFile output, String value, int size) throws IOException {
+        byte[] bytes = new byte[size];
+        byte[] source = value.getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+        System.arraycopy(source, 0, bytes, 0, Math.min(source.length, bytes.length));
+        output.write(bytes);
+    }
+
+    private static void writeShort(RandomAccessFile output, int value) throws IOException {
+        output.write(value & 0xFF);
+        output.write((value >>> 8) & 0xFF);
+    }
+
+    private static void writeInt(RandomAccessFile output, long value) throws IOException {
+        for (int shift = 0; shift < 32; shift += 8) output.write((int) (value >>> shift) & 0xFF);
+    }
+
+    private static void writeLong(RandomAccessFile output, long value) throws IOException {
+        for (int shift = 0; shift < 64; shift += 8) output.write((int) (value >>> shift) & 0xFF);
     }
 }
