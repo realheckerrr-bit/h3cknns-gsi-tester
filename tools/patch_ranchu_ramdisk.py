@@ -3,6 +3,7 @@
 
 import gzip
 import lzma
+import subprocess
 import struct
 import sys
 
@@ -90,6 +91,22 @@ def repack(data, compression):
     if compression == "gzip":
         return gzip.compress(data, compresslevel=9, mtime=0)
     if compression == "lz4":
+        # Use the reference legacy-frame encoder when available.  The Linux
+        # kernel accepts the old Android stream format, not a modern LZ4
+        # frame.  Keep the literal encoder as a fallback for environments
+        # without the command-line tool.
+        try:
+            result = subprocess.run(
+                ["lz4", "-l", "-q", "-c", "-"],
+                input=data,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=True,
+            )
+            if result.stdout:
+                return result.stdout
+        except (OSError, subprocess.CalledProcessError):
+            pass
         return encode_lz4(data)
     if compression == "xz":
         return lzma.compress(data, format=lzma.FORMAT_XZ)
