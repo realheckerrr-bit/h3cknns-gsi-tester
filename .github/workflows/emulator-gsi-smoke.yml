@@ -28,19 +28,32 @@ jobs:
             -o guest/emulator.zip \
             https://dl.google.com/android/repository/sys-img/google_apis/arm64-v8a-35_r08.zip
           entries=$(unzip -Z1 guest/emulator.zip)
-          for asset in kernel-ranchu ramdisk.img userdata.img encryptionkey.img; do
+          printf '%s\n' "$entries" | grep -E '(kernel-ranchu|ramdisk\.img|vendor\.img|userdata\.img|encryptionkey\.img)' || true
+          for asset in kernel-ranchu ramdisk.img; do
             entry=$(printf '%s\n' "$entries" | grep -E "(^|/)$asset$" | head -1 || true)
-            if [[ -z "$entry" && "$asset" == userdata.img ]]; then
-              continue
-            fi
             [[ -n "$entry" ]]
             unzip -p guest/emulator.zip "$entry" > "guest/$asset"
             test -s "guest/$asset"
           done
-          vendor_entry=$(printf '%s\n' "$entries" | grep -E '(^|/)vendor\.img\.gz$' | head -1 || true)
-          [[ -n "$vendor_entry" ]]
-          unzip -p guest/emulator.zip "$vendor_entry" | gzip -dc > guest/vendor.img
+          vendor_gz_entry=$(printf '%s\n' "$entries" | grep -E '(^|/)vendor\.img\.gz$' | head -1 || true)
+          vendor_raw_entry=$(printf '%s\n' "$entries" | grep -E '(^|/)vendor\.img$' | head -1 || true)
+          if [[ -n "$vendor_gz_entry" ]]; then
+            unzip -p guest/emulator.zip "$vendor_gz_entry" | gzip -dc > guest/vendor.img
+          else
+            [[ -n "$vendor_raw_entry" ]]
+            unzip -p guest/emulator.zip "$vendor_raw_entry" > guest/vendor.img
+          fi
           test -s guest/vendor.img
+          encryption_entry=$(printf '%s\n' "$entries" | grep -E '(^|/)encryptionkey\.img$' | head -1 || true)
+          if [[ -n "$encryption_entry" ]]; then
+            unzip -p guest/emulator.zip "$encryption_entry" > guest/encryptionkey.img
+            test -s guest/encryptionkey.img
+          fi
+          userdata_entry=$(printf '%s\n' "$entries" | grep -E '(^|/)userdata\.img$' | head -1 || true)
+          if [[ -n "$userdata_entry" ]]; then
+            unzip -p guest/emulator.zip "$userdata_entry" > guest/userdata.img
+            test -s guest/userdata.img
+          fi
 
       - name: Download and verify official Android 15 ARM64 AOSP GSI
         shell: bash
@@ -72,8 +85,6 @@ jobs:
             -device virtio-blk-pci,scsi=off,drive=system \
             -drive if=none,format=raw,id=vendor,file=$PWD/guest/vendor.img,readonly=on \
             -device virtio-blk-pci,scsi=off,drive=vendor \
-            -drive if=none,format=raw,id=encryptionkey,file=$PWD/guest/encryptionkey.img,readonly=on \
-            -device virtio-blk-pci,scsi=off,drive=encryptionkey \
             -display none -monitor none -serial file:$PWD/serial.log -no-reboot \
             > qemu.stdout 2> qemu.stderr &
           qemu_pid=$!
