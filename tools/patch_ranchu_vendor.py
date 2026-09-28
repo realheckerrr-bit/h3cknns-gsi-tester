@@ -19,6 +19,19 @@ def transform(line):
         return b"#" + line[1:] if line[:1] != b"#" else line
     if mountpoint == "/metadata" or device.endswith("/metadata"):
         return b"#" + line[1:] if line[:1] != b"#" else line
+    if mountpoint == "/data":
+        columns[0] = "/dev/block/vdc"
+        if len(columns) > 2 and columns[2] in ("f2fs", "erofs"):
+            columns[2] = "ext4"
+        if len(columns) > 3:
+            allowed = {"noatime", "nosuid", "nodev", "errors=panic", "wait"}
+            columns[3] = ",".join(flag for flag in columns[3].split(",") if flag in allowed)
+            if not columns[3]:
+                columns[3] = "wait"
+        rebuilt = " ".join(columns).encode("utf-8")
+        if len(rebuilt) > len(line):
+            raise ValueError("patched data fstab line is longer than its ext4 slot")
+        return rebuilt + b" " * (len(line) - len(rebuilt))
     if "first_stage_mount" not in trimmed or "logical" not in trimmed:
         return line
     if mountpoint in ("/system", "/vendor") and len(columns) > 2 and columns[2] == "erofs":

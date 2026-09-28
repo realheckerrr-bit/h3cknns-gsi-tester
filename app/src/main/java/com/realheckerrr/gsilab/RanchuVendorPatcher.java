@@ -48,9 +48,26 @@ public final class RanchuVendorPatcher {
         String device = columns[0];
         String mountpoint = columns[1];
         if ("/metadata".equals(mountpoint) || device.endsWith("/metadata")) return comment(line);
+        if ("/data".equals(mountpoint)) {
+            columns[0] = "/dev/block/vdc";
+            if (columns.length > 2 && ("f2fs".equals(columns[2]) || "erofs".equals(columns[2]))) {
+                columns[2] = "ext4";
+            }
+            if (columns.length > 3) {
+                StringBuilder flags = new StringBuilder();
+                for (String flag : columns[3].split(",")) {
+                    if (!("noatime".equals(flag) || "nosuid".equals(flag) || "nodev".equals(flag)
+                            || "errors=panic".equals(flag) || "wait".equals(flag))) continue;
+                    if (flags.length() > 0) flags.append(',');
+                    flags.append(flag);
+                }
+                columns[3] = flags.length() == 0 ? "wait" : flags.toString();
+            }
+            return fit(String.join(" ", columns).getBytes(StandardCharsets.UTF_8), line.length);
+        }
         if (!trimmed.contains("first_stage_mount") || !trimmed.contains("logical")) return line;
-        if ("/system".equals(mountpoint)) columns[0] = "/dev/block/vda";
-        else if ("/vendor".equals(mountpoint)) columns[0] = "/dev/block/vdb";
+        if ("/system".equals(mountpoint)) columns[0] = "/dev/block/vdb";
+        else if ("/vendor".equals(mountpoint)) columns[0] = "/dev/block/vda";
         else return comment(line);
         for (int i = 0; i < columns.length; i++) {
             StringBuilder cleaned = new StringBuilder();
