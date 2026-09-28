@@ -43,7 +43,8 @@ public final class RuntimeProbe {
         out.append("  ARM64 host: ").append(arm64 ? "yes" : "no").append('\n');
         out.append("  AVF feature advertised: ").append(virtualizationFeature ? "yes" : "no").append('\n');
         out.append("  MANAGE_VIRTUAL_MACHINE: ").append(manageVmPermission ? "granted" : "not granted").append('\n');
-        out.append("  embedded VM engine: no\n");
+        out.append("  direct AVF app backend: privileged\n");
+        out.append("  bundled QEMU backend: checked by VM backend\n");
         if (!arm64) {
             out.append("  result: this build targets ARM64 guests, but the host is not ARM64.\n");
         } else if (!virtualizationFeature) {
