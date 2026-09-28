@@ -82,7 +82,7 @@ def parse_cpio(data):
     while offset + 110 <= len(data):
         header = data[offset:offset + 110]
         if header[:6] not in (b"070701", b"070702"):
-            raise ValueError("ramdisk is not a newc cpio archive")
+            raise ValueError(f"ramdisk is not newc at offset {offset}: {header[:32].hex()}")
         fields = [int(header[i:i + 8], 16) for i in range(14, 110, 8)]
         size = fields[6]
         namesize = fields[11]
