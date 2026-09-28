@@ -44,7 +44,7 @@ public final class GuestBundleAnalyzer {
         if (kernel == null) errors.add("The bundle has no ARM64 kernel file (kernel or kernel-ranchu).");
         if (ramdisk == null) errors.add("The bundle has no ramdisk.img.");
         if (vendor == null) errors.add("The bundle has no vendor.img; a GSI cannot provide the hardware interface.");
-        if (qemu == null) warnings.add("The bundle has no QEMU engine; this APK does not download executable engines automatically.");
+        if (qemu == null) warnings.add("The bundle has no engine override; normal APK builds provide the QEMU runtime separately.");
         boolean candidate = errors.isEmpty();
         return new GuestBundleAnalysis(input.getName(), entries, kernel, ramdisk, vendor, userdata, qemu,
                 GsiAnalyzer.sha256(input), candidate, warnings, errors);

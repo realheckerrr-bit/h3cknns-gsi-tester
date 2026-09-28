@@ -5,8 +5,8 @@ import android.content.Context;
 import java.io.File;
 
 /**
- * Produces a transparent, inspectable launch plan for the future QEMU backend.
- * It does not execute a command or claim that a guest boot succeeded.
+ * Produces a transparent, inspectable launch plan for the QEMU backend.
+ * The actual run is started by QemuBootSession and still does not claim boot success.
  */
 public final class QemuBootPlan {
     public final File engine;
@@ -19,7 +19,7 @@ public final class QemuBootPlan {
 
     public static QemuBootPlan inspect(Context context) {
         File engine = new File(context.getApplicationInfo().nativeLibraryDir, "libqemu-system-aarch64.so");
-        return new QemuBootPlan(engine, engine.isFile() && engine.canExecute());
+        return new QemuBootPlan(engine, QemuRunner.enginePresent(context.getApplicationInfo().nativeLibraryDir));
     }
 
     public String render(GsiAnalysis gsi, GuestBundleAnalysis guest) {
@@ -35,8 +35,8 @@ public final class QemuBootPlan {
         out.append("    -drive file=<system.img>,format=raw,readonly=on\n");
         out.append("    -drive file=<vendor.img>,format=raw,readonly=on\n");
         out.append("    -drive file=<userdata.img>,format=raw -display none -serial <console.log>\n");
-        if (!enginePresent) out.append("\nSTATUS: not runnable; this APK has no bundled QEMU system engine yet.\n");
-        else out.append("\nSTATUS: engine detected; display/input bridge and device-specific boot validation still required.\n");
+        if (!enginePresent) out.append("\nSTATUS: not runnable; this APK has no bundled QEMU system engine.\n");
+        else out.append("\nSTATUS: engine detected; the app can make a headless boot attempt. Display/input and device-specific validation remain.\n");
         return out.toString();
     }
 }

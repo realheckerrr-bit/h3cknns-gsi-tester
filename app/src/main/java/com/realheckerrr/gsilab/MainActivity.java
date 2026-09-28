@@ -46,6 +46,16 @@ public final class MainActivity extends Activity {
     private Button analyzeButton;
     private Button bootButton;
     private Button exportButton;
+    private QemuBootSession session;
+    private final Runnable consolePoller = new Runnable() {
+        @Override
+        public void run() {
+            if (session == null || analysis == null || guestAnalysis == null) return;
+            reportText.setText(analysis.render() + "\n" + guestAnalysis.render()
+                    + "\n\nQEMU CONSOLE\n" + session.readConsole());
+            mainHandler.postDelayed(this, 1000L);
+        }
+    };
 
     @Override
     protected void onCreate(Bundle state) {
@@ -114,7 +124,10 @@ public final class MainActivity extends Activity {
 
         bootButton = button("Check VM backend / prepare launch");
         bootButton.setEnabled(false);
-        bootButton.setOnClickListener(view -> probeRuntime());
+        bootButton.setOnClickListener(view -> {
+            if (session == null) probeRuntime();
+            else stopTestVm();
+        });
         page.addView(bootButton);
 
         page.addView(sectionTitle("ACTIVITY LOG"));
@@ -301,7 +314,43 @@ public final class MainActivity extends Activity {
         } else if (!probe.arm64) {
             appendLog("Boot not started: the current guest path requires an ARM64 host.");
         } else {
-            appendLog("Boot plan prepared; display/input bridge and runtime boot validation remain.");
+            bootButton.setEnabled(false);
+            appendLog("Preparing private VM files and starting headless QEMU...");
+            worker.execute(() -> {
+                try {
+                    QemuBootSession started = QemuBootSession.start(this, selectedFile, guestFile);
+                    mainHandler.post(() -> {
+                        session = started;
+                        bootButton.setEnabled(true);
+                        bootButton.setText("Stop test VM");
+                        appendLog("QEMU thread started; reading console.log.");
+                        mainHandler.post(consolePoller);
+                    });
+                } catch (Exception error) {
+                    mainHandler.post(() -> {
+                        bootButton.setEnabled(true);
+                        appendLog("ERROR starting QEMU: " + error.getMessage());
+                    });
+                }
+            });
+        }
+    }
+
+    private void stopTestVm() {
+        QemuBootSession stopping = session;
+        session = null;
+        mainHandler.removeCallbacks(consolePoller);
+        bootButton.setText("Start headless test VM");
+        bootButton.setEnabled(false);
+        if (stopping != null) {
+            appendLog("Stopping QEMU...");
+            worker.execute(() -> {
+                stopping.stop();
+                mainHandler.post(() -> {
+                    bootButton.setEnabled(true);
+                    appendLog("QEMU stopped.");
+                });
+            });
         }
     }
 
@@ -366,6 +415,10 @@ public final class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        mainHandler.removeCallbacks(consolePoller);
+        QemuBootSession stopping = session;
+        session = null;
+        if (stopping != null) worker.execute(stopping::stop);
         worker.shutdownNow();
         super.onDestroy();
     }

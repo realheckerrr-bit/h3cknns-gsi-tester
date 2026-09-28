@@ -29,7 +29,18 @@ jobs:
       - name: Install Android SDK packages
         uses: android-actions/setup-android@v3
         with:
-          packages: platform-tools
+          packages: platform-tools ndk;27.2.12479018 cmake;3.22.1
+
+      - name: Fetch pinned ARM64 QEMU runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p app/src/main/jniLibs/arm64-v8a
+          curl --fail --location --retry 3 \
+            -o /tmp/limbo-qemu.apk \
+            https://github.com/limboemu/limbo/releases/download/v6.0.1-LimboEmulator/limbo-android-arm-6.0.1-qemu-5.1.0.apk
+          unzip -j -o /tmp/limbo-qemu.apk 'lib/arm64-v8a/*.so' -d app/src/main/jniLibs/arm64-v8a
+          rm -f app/src/main/jniLibs/arm64-v8a/liblimbo.so
 
       - name: Accept licenses and install SDK
         run: |

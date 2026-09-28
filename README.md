@@ -6,7 +6,7 @@ h3cknn's GSI tester is a from-scratch Android test harness for importing and pre
 
 This first milestone intentionally does not claim that a normal APK can boot every GSI. A GSI is the generic system partition, not a complete device. A bootable guest also needs a compatible kernel, generic ramdisk, vendor/ODM interface, device model, and a VM engine. Android's Virtualization Framework is privileged and its reference AVF app flow is built around Microdroid; it is not a drop-in “boot arbitrary GSI” API for ordinary Play/sideloaded apps.
 
-The app therefore refuses to fake a boot. The **VM backend** button probes ARM64, AVF availability, the privileged VM permission, and the presence of a bundled QEMU engine. The app now also accepts a guest-bundle ZIP and produces an inspectable QEMU `virt`-machine launch plan when the bundle has a kernel, `ramdisk.img`, and `vendor.img`. The guest assets still need a matching Android `virt` boot contract; a random phone kernel/vendor pair is not interchangeable with a QEMU guest.
+The app therefore refuses to fake a boot. The **VM backend** button probes ARM64, AVF availability, the privileged VM permission, and the presence of a bundled QEMU engine. The GitHub build now packages a pinned ARM64 QEMU runtime and the app can make a real headless boot attempt, streaming the guest serial log into the report. The guest assets still need a matching Android `virt` boot contract; a random phone kernel/vendor pair is not interchangeable with a QEMU guest.
 
 ### Guest bundle format
 
@@ -18,7 +18,7 @@ guest.zip
 ├── ramdisk.img
 ├── vendor.img
 ├── userdata.img           # optional, created or supplied per test run
-└── libqemu-system-aarch64.so  # optional for future bundled-engine builds
+└── libqemu-system-aarch64.so  # optional override; normal APK builds bundle the engine
 ```
 
 The analyzer only inspects names and hashes; it does not execute or mount imported files.
@@ -40,8 +40,8 @@ Install the debug APK, tap **Select GSI image or ZIP**, then **Analyze image**. 
 ## Roadmap toward real boot testing
 
 - Define and validate a complete guest bundle: `kernel`, `ramdisk`, `vendor.img`, `system.img`, and userdata/configuration.
-- Add a native VM engine appropriate to the target: privileged AVF/crosvm on a device image that grants the required permission, or a bundled QEMU/crosvm build with licensing and ABI review.
-- Add a display/input bridge, serial/ADB log capture, VM lifecycle controls, and per-GSI compatibility profiles.
+- Add a display/input bridge and ADB transport for the QEMU session; the current milestone is headless serial output.
+- Add per-GSI compatibility profiles and a GPT/super-partition builder for Android guests that need named dynamic partitions.
 - Test against a known ARM64 Android `virt` guest before widening the supported image set. Google's emulator `ranchu` machine is a separate engine/profile and is not silently assumed here.
 
 “Anything of GSIs” is not a valid compatibility guarantee: image API level, ABI, filesystem, AVB state, vendor interface, kernel, and device model all affect boot.
