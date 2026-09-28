@@ -1,5 +1,7 @@
 package com.realheckerrr.gsilab;
 
+import net.jpountz.lz4.LZ4FrameInputStream;
+import net.jpountz.lz4.LZ4FrameOutputStream;
 import org.tukaani.xz.XZInputStream;
 import org.tukaani.xz.XZOutputStream;
 import org.tukaani.xz.LZMA2Options;
@@ -154,6 +156,7 @@ public final class RanchuRamdiskPatcher {
         if (data.length >= 2 && (data[0] & 0xff) == 0x1f && (data[1] & 0xff) == 0x8b) return Compression.GZIP;
         if (data.length >= 6 && data[0] == (byte) 0xfd && data[1] == 0x37 && data[2] == 0x7a
                 && data[3] == 0x58 && data[4] == 0x5a && data[5] == 0x00) return Compression.XZ;
+        if (data.length >= 4 && data[0] == 0x02 && data[1] == 0x21 && data[2] == 0x4c && data[3] == 0x18) return Compression.LZ4;
         return Compression.RAW;
     }
 
@@ -161,15 +164,18 @@ public final class RanchuRamdiskPatcher {
         if (compression == Compression.RAW) return data;
         InputStream input = new ByteArrayInputStream(data);
         if (compression == Compression.GZIP) input = new GZIPInputStream(input);
-        else input = new XZInputStream(input);
+        else if (compression == Compression.XZ) input = new XZInputStream(input);
+        else input = new LZ4FrameInputStream(input);
         return readAll(input);
     }
 
     private static byte[] compress(byte[] data, Compression compression) throws IOException {
         if (compression == Compression.RAW) return data;
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-        OutputStream output = compression == Compression.GZIP
-                ? new GZIPOutputStream(bytes) : new XZOutputStream(bytes, new LZMA2Options());
+        OutputStream output;
+        if (compression == Compression.GZIP) output = new GZIPOutputStream(bytes);
+        else if (compression == Compression.XZ) output = new XZOutputStream(bytes, new LZMA2Options());
+        else output = new LZ4FrameOutputStream(bytes);
         output.write(data);
         output.close();
         return bytes.toByteArray();
@@ -204,7 +210,7 @@ public final class RanchuRamdiskPatcher {
 
     private static int align4(int value) { return (value + 3) & ~3; }
 
-    private enum Compression { RAW, GZIP, XZ }
+    private enum Compression { RAW, GZIP, XZ, LZ4 }
 
     private static final class Entry {
         final byte[] header;
