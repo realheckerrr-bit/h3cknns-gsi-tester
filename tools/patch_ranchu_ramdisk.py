@@ -176,7 +176,11 @@ def main():
             changed |= entry_changed
         patched.append((header, name, content))
     if not changed:
-        raise SystemExit("no Ranchu initramfs fstab entries were changed")
+        names = [name for _, name, _ in entries if "fstab" in name.lower()]
+        raise SystemExit(
+            "no Ranchu initramfs fstab entries were changed; found: "
+            + ", ".join(names)
+        )
     with open(target, "wb") as output:
         output.write(repack(build_cpio(patched), compression))
     print("patched Ranchu initramfs fstab")
