@@ -260,6 +260,13 @@ def main():
         if first_archive is None:
             raise ValueError("could not locate the first Ranchu initramfs archive")
         first_entries, first_end = first_archive
+        print(
+            "first archive entries:", len(first_entries),
+            "end:", first_end,
+            "raw:", len(raw),
+            "suffix magic:", raw[first_end:first_end + 6].hex(),
+            "module entries:", [name for _, name, _ in first_entries if "/modules/" in name],
+        )
         first_entries.append((make_header("fstab.ranchu", content), "fstab.ranchu", content))
         patched_raw = build_cpio(first_entries) + raw[first_end:]
         with open(target, "wb") as output:
