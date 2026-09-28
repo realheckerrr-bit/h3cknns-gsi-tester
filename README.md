@@ -18,6 +18,8 @@ guest.zip
 ├── ramdisk.img            # .gz/.xz are accepted
 ├── vendor.img             # vendor.img.gz/.xz and vendor_a.img are accepted
 ├── userdata.img           # optional; gzip/XZ is accepted
+├── cache.img               # optional Ranchu/Cuttlefish cache disk
+├── encryptionkey.img       # optional Ranchu encryption-key disk
 └── libqemu-system-aarch64.so  # optional engine override
 ```
 

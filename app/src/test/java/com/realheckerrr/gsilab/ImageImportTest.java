@@ -71,6 +71,8 @@ public final class ImageImportTest {
             put(zip, "ramdisk.img", new byte[]{4, 5});
             put(zip, "vendor.img.gz", gzipBytes(ext4));
             put(zip, "userdata.img.gz", gzipBytes(new byte[]{6, 7, 8}));
+            put(zip, "cache.img", new byte[]{10, 11});
+            put(zip, "encryptionkey.img", new byte[]{12, 13});
             put(zip, "libqemu-system-aarch64.so", new byte[]{9, 10});
         }
 
@@ -91,6 +93,8 @@ public final class ImageImportTest {
         assertArrayEquals(ext4, Files.readAllBytes(assets.vendor.toPath()));
         assertArrayEquals(ext4, Files.readAllBytes(assets.system.toPath()));
         assertEquals("userdata.img", assets.userdata.getName());
+        assertEquals("cache.img", assets.cache.getName());
+        assertEquals("encryptionkey.img", assets.encryptionKey.getName());
         assertEquals("libqemu-system-aarch64.so", assets.qemu.getName());
     }
 

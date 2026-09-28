@@ -54,8 +54,16 @@ public final class QemuBootSession {
                 + "androidboot.verifiedbootstate=orange"
                 : "console=ttyAMA0,115200 androidboot.hardware=generic");
         addDrive(args, "system", assets.system, true);
-        addDrive(args, "vendor", assets.vendor, true);
-        if (assets.userdata != null) addDrive(args, "userdata", assets.userdata, false);
+        if (assets.ranchu) {
+            if (assets.cache != null) addDrive(args, "cache", assets.cache, false);
+            if (assets.userdata != null) addDrive(args, "userdata", assets.userdata, false);
+            addDrive(args, "vendor", assets.vendor, true);
+            if (assets.encryptionKey != null) addDrive(args, "encryptionkey", assets.encryptionKey, true);
+        } else {
+            if (assets.userdata != null) addDrive(args, "userdata", assets.userdata, false);
+            if (assets.cache != null) addDrive(args, "cache", assets.cache, false);
+            addDrive(args, "vendor", assets.vendor, true);
+        }
         if (assets.cuttlefish) {
             args.add("-device"); args.add("virtio-gpu-pci,id=gpu0");
             args.add("-object"); args.add("rng-random,id=objrng0,filename=/dev/urandom");

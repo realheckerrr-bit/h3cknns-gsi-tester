@@ -33,6 +33,7 @@ public final class QemuBootPlan {
         out.append("  libqemu-system-aarch64.so -M virt (Cuttlefish=gic2, generic=gic3) -cpu max -m 2048 -smp 4\n");
         out.append("    -kernel <kernel> -initrd <ramdisk.img>\n");
         out.append("    -drive file=<system.img>,format=raw,readonly=on + virtio-blk-pci\n");
+        out.append("    -drive file=<cache/userdata/vendor>,format=raw + profile-specific virtio-blk-pci order\n");
         out.append("    -drive file=<vendor.img or super/vendor_a>,format=raw,readonly=on + virtio-blk-pci\n");
         out.append("    -drive file=<userdata.img>,format=raw -display none -serial <console.log>\n");
         if (!enginePresent) out.append("\nSTATUS: not runnable; this APK has no bundled QEMU system engine.\n");

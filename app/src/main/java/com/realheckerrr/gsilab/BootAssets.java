@@ -20,17 +20,22 @@ public final class BootAssets {
     public final File ramdisk;
     public final File vendor;
     public final File userdata;
+    public final File cache;
+    public final File encryptionKey;
     public final File qemu;
     public final boolean cuttlefish;
     public final boolean ranchu;
 
-    private BootAssets(File system, File kernel, File ramdisk, File vendor, File userdata, File qemu,
+    private BootAssets(File system, File kernel, File ramdisk, File vendor, File userdata, File cache,
+                       File encryptionKey, File qemu,
                        boolean cuttlefish, boolean ranchu) {
         this.system = system;
         this.kernel = kernel;
         this.ramdisk = ramdisk;
         this.vendor = vendor;
         this.userdata = userdata;
+        this.cache = cache;
+        this.encryptionKey = encryptionKey;
         this.qemu = qemu;
         this.cuttlefish = cuttlefish;
         this.ranchu = ranchu;
@@ -68,9 +73,11 @@ public final class BootAssets {
                     new File(output, "ramdisk.from-vendor_boot.img"));
         }
         File vendor = copyBundleEntry(guestBundle, output, "vendor.img", "vendor.img.gz", "vendor.img.xz", "vendor_a.img",
-                "vendor_a.img.gz", "vendor_a.img.xz");
+                "vendor_a.img.gz", "vendor_a.img.xz", "vendor-qemu.img", "vendor-qemu.img.gz", "vendor-qemu.img.xz");
         File userdata = copyBundleEntry(guestBundle, output, "userdata.img", "userdata.img.gz", "userdata.img.xz",
                 "userdata-qemu.img", "userdata-qemu.img.gz", "userdata-qemu.img.xz");
+        File cache = copyBundleEntry(guestBundle, output, "cache.img", "cache.img.gz", "cache.img.xz");
+        File encryptionKey = copyBundleEntry(guestBundle, output, "encryptionkey.img", "encryptionkey.img.gz", "encryptionkey.img.xz");
         File qemu = copyBundleEntry(guestBundle, output, "libqemu-system-aarch64.so", "qemu-system-aarch64");
         File superImage = copyBundleEntry(guestBundle, output, "super.img", "super.img.gz", "super.img.xz");
         boolean cuttlefish = superImage != null || (kernel != null && kernel.getName().startsWith("kernel_16k"));
@@ -83,7 +90,7 @@ public final class BootAssets {
             throw new IOException("Guest bundle is missing kernel, ramdisk.img, or vendor.img.");
         }
         if (vendor != null && isSparse(vendor)) vendor = materializeImage(vendor, new File(output, "vendor.raw.img"));
-        return new BootAssets(system, kernel, ramdisk, vendor, userdata, qemu, cuttlefish, ranchu);
+        return new BootAssets(system, kernel, ramdisk, vendor, userdata, cache, encryptionKey, qemu, cuttlefish, ranchu);
     }
 
     private static File copyBundleEntry(File bundle, File output, String... names) throws IOException {
