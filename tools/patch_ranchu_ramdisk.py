@@ -179,6 +179,7 @@ def main():
             changed = changed or entry_changed
         patched.append((header, name, content))
     if not changed:
+        print("fstab entries:", [name for _, name, _ in entries if "fstab" in name])
         raise SystemExit("no Ranchu fstab entries were changed")
     with open(target, "wb") as output:
         output.write(pack_image(build_cpio(patched), compression))
