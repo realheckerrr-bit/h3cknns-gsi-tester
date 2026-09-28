@@ -86,6 +86,7 @@ public final class ImageImportTest {
         }
 
         assertTrue(report.bootCandidate);
+        assertTrue(assets.ranchu);
         assertEquals("vendor.img.gz", report.vendor);
         assertArrayEquals(ext4, Files.readAllBytes(assets.vendor.toPath()));
         assertArrayEquals(ext4, Files.readAllBytes(assets.system.toPath()));

@@ -49,6 +49,9 @@ public final class QemuBootSession {
                 + "mac80211_hwsim.radios=0 androidboot.lcd_density=160 "
                 + "androidboot.setupwizard_mode=DISABLED security=selinux enforcing=0 "
                 + "androidboot.selinux=permissive audit=1 buildvariant=userdebug"
+                : assets.ranchu
+                ? "console=ttyAMA0,115200 androidboot.console=ttyAMA1 androidboot.hardware=ranchu "
+                + "androidboot.verifiedbootstate=orange"
                 : "console=ttyAMA0,115200 androidboot.hardware=generic");
         addDrive(args, "system", assets.system, true);
         addDrive(args, "vendor", assets.vendor, true);

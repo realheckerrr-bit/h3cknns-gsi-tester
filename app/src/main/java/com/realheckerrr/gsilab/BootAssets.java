@@ -22,8 +22,10 @@ public final class BootAssets {
     public final File userdata;
     public final File qemu;
     public final boolean cuttlefish;
+    public final boolean ranchu;
 
-    private BootAssets(File system, File kernel, File ramdisk, File vendor, File userdata, File qemu, boolean cuttlefish) {
+    private BootAssets(File system, File kernel, File ramdisk, File vendor, File userdata, File qemu,
+                       boolean cuttlefish, boolean ranchu) {
         this.system = system;
         this.kernel = kernel;
         this.ramdisk = ramdisk;
@@ -31,6 +33,7 @@ public final class BootAssets {
         this.userdata = userdata;
         this.qemu = qemu;
         this.cuttlefish = cuttlefish;
+        this.ranchu = ranchu;
     }
 
     public static BootAssets prepare(File gsi, File guestBundle, File output) throws IOException {
@@ -71,6 +74,7 @@ public final class BootAssets {
         File qemu = copyBundleEntry(guestBundle, output, "libqemu-system-aarch64.so", "qemu-system-aarch64");
         File superImage = copyBundleEntry(guestBundle, output, "super.img", "super.img.gz", "super.img.xz");
         boolean cuttlefish = superImage != null || (kernel != null && kernel.getName().startsWith("kernel_16k"));
+        boolean ranchu = !cuttlefish && kernel != null && kernel.getName().startsWith("kernel-ranchu");
         if (vendor == null && superImage != null) {
             File rawSuper = materializeImage(superImage, new File(output, "super.raw.img"));
             vendor = LogicalPartitionExtractor.extract(rawSuper, "vendor", new File(output, "vendor.from-super.img"));
@@ -79,7 +83,7 @@ public final class BootAssets {
             throw new IOException("Guest bundle is missing kernel, ramdisk.img, or vendor.img.");
         }
         if (vendor != null && isSparse(vendor)) vendor = materializeImage(vendor, new File(output, "vendor.raw.img"));
-        return new BootAssets(system, kernel, ramdisk, vendor, userdata, qemu, cuttlefish);
+        return new BootAssets(system, kernel, ramdisk, vendor, userdata, qemu, cuttlefish, ranchu);
     }
 
     private static File copyBundleEntry(File bundle, File output, String... names) throws IOException {
