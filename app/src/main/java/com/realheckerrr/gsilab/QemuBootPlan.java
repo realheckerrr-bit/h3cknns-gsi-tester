@@ -30,10 +30,10 @@ public final class QemuBootPlan {
         out.append("  system source: ").append(gsi == null ? "missing" : gsi.inputName).append('\n');
         out.append("  guest source: ").append(guest == null ? "missing" : guest.inputName).append('\n');
         out.append("\nThe final runner will extract only verified guest entries into app-private storage and invoke:\n");
-        out.append("  libqemu-system-aarch64.so -M virt (Cuttlefish=gic2, generic=gic3) -cpu <profile> -m 2048 -smp 4\n");
+        out.append("  libqemu-system-aarch64.so -M virt (Cuttlefish=gic2, generic=gic3) -cpu max -m 2048 -smp 4\n");
         out.append("    -kernel <kernel> -initrd <ramdisk.img>\n");
-        out.append("    -drive file=<system.img>,format=raw,readonly=on\n");
-        out.append("    -drive file=<vendor.img or super/vendor_a>,format=raw,readonly=on\n");
+        out.append("    -drive file=<system.img>,format=raw,readonly=on + virtio-blk-pci\n");
+        out.append("    -drive file=<vendor.img or super/vendor_a>,format=raw,readonly=on + virtio-blk-pci\n");
         out.append("    -drive file=<userdata.img>,format=raw -display none -serial <console.log>\n");
         if (!enginePresent) out.append("\nSTATUS: not runnable; this APK has no bundled QEMU system engine.\n");
         else out.append("\nSTATUS: engine detected; the app can make a headless boot attempt. Display/input and device-specific validation remain.\n");

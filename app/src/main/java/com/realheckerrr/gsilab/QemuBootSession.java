@@ -31,20 +31,33 @@ public final class QemuBootSession {
         File log = new File(work, "console.log");
         if (log.exists() && !log.delete()) throw new IOException("Cannot reset console log.");
         List<String> args = new ArrayList<>();
-        args.add("-M"); args.add(assets.cuttlefish ? "virt,gic-version=2" : "virt,gic-version=3");
-        args.add("-cpu"); args.add(assets.cuttlefish ? "cortex-a53" : "max");
+        args.add("-M");
+        args.add(assets.cuttlefish
+                ? "virt,gic-version=2,mte=on,usb=off,dump-guest-core=off"
+                : "virt,gic-version=3");
+        args.add("-cpu"); args.add("max");
         args.add("-m"); args.add("2048");
         args.add("-smp"); args.add("4");
+        args.add("-rtc"); args.add("base=utc");
         args.add("-kernel"); args.add(assets.kernel.getAbsolutePath());
         args.add("-initrd"); args.add(assets.ramdisk.getAbsolutePath());
         args.add("-append");
         args.add(assets.cuttlefish
-                ? "console=ttyS0,115200 androidboot.console=ttyS1 androidboot.hardware=vsoc "
-                + "androidboot.slot_suffix=_a androidboot.verifiedbootstate=orange"
+                ? "loop.max_part=7 init=/init console=ttyS0,115200 androidboot.console=ttyS1 "
+                + "androidboot.hardware=vsoc androidboot.boot_devices=4010000000.pcie "
+                + "androidboot.slot_suffix=_a androidboot.verifiedbootstate=orange "
+                + "mac80211_hwsim.radios=0 androidboot.lcd_density=160 "
+                + "androidboot.setupwizard_mode=DISABLED security=selinux enforcing=0 "
+                + "androidboot.selinux=permissive audit=1 buildvariant=userdebug"
                 : "console=ttyAMA0,115200 androidboot.hardware=generic");
         addDrive(args, "system", assets.system, true);
         addDrive(args, "vendor", assets.vendor, true);
         if (assets.userdata != null) addDrive(args, "userdata", assets.userdata, false);
+        if (assets.cuttlefish) {
+            args.add("-device"); args.add("virtio-gpu-pci,id=gpu0");
+            args.add("-object"); args.add("rng-random,id=objrng0,filename=/dev/urandom");
+            args.add("-device"); args.add("virtio-rng-pci,rng=objrng0,max-bytes=1024,period=2000");
+        }
         args.add("-display"); args.add("none");
         args.add("-monitor"); args.add("none");
         args.add("-serial"); args.add("file:" + log.getAbsolutePath());
@@ -59,7 +72,7 @@ public final class QemuBootSession {
         args.add("if=none,format=raw,id=" + id + ",file=" + image.getAbsolutePath()
                 + (readOnly ? ",readonly=on" : ""));
         args.add("-device");
-        args.add("virtio-blk-device,drive=" + id);
+        args.add("virtio-blk-pci,scsi=off,drive=" + id);
     }
 
     public String readConsole() {

@@ -37,7 +37,7 @@ GitHub Actions is configured in `.github/workflows/android.yml`.
 2. Run **Build h3cknn's GSI tester APK** or push to `main`.
 3. Download the `h3cknns-gsi-tester-debug-apk` artifact.
 
-The project uses Java 17, Android Gradle Plugin 8.6.0, compile SDK 35, and no third-party runtime dependencies. Unit tests cover raw/gzip GSI imports and official-style guest archives before the APK is assembled.
+The project uses Java 17, Android Gradle Plugin 8.6.0, compile SDK 35, AndroidX, and Material Components 1.14.0. Unit tests cover raw/gzip GSI imports and official-style guest archives before the APK is assembled.
 
 ## Limitations
 
