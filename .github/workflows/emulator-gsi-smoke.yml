@@ -102,7 +102,7 @@ jobs:
           qemu-system-aarch64 \
             -M virt,gic-version=3 \
             -cpu max -m 2048 -smp 4 -rtc base=utc \
-            -kernel guest/kernel-ranchu -initrd guest/ramdisk.img \
+            -kernel guest/kernel-ranchu -initrd guest/ramdisk.patched.img \
             -append 'console=ttyAMA0,115200 androidboot.console=ttyAMA1 androidboot.hardware=ranchu androidboot.verifiedbootstate=orange' \
             -drive if=none,format=raw,id=system,file=$PWD/guest/system.img,readonly=on \
             -device virtio-blk-device,drive=system \
