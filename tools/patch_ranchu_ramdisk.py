@@ -262,10 +262,14 @@ def patch_fstab(content):
         if "first_stage_mount" not in stripped or "logical" not in stripped:
             result.append(line)
             continue
+        if mountpoint in ("/system", "/vendor") and len(columns) > 2 and columns[2] == "erofs":
+            changed = True
+            result.append("#" + line[1:] if not line.startswith("#") else line)
+            continue
         if mountpoint == "/system":
-            columns[0] = "/dev/block/vda"
-        elif mountpoint == "/vendor":
             columns[0] = "/dev/block/vdb"
+        elif mountpoint == "/vendor":
+            columns[0] = "/dev/block/vda1"
         else:
             changed = True
             continue
