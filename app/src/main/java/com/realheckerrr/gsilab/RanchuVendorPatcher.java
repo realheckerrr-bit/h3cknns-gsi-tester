@@ -36,7 +36,6 @@ public final class RanchuVendorPatcher {
                 start = end + 1;
             }
             image.force();
-            if (changed == 0) throw new IOException("No Ranchu vendor fstab entries were changed.");
         }
     }
 

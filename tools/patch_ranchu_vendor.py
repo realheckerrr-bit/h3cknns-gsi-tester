@@ -47,7 +47,8 @@ def main():
             changed += 1
         start = end + 1
     if changed == 0:
-        raise SystemExit("no Ranchu vendor fstab entries were changed")
+        print("no Ranchu fstab entries needed patching")
+        return
     with open(path, "wb") as output:
         output.write(data)
     print(f"patched {changed} Ranchu vendor fstab lines")

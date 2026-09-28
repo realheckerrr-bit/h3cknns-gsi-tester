@@ -75,6 +75,7 @@ jobs:
       - name: Adapt Ranchu vendor fstab for direct GSI system and vendor disks
         run: |
           python3 tools/patch_ranchu_vendor.py guest/vendor.img
+          python3 tools/patch_ranchu_vendor.py guest/system.img
           echo '--- vendor strings containing fstab or partition mounts ---'
           strings -a guest/vendor.img | grep -Ei 'fstab|/metadata|/system .*logical|/vendor .*logical' | head -100 || true
           for fstab in fstab.ranchu fstab.ranchu.initrd fstab.emulator fstab.goldfish; do
