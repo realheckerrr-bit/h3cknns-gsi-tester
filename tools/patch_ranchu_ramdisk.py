@@ -53,6 +53,26 @@ def decode_lz4(data):
     return bytes(output)
 
 
+def encode_lz4(data):
+    output = bytearray(b"\x02\x21\x4c\x18")
+    for offset in range(0, len(data), 65536):
+        chunk = data[offset:offset + 65536]
+        literal_length = len(chunk)
+        token = min(literal_length, 15) << 4
+        block = bytearray([token])
+        if literal_length >= 15:
+            remaining = literal_length - 15
+            while remaining >= 255:
+                block.append(255)
+                remaining -= 255
+            block.append(remaining)
+        block.extend(chunk)
+        output.extend(struct.pack("<I", len(block)))
+        output.extend(block)
+    output.extend(struct.pack("<I", 0))
+    return bytes(output)
+
+
 def unpack(data):
     if data[:2] == b"\x1f\x8b":
         return gzip.decompress(data), "gzip"
@@ -64,8 +84,10 @@ def unpack(data):
 
 
 def repack(data, compression):
-    if compression == "gzip" or compression == "lz4":
+    if compression == "gzip":
         return gzip.compress(data, compresslevel=9, mtime=0)
+    if compression == "lz4":
+        return encode_lz4(data)
     if compression == "xz":
         return lzma.compress(data, format=lzma.FORMAT_XZ)
     return data
