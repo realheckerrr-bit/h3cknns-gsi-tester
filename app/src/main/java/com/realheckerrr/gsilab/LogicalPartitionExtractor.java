@@ -89,7 +89,7 @@ public final class LogicalPartitionExtractor {
             int firstExtent = (int) littleInt(entry, 40);
             int extentCount = (int) littleInt(entry, 44);
             if (name.equals(requestedName)) return new Partition(name, firstExtent, extentCount);
-            if (requestedName.equals("vendor") && name.equals("vendor_a")) {
+            if (requestedName.equals("vendor") && (name.equals("vendor_a") || name.equals("vendor_b"))) {
                 fallback = new Partition(name, firstExtent, extentCount);
             }
         }
