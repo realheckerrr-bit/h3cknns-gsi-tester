@@ -1,0 +1,168 @@
+name: Cuttlefish GSI boot smoke test
+
+on:
+  workflow_dispatch:
+    inputs:
+      cuttlefish_build_id:
+        description: 'AOSP CI build ID for aosp_cf_arm64_only_phone'
+        required: true
+        default: '12309296'
+      cuttlefish_target:
+        description: 'Exact AOSP CI target containing the image artifact'
+        required: true
+        default: 'aosp_cf_arm64_only_phone-trunk_staging-userdebug'
+      gsi_url:
+        description: 'Official ARM64 GSI ZIP URL'
+        required: true
+        default: 'https://dl.google.com/developers/android/udc/images/gsi/aosp_arm64-exp-UP1A.231005.007-10754064-68dd726a.zip'
+      gsi_sha256:
+        description: 'SHA-256 for the GSI ZIP (empty disables the check)'
+        required: false
+        default: '68dd726a861678bb5abb251719e7b95632d9d05d4f097e63e094188a81346c29'
+
+permissions:
+  contents: read
+
+jobs:
+  boot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install ARM QEMU and image tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            android-sdk-libsparse-utils qemu-system-arm unzip xz-utils
+
+      - name: Install Android build tools
+        uses: android-actions/setup-android@v3
+        with:
+          packages: build-tools;35.0.0
+      - name: Add Android build tools to PATH
+        run: echo "$ANDROID_HOME/build-tools/35.0.0" >> "$GITHUB_PATH"
+
+      - name: Download Cuttlefish ARM64 device image
+        shell: bash
+        env:
+          BUILD_ID: ${{ inputs.cuttlefish_build_id }}
+          TARGET: ${{ inputs.cuttlefish_target }}
+        run: |
+          set -euo pipefail
+          mkdir -p cf-image
+          curl --fail --location --retry 3 --retry-delay 3 \
+            -o cf-image/cuttlefish.zip \
+            "https://ci.android.com/builds/submitted/${BUILD_ID}/${TARGET}/latest/aosp_cf_arm64_only_phone-img-${BUILD_ID}.zip"
+          unzip -q cf-image/cuttlefish.zip -d cf-image/root
+
+      - name: Download and verify official ARM64 GSI
+        shell: bash
+        env:
+          GSI_URL: ${{ inputs.gsi_url }}
+          GSI_SHA256: ${{ inputs.gsi_sha256 }}
+        run: |
+          set -euo pipefail
+          mkdir -p gsi
+          curl --fail --location --retry 3 --retry-delay 3 -o gsi/gsi.zip "$GSI_URL"
+          if [[ -n "$GSI_SHA256" ]]; then
+            echo "$GSI_SHA256  gsi/gsi.zip" | sha256sum --check --status
+          fi
+          unzip -q gsi/gsi.zip -d gsi/root
+          if [[ -f gsi/root/system.img.gz ]]; then
+            gzip -dc gsi/root/system.img.gz > gsi/system.img
+          elif [[ -f gsi/root/system.img.xz ]]; then
+            xz -dc gsi/root/system.img.xz > gsi/system.img
+          elif [[ -f gsi/root/system.img ]]; then
+            cp gsi/root/system.img gsi/system.img
+          else
+            echo 'The GSI ZIP has no system.img, system.img.gz, or system.img.xz.' >&2
+            exit 1
+          fi
+
+      - name: Extract Cuttlefish boot and vendor partitions
+        shell: bash
+        run: |
+          set -euo pipefail
+          image_dir=cf-image/root
+          boot_img=$(find "$image_dir" -type f -name boot.img -print -quit)
+          super_img=$(find "$image_dir" -type f -name super.img -print -quit)
+          userdata_img=$(find "$image_dir" -type f -name userdata.img -print -quit)
+          [[ -n "$boot_img" && -n "$super_img" && -n "$userdata_img" ]]
+
+          mkdir -p boot vendor
+          unpack_bootimg --boot_img "$boot_img" --out boot
+          ramdisk=$(find boot -maxdepth 1 -type f -name 'ramdisk*' -print -quit)
+          [[ -f boot/kernel && -n "$ramdisk" ]]
+          [[ "$ramdisk" == 'boot/ramdisk' ]] || cp "$ramdisk" boot/ramdisk
+
+          if simg2img "$super_img" cf-image/super.raw.img 2>/dev/null; then
+            super_for_lpunpack=cf-image/super.raw.img
+          else
+            super_for_lpunpack="$super_img"
+          fi
+          lpunpack -p vendor_a "$super_for_lpunpack" vendor \
+            || lpunpack -p vendor "$super_for_lpunpack" vendor
+          vendor_img=$(find vendor -maxdepth 1 -type f \( -name vendor_a.img -o -name vendor.img \) -print -quit)
+          [[ -n "$vendor_img" ]]
+          cp "$userdata_img" cf-image/userdata.img
+          printf 'kernel=%s\nramdisk=%s\nvendor=%s\n' \
+            boot/kernel boot/ramdisk "$vendor_img"
+
+      - name: Run the app-equivalent headless QEMU boot
+        shell: bash
+        run: |
+          set -uo pipefail
+          vendor_img=$(find vendor -maxdepth 1 -type f \( -name vendor_a.img -o -name vendor.img \) -print -quit)
+          qemu-system-aarch64 \
+            -M virt,gic-version=2,mte=on,usb=off,dump-guest-core=off \
+            -cpu max -m 2048 -smp 4 -rtc base=utc \
+            -kernel boot/kernel -initrd boot/ramdisk \
+            -append 'loop.max_part=7 init=/init console=ttyS0,115200 androidboot.console=ttyS1 androidboot.hardware=vsoc androidboot.boot_devices=4010000000.pcie androidboot.slot_suffix=_a androidboot.verifiedbootstate=orange mac80211_hwsim.radios=0 androidboot.lcd_density=160 androidboot.setupwizard_mode=DISABLED security=selinux enforcing=0 androidboot.selinux=permissive audit=1 buildvariant=userdebug' \
+            -drive if=none,format=raw,id=system,file=$PWD/gsi/system.img,readonly=on \
+            -device virtio-blk-pci-non-transitional,scsi=off,drive=system \
+            -drive if=none,format=raw,id=userdata,file=$PWD/cf-image/userdata.img \
+            -device virtio-blk-pci-non-transitional,scsi=off,drive=userdata \
+            -drive if=none,format=raw,id=vendor,file=$PWD/$vendor_img,readonly=on \
+            -device virtio-blk-pci-non-transitional,scsi=off,drive=vendor \
+            -device virtio-gpu-pci,id=gpu0 \
+            -object rng-random,id=objrng0,filename=/dev/urandom \
+            -device virtio-rng-pci,rng=objrng0,max-bytes=1024,period=2000 \
+            -display none -monitor none -serial file:$PWD/serial.log -no-reboot \
+            > qemu.stdout 2> qemu.stderr &
+          qemu_pid=$!
+          booted=0
+          for _ in $(seq 1 240); do
+            if grep -Eiq "starting service 'zygote'|sys.boot_completed=1|AndroidRuntime" serial.log 2>/dev/null; then
+              booted=1
+              break
+            fi
+            if ! kill -0 "$qemu_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          if kill -0 "$qemu_pid" 2>/dev/null; then
+            kill "$qemu_pid" 2>/dev/null || true
+            wait "$qemu_pid" 2>/dev/null || true
+          else
+            wait "$qemu_pid" 2>/dev/null || true
+          fi
+          cat serial.log 2>/dev/null || true
+          cat qemu.stderr 2>/dev/null || true
+          if [[ "$booted" != 1 ]]; then
+            echo 'No Android boot marker was observed in the serial log.' >&2
+            exit 1
+          fi
+
+      - name: Upload boot logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cuttlefish-gsi-boot-logs
+          path: |
+            serial.log
+            qemu.stdout
+            qemu.stderr
+          if-no-files-found: ignore
