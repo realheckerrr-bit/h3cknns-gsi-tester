@@ -26,7 +26,7 @@ public final class QemuRunner {
         }
     }
 
-    public static boolean enginePresent(File nativeLibraryDir) {
+    public static boolean enginePresent(String nativeLibraryDir) {
         return nativeLibraryDir != null
                 && new File(nativeLibraryDir, "libqemu-system-aarch64.so").isFile();
     }
