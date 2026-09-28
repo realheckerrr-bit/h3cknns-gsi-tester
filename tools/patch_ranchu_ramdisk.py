@@ -24,6 +24,13 @@ def decode_lz4(data):
             next_magic = data.find(magic, offset)
             if next_magic < 0:
                 break
+            if next_magic + 8 > len(data):
+                break
+            candidate_size = struct.unpack_from("<I", data, next_magic + 4)[0]
+            if candidate_size == 0 or candidate_size > len(data) - (next_magic + 8):
+                # A magic-looking sequence in compressed payload/padding is
+                # not a valid concatenated frame.
+                break
             offset = next_magic
         offset += 4
         block_size = struct.unpack_from("<I", data, offset)[0]
