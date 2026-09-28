@@ -37,13 +37,6 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             android-sdk-libsparse-utils qemu-system-arm unzip xz-utils
 
-      - name: Install Android build tools
-        uses: android-actions/setup-android@v3
-        with:
-          packages: build-tools;35.0.0
-      - name: Add Android build tools to PATH
-        run: echo "$ANDROID_HOME/build-tools/35.0.0" >> "$GITHUB_PATH"
-
       - name: Download Cuttlefish ARM64 device image
         shell: bash
         env:
@@ -105,7 +98,7 @@ jobs:
           [[ -n "$boot_img" && -n "$super_img" && -n "$userdata_img" ]]
 
           mkdir -p boot vendor
-          unpack_bootimg --boot_img "$boot_img" --out boot
+          python3 tools/unpack_android_boot_image.py "$boot_img" boot
           ramdisk=$(find boot -maxdepth 1 -type f -name 'ramdisk*' -print -quit)
           [[ -f boot/kernel && -n "$ramdisk" ]]
           [[ "$ramdisk" == 'boot/ramdisk' ]] || cp "$ramdisk" boot/ramdisk
