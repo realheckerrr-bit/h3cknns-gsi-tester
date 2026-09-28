@@ -3,7 +3,10 @@ package com.realheckerrr.gsilab;
 import android.content.Context;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -24,6 +27,7 @@ public final class QemuBootSession {
     public static QemuBootSession start(Context context, File gsi, File guestBundle) throws IOException {
         File work = new File(context.getFilesDir(), "vm-session");
         BootAssets assets = BootAssets.prepare(gsi, guestBundle, work);
+        File rom = assets.rom != null ? assets.rom : copyBundledRom(context, work);
         File engine = assets.qemu != null
                 ? assets.qemu
                 : new File(context.getApplicationInfo().nativeLibraryDir, "libqemu-system-aarch64.so");
@@ -53,16 +57,16 @@ public final class QemuBootSession {
                 ? "console=ttyAMA0,115200 androidboot.console=ttyAMA1 androidboot.hardware=ranchu "
                 + "androidboot.verifiedbootstate=orange"
                 : "console=ttyAMA0,115200 androidboot.hardware=generic");
-        addDrive(args, "system", assets.system, true, assets.cuttlefish);
+        addDrive(args, "system", assets.system, true, assets.cuttlefish, rom);
         if (assets.ranchu) {
-            if (assets.cache != null) addDrive(args, "cache", assets.cache, false, false);
-            if (assets.userdata != null) addDrive(args, "userdata", assets.userdata, false, false);
-            addDrive(args, "vendor", assets.vendor, true, false);
-            if (assets.encryptionKey != null) addDrive(args, "encryptionkey", assets.encryptionKey, true, false);
+            if (assets.cache != null) addDrive(args, "cache", assets.cache, false, false, rom);
+            if (assets.userdata != null) addDrive(args, "userdata", assets.userdata, false, false, rom);
+            addDrive(args, "vendor", assets.vendor, true, false, rom);
+            if (assets.encryptionKey != null) addDrive(args, "encryptionkey", assets.encryptionKey, true, false, rom);
         } else {
-            if (assets.userdata != null) addDrive(args, "userdata", assets.userdata, false, assets.cuttlefish);
-            if (assets.cache != null) addDrive(args, "cache", assets.cache, false, assets.cuttlefish);
-            addDrive(args, "vendor", assets.vendor, true, assets.cuttlefish);
+            if (assets.userdata != null) addDrive(args, "userdata", assets.userdata, false, assets.cuttlefish, rom);
+            if (assets.cache != null) addDrive(args, "cache", assets.cache, false, assets.cuttlefish, rom);
+            addDrive(args, "vendor", assets.vendor, true, assets.cuttlefish, rom);
         }
         if (assets.cuttlefish) {
             args.add("-device"); args.add("virtio-gpu-pci,id=gpu0");
@@ -79,13 +83,27 @@ public final class QemuBootSession {
     }
 
     private static void addDrive(List<String> args, String id, File image, boolean readOnly,
-                                 boolean nonTransitional) {
+                                 boolean nonTransitional, File rom) {
         args.add("-drive");
         args.add("if=none,format=raw,id=" + id + ",file=" + image.getAbsolutePath()
                 + (readOnly ? ",readonly=on" : ""));
         args.add("-device");
         args.add((nonTransitional ? "virtio-blk-pci-non-transitional" : "virtio-blk-pci")
-                + ",romfile=,scsi=off,drive=" + id);
+                + (rom == null ? "" : ",romfile=" + rom.getAbsolutePath())
+                + ",scsi=off,drive=" + id);
+    }
+
+    private static File copyBundledRom(Context context, File work) {
+        File rom = new File(work, "efi-virtio.rom");
+        try (InputStream input = context.getAssets().open("efi-virtio.rom");
+             FileOutputStream output = new FileOutputStream(rom)) {
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = input.read(buffer)) != -1) output.write(buffer, 0, read);
+            return rom.isFile() && rom.length() > 0 ? rom : null;
+        } catch (IOException ignored) {
+            return null;
+        }
     }
 
     public String readConsole() {

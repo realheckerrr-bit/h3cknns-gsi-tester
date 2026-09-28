@@ -23,11 +23,12 @@ public final class BootAssets {
     public final File cache;
     public final File encryptionKey;
     public final File qemu;
+    public final File rom;
     public final boolean cuttlefish;
     public final boolean ranchu;
 
     private BootAssets(File system, File kernel, File ramdisk, File vendor, File userdata, File cache,
-                       File encryptionKey, File qemu,
+                       File encryptionKey, File qemu, File rom,
                        boolean cuttlefish, boolean ranchu) {
         this.system = system;
         this.kernel = kernel;
@@ -37,6 +38,7 @@ public final class BootAssets {
         this.cache = cache;
         this.encryptionKey = encryptionKey;
         this.qemu = qemu;
+        this.rom = rom;
         this.cuttlefish = cuttlefish;
         this.ranchu = ranchu;
     }
@@ -79,6 +81,7 @@ public final class BootAssets {
         File cache = copyBundleEntry(guestBundle, output, "cache.img", "cache.img.gz", "cache.img.xz");
         File encryptionKey = copyBundleEntry(guestBundle, output, "encryptionkey.img", "encryptionkey.img.gz", "encryptionkey.img.xz");
         File qemu = copyBundleEntry(guestBundle, output, "libqemu-system-aarch64.so", "qemu-system-aarch64");
+        File rom = copyBundleEntry(guestBundle, output, "efi-virtio.rom");
         File superImage = copyBundleEntry(guestBundle, output, "super.img", "super.img.gz", "super.img.xz");
         boolean cuttlefish = superImage != null || (kernel != null && kernel.getName().startsWith("kernel_16k"));
         boolean ranchu = !cuttlefish && kernel != null && kernel.getName().startsWith("kernel-ranchu");
@@ -90,7 +93,7 @@ public final class BootAssets {
             throw new IOException("Guest bundle is missing kernel, ramdisk.img, or vendor.img.");
         }
         if (vendor != null && isSparse(vendor)) vendor = materializeImage(vendor, new File(output, "vendor.raw.img"));
-        return new BootAssets(system, kernel, ramdisk, vendor, userdata, cache, encryptionKey, qemu, cuttlefish, ranchu);
+        return new BootAssets(system, kernel, ramdisk, vendor, userdata, cache, encryptionKey, qemu, rom, cuttlefish, ranchu);
     }
 
     private static File copyBundleEntry(File bundle, File output, String... names) throws IOException {

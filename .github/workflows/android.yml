@@ -40,6 +40,9 @@ jobs:
             -o /tmp/limbo-qemu.apk \
             https://github.com/limboemu/limbo/releases/download/v6.0.1-LimboEmulator/limbo-android-arm-6.0.1-qemu-5.1.0.apk
           unzip -j -o /tmp/limbo-qemu.apk 'lib/arm64-v8a/*.so' -d app/src/main/jniLibs/arm64-v8a
+          mkdir -p app/src/main/assets
+          unzip -p /tmp/limbo-qemu.apk assets/roms/efi-virtio.rom > app/src/main/assets/efi-virtio.rom
+          test -s app/src/main/assets/efi-virtio.rom
           rm -f app/src/main/jniLibs/arm64-v8a/liblimbo.so
 
       - name: Accept licenses and install SDK
