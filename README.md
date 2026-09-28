@@ -6,7 +6,7 @@ h3cknn's GSI tester is a from-scratch Android test harness for importing and pre
 
 This first milestone intentionally does not claim that a normal APK can boot every GSI. A GSI is the generic system partition, not a complete device. A bootable guest also needs a compatible kernel, generic ramdisk, vendor/ODM interface, device model, and a VM engine. Android's Virtualization Framework is privileged and its reference AVF app flow is built around Microdroid; it is not a drop-in “boot arbitrary GSI” API for ordinary Play/sideloaded apps.
 
-The app therefore refuses to fake a boot. The **VM backend** button probes ARM64, AVF availability, the privileged VM permission, and the presence of a bundled QEMU engine. The app now also accepts a guest-bundle ZIP and produces an inspectable QEMU launch plan when the bundle has a kernel, `ramdisk.img`, and `vendor.img`.
+The app therefore refuses to fake a boot. The **VM backend** button probes ARM64, AVF availability, the privileged VM permission, and the presence of a bundled QEMU engine. The app now also accepts a guest-bundle ZIP and produces an inspectable QEMU `virt`-machine launch plan when the bundle has a kernel, `ramdisk.img`, and `vendor.img`. The guest assets still need a matching Android `virt` boot contract; a random phone kernel/vendor pair is not interchangeable with a QEMU guest.
 
 ### Guest bundle format
 
@@ -42,6 +42,6 @@ Install the debug APK, tap **Select GSI image or ZIP**, then **Analyze image**. 
 - Define and validate a complete guest bundle: `kernel`, `ramdisk`, `vendor.img`, `system.img`, and userdata/configuration.
 - Add a native VM engine appropriate to the target: privileged AVF/crosvm on a device image that grants the required permission, or a bundled QEMU/crosvm build with licensing and ABI review.
 - Add a display/input bridge, serial/ADB log capture, VM lifecycle controls, and per-GSI compatibility profiles.
-- Test against a known ARM64 Android emulator guest before widening the supported image set.
+- Test against a known ARM64 Android `virt` guest before widening the supported image set. Google's emulator `ranchu` machine is a separate engine/profile and is not silently assumed here.
 
 “Anything of GSIs” is not a valid compatibility guarantee: image API level, ABI, filesystem, AVB state, vendor interface, kernel, and device model all affect boot.

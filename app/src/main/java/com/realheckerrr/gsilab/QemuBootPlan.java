@@ -30,7 +30,7 @@ public final class QemuBootPlan {
         out.append("  system source: ").append(gsi == null ? "missing" : gsi.inputName).append('\n');
         out.append("  guest source: ").append(guest == null ? "missing" : guest.inputName).append('\n');
         out.append("\nThe final runner will extract only verified guest entries into app-private storage and invoke:\n");
-        out.append("  libqemu-system-aarch64.so -M ranchu -cpu max -m 2048 -smp 4\n");
+        out.append("  libqemu-system-aarch64.so -M virt,gic-version=3 -cpu max -m 2048 -smp 4\n");
         out.append("    -kernel <kernel> -initrd <ramdisk.img>\n");
         out.append("    -drive file=<system.img>,format=raw,readonly=on\n");
         out.append("    -drive file=<vendor.img>,format=raw,readonly=on\n");
