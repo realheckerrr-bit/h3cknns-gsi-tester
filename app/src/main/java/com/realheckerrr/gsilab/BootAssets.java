@@ -20,13 +20,15 @@ public final class BootAssets {
     public final File ramdisk;
     public final File vendor;
     public final File userdata;
+    public final File qemu;
 
-    private BootAssets(File system, File kernel, File ramdisk, File vendor, File userdata) {
+    private BootAssets(File system, File kernel, File ramdisk, File vendor, File userdata, File qemu) {
         this.system = system;
         this.kernel = kernel;
         this.ramdisk = ramdisk;
         this.vendor = vendor;
         this.userdata = userdata;
+        this.qemu = qemu;
     }
 
     public static BootAssets prepare(File gsi, File guestBundle, File output) throws IOException {
@@ -45,11 +47,12 @@ public final class BootAssets {
         File vendor = copyBundleEntry(guestBundle, output, "vendor.img", "vendor.img.gz", "vendor_a.img", "vendor_a.img.gz");
         File userdata = copyBundleEntry(guestBundle, output, "userdata.img", "userdata.img.gz",
                 "userdata-qemu.img", "userdata-qemu.img.gz");
+        File qemu = copyBundleEntry(guestBundle, output, "libqemu-system-aarch64.so", "qemu-system-aarch64");
         if (kernel == null || ramdisk == null || vendor == null) {
             throw new IOException("Guest bundle is missing kernel, ramdisk.img, or vendor.img.");
         }
         if (vendor != null && isSparse(vendor)) vendor = materializeImage(vendor, new File(output, "vendor.raw.img"));
-        return new BootAssets(system, kernel, ramdisk, vendor, userdata);
+        return new BootAssets(system, kernel, ramdisk, vendor, userdata, qemu);
     }
 
     private static File copyBundleEntry(File bundle, File output, String... names) throws IOException {

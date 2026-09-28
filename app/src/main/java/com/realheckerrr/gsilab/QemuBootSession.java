@@ -22,10 +22,12 @@ public final class QemuBootSession {
     }
 
     public static QemuBootSession start(Context context, File gsi, File guestBundle) throws IOException {
-        File engine = new File(context.getApplicationInfo().nativeLibraryDir, "libqemu-system-aarch64.so");
-        if (!engine.isFile()) throw new IOException("The APK does not contain libqemu-system-aarch64.so.");
         File work = new File(context.getFilesDir(), "vm-session");
         BootAssets assets = BootAssets.prepare(gsi, guestBundle, work);
+        File engine = assets.qemu != null
+                ? assets.qemu
+                : new File(context.getApplicationInfo().nativeLibraryDir, "libqemu-system-aarch64.so");
+        if (!engine.isFile()) throw new IOException("No usable libqemu-system-aarch64.so was found.");
         File log = new File(work, "console.log");
         if (log.exists() && !log.delete()) throw new IOException("Cannot reset console log.");
         List<String> args = new ArrayList<>();

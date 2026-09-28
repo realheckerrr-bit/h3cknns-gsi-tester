@@ -55,6 +55,7 @@ public final class ImageImportTest {
             put(zip, "ramdisk.img", new byte[]{4, 5});
             put(zip, "vendor.img.gz", gzipBytes(ext4));
             put(zip, "userdata.img.gz", gzipBytes(new byte[]{6, 7, 8}));
+            put(zip, "libqemu-system-aarch64.so", new byte[]{9, 10});
         }
 
         GuestBundleAnalysis report = GuestBundleAnalyzer.analyze(guest);
@@ -73,6 +74,7 @@ public final class ImageImportTest {
         assertArrayEquals(ext4, Files.readAllBytes(assets.vendor.toPath()));
         assertArrayEquals(ext4, Files.readAllBytes(assets.system.toPath()));
         assertEquals("userdata.img", assets.userdata.getName());
+        assertEquals("libqemu-system-aarch64.so", assets.qemu.getName());
     }
 
     private static byte[] ext4Image(int size) {
