@@ -54,6 +54,7 @@ jobs:
             unzip -p guest/emulator.zip "$userdata_entry" > guest/userdata.img
             test -s guest/userdata.img
           fi
+          test -s guest/userdata.img
 
       - name: Download and verify official Android 15 ARM64 AOSP GSI
         shell: bash
@@ -110,6 +111,8 @@ jobs:
             -device virtio-blk-device,drive=system \
             -drive if=none,format=raw,id=vendor,file=$PWD/guest/vendor.raw.img,readonly=on \
             -device virtio-blk-device,drive=vendor \
+            -drive if=none,format=raw,id=userdata,file=$PWD/guest/userdata.img \
+            -device virtio-blk-device,drive=userdata \
             -display none -monitor none -serial file:$PWD/serial.log -no-reboot \
             > qemu.stdout 2> qemu.stderr &
           qemu_pid=$!
