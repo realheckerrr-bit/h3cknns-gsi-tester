@@ -1,0 +1,81 @@
+package com.realheckerrr.gsilab;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
+import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+
+/** Patches the Ranchu vendor fstab without rebuilding the ext4 filesystem. */
+public final class RanchuVendorPatcher {
+    private RanchuVendorPatcher() {}
+
+    public static void patch(File vendor) throws IOException {
+        long length = vendor.length();
+        if (length > Integer.MAX_VALUE) throw new IOException("vendor image is too large to scan safely");
+        try (RandomAccessFile file = new RandomAccessFile(vendor, "rw");
+             FileChannel channel = file.getChannel()) {
+            MappedByteBuffer image = channel.map(FileChannel.MapMode.READ_WRITE, 0, length);
+            int size = (int) length;
+            int start = 0;
+            int changed = 0;
+            for (int end = 0; end <= size; end++) {
+                if (end != size && image.get(end) != '\n') continue;
+                byte[] original = new byte[end - start];
+                image.position(start);
+                image.get(original);
+                byte[] updated = transform(original);
+                if (!Arrays.equals(original, updated)) {
+                    image.position(start);
+                    image.put(updated);
+                    changed++;
+                }
+                start = end + 1;
+            }
+            image.force();
+            if (changed == 0) throw new IOException("No Ranchu vendor fstab entries were changed.");
+        }
+    }
+
+    private static byte[] transform(byte[] line) throws IOException {
+        String text = new String(line, StandardCharsets.UTF_8);
+        String trimmed = text.trim();
+        if (trimmed.isEmpty() || trimmed.startsWith("#")) return line;
+        String[] columns = trimmed.split("\\s+");
+        if (columns.length < 2) return line;
+        String device = columns[0];
+        String mountpoint = columns[1];
+        if ("/metadata".equals(mountpoint) || device.endsWith("/metadata")) return comment(line);
+        if (!trimmed.contains("first_stage_mount") || !trimmed.contains("logical")) return line;
+        if ("/system".equals(mountpoint)) columns[0] = "/dev/block/vda";
+        else if ("/vendor".equals(mountpoint)) columns[0] = "/dev/block/vdb";
+        else return comment(line);
+        for (int i = 0; i < columns.length; i++) {
+            StringBuilder cleaned = new StringBuilder();
+            for (String flag : columns[i].split(",")) {
+                if ("logical".equals(flag) || "avb=vbmeta".equals(flag)) continue;
+                if (cleaned.length() > 0) cleaned.append(',');
+                cleaned.append(flag);
+            }
+            columns[i] = cleaned.toString();
+        }
+        return fit(String.join(" ", columns).getBytes(StandardCharsets.UTF_8), line.length);
+    }
+
+    private static byte[] comment(byte[] line) {
+        if (line.length == 0 || line[0] == '#') return line;
+        byte[] updated = line.clone();
+        updated[0] = '#';
+        return updated;
+    }
+
+    private static byte[] fit(byte[] line, int length) throws IOException {
+        if (line.length > length) throw new IOException("Patched fstab line is longer than its ext4 slot.");
+        byte[] result = Arrays.copyOf(line, length);
+        Arrays.fill(result, line.length, length, (byte) ' ');
+        return result;
+    }
+}
