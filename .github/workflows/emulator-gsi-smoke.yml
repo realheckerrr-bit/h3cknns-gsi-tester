@@ -17,7 +17,7 @@ jobs:
       - name: Install ARM QEMU and archive tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends e2fsprogs ipxe-qemu qemu-system-arm qemu-system-common unzip xz-utils
+          sudo apt-get install -y --no-install-recommends cpio e2fsprogs ipxe-qemu lz4 qemu-system-arm qemu-system-common unzip xz-utils
 
       - name: Download official ARM64 Emulator guest pack
         shell: bash
@@ -77,6 +77,10 @@ jobs:
           python3 tools/patch_ranchu_vendor.py guest/vendor.img
           python3 tools/patch_ranchu_vendor.py guest/system.img
           python3 tools/patch_ranchu_ramdisk.py guest/ramdisk.img guest/ramdisk.patched.img
+          lz4 -t guest/ramdisk.patched.img || true
+          lz4 -d -f guest/ramdisk.patched.img guest/ramdisk.raw || true
+          echo '--- patched ramdisk entries ---'
+          cpio -itv < guest/ramdisk.raw 2>&1 | grep -E '(^|/)(lib|lib/modules|virtio_|init|fstab)' | head -100 || true
           echo '--- vendor strings containing fstab or partition mounts ---'
           strings -a guest/vendor.img | grep -Ei 'fstab|/metadata|/system .*logical|/vendor .*logical' | head -100 || true
           for fstab in fstab.ranchu fstab.ranchu.initrd fstab.emulator fstab.goldfish; do
