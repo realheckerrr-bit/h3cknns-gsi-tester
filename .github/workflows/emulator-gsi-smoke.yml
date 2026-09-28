@@ -95,17 +95,15 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
-          rom_path=$(find /usr/share/qemu /usr/lib -type f -name efi-virtio.rom 2>/dev/null | head -1)
-          test -s "$rom_path"
           qemu-system-aarch64 \
             -M virt,gic-version=3 \
             -cpu max -m 2048 -smp 4 -rtc base=utc \
             -kernel guest/kernel-ranchu -initrd guest/ramdisk.patched.img \
-            -append 'console=ttyAMA0,115200 androidboot.console=ttyAMA1 androidboot.hardware=ranchu androidboot.verifiedbootstate=orange androidboot.boot_devices=pci0000:00/0000:00:02.0,pci0000:00/0000:00:03.0 androidboot.partition_map=vda,system;vdb1,vendor' \
+            -append 'console=ttyAMA0,115200 androidboot.console=ttyAMA1 androidboot.hardware=ranchu androidboot.verifiedbootstate=orange' \
             -drive if=none,format=raw,id=system,file=$PWD/guest/system.img,readonly=on \
-            -device virtio-blk-pci,romfile=$rom_path,scsi=off,drive=system \
+            -device virtio-blk-device,drive=system \
             -drive if=none,format=raw,id=vendor,file=$PWD/guest/vendor.img,readonly=on \
-            -device virtio-blk-pci,romfile=$rom_path,scsi=off,drive=vendor \
+            -device virtio-blk-device,drive=vendor \
             -display none -monitor none -serial file:$PWD/serial.log -no-reboot \
             > qemu.stdout 2> qemu.stderr &
           qemu_pid=$!
