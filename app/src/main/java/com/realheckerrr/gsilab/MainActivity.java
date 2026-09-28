@@ -1,22 +1,27 @@
 package com.realheckerrr.gsilab;
 
 import android.app.Activity;
+import android.content.res.ColorStateList;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.ParcelFileDescriptor;
 import android.provider.OpenableColumns;
-import android.view.Gravity;
 import android.view.View;
-import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+
+import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.card.MaterialCardView;
+import com.google.android.material.textview.MaterialTextView;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -31,7 +36,12 @@ public final class MainActivity extends Activity {
     private static final int PICK_INPUT = 1001;
     private static final int EXPORT_REPORT = 1002;
     private static final int PICK_GUEST = 1003;
-    private static final int PAD = 18;
+    private static final int BACKGROUND = Color.rgb(11, 15, 20);
+    private static final int SURFACE = Color.rgb(21, 28, 36);
+    private static final int SURFACE_VARIANT = Color.rgb(38, 51, 61);
+    private static final int TEXT = Color.rgb(213, 225, 231);
+    private static final int MUTED = Color.rgb(174, 187, 197);
+    private static final int ACCENT = Color.rgb(119, 214, 200);
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
@@ -43,9 +53,9 @@ public final class MainActivity extends Activity {
     private TextView guestText;
     private TextView reportText;
     private TextView logText;
-    private Button analyzeButton;
-    private Button bootButton;
-    private Button exportButton;
+    private MaterialButton analyzeButton;
+    private MaterialButton bootButton;
+    private MaterialButton exportButton;
     private QemuBootSession session;
     private final Runnable consolePoller = new Runnable() {
         @Override
@@ -60,8 +70,8 @@ public final class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
-        getWindow().setStatusBarColor(Color.rgb(11, 15, 20));
-        getWindow().setNavigationBarColor(Color.rgb(11, 15, 20));
+        getWindow().setStatusBarColor(BACKGROUND);
+        getWindow().setNavigationBarColor(BACKGROUND);
         setContentView(buildView());
         appendLog("h3cknn's GSI tester 0.2.0 ready.");
         appendLog("Import a GSI and a compatible guest bundle to prepare a VM launch.");
@@ -69,58 +79,65 @@ public final class MainActivity extends Activity {
 
     private View buildView() {
         ScrollView scroll = new ScrollView(this);
-        scroll.setBackgroundColor(Color.rgb(11, 15, 20));
+        scroll.setFillViewport(true);
+        scroll.setBackgroundColor(BACKGROUND);
 
         LinearLayout page = new LinearLayout(this);
         page.setOrientation(LinearLayout.VERTICAL);
-        page.setPadding(PAD, PAD, PAD, PAD);
+        page.setPadding(dp(18), dp(10), dp(18), dp(24));
         scroll.addView(page);
 
-        TextView title = text("h3cknn's GSI tester", 28, Color.rgb(240, 244, 248));
-        title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        page.addView(title);
-        TextView subtitle = text("Inspect generic system images before you risk a flash.", 15, Color.rgb(174, 187, 197));
-        subtitle.setPadding(0, 4, 0, 20);
+        MaterialToolbar toolbar = new MaterialToolbar(this);
+        toolbar.setTitle("h3cknn's GSI tester");
+        toolbar.setSubtitle("GSI test lab");
+        toolbar.setTitleTextColor(TEXT);
+        toolbar.setSubtitleTextColor(MUTED);
+        toolbar.setBackgroundTintList(ColorStateList.valueOf(BACKGROUND));
+        toolbar.setElevation(dp(2));
+        page.addView(toolbar, wrapParams(0));
+
+        TextView subtitle = text("Inspect generic system images before you risk a flash.", 15, MUTED);
+        subtitle.setPadding(0, dp(4), 0, dp(18));
         page.addView(subtitle);
 
-        page.addView(sectionTitle("1  GSI IMAGE"));
-        selectedText = text("No image selected", 14, Color.rgb(214, 225, 232));
-        selectedText.setPadding(0, 10, 0, 12);
-        page.addView(selectedText);
+        LinearLayout imageSection = cardSection(page, "1  GSI IMAGE", "Choose a raw or compressed system image, or a ZIP containing one.");
+        selectedText = text("No image selected", 14, TEXT);
+        selectedText.setPadding(0, dp(12), 0, dp(4));
+        imageSection.addView(selectedText);
 
-        Button selectButton = button("Select GSI image or ZIP");
+        MaterialButton selectButton = outlinedButton("Select GSI image or ZIP");
         selectButton.setOnClickListener(view -> chooseInput());
-        page.addView(selectButton);
+        imageSection.addView(selectButton);
 
         analyzeButton = button("Analyze image");
         analyzeButton.setEnabled(false);
         analyzeButton.setOnClickListener(view -> analyzeInput());
-        page.addView(analyzeButton);
+        imageSection.addView(analyzeButton);
 
-        page.addView(sectionTitle("2  BASE GUEST BUNDLE"));
-        guestText = text("No guest bundle selected", 14, Color.rgb(214, 225, 232));
-        guestText.setPadding(0, 10, 0, 12);
-        page.addView(guestText);
+        LinearLayout guestSection = cardSection(page, "2  BASE GUEST BUNDLE", "Use a matching ARM64 Cuttlefish guest ZIP when possible.");
+        guestText = text("No guest bundle selected", 14, TEXT);
+        guestText.setPadding(0, dp(12), 0, dp(4));
+        guestSection.addView(guestText);
 
-        Button guestButton = button("Select guest bundle ZIP");
+        MaterialButton guestButton = outlinedButton("Select guest bundle ZIP");
         guestButton.setOnClickListener(view -> chooseGuestBundle());
-        page.addView(guestButton);
+        guestSection.addView(guestButton);
 
-        page.addView(sectionTitle("3  PREFLIGHT REPORT"));
+        LinearLayout reportSection = cardSection(page, "3  PREFLIGHT REPORT", "Headers, compression, dynamic partitions, and boot assets are checked before launch.");
         reportText = console("Nothing analyzed yet.");
-        page.addView(reportText);
+        reportSection.addView(reportText);
 
-        exportButton = button("Export report");
+        exportButton = outlinedButton("Export report");
         exportButton.setEnabled(false);
         exportButton.setOnClickListener(view -> exportReport());
-        page.addView(exportButton);
+        reportSection.addView(exportButton);
 
-        page.addView(sectionTitle("4  VM BACKEND"));
+        LinearLayout backendSection = cardSection(page, "4  VM BACKEND", "A transparent ARM64 QEMU launch path for testing, not a promise that arbitrary hardware images will boot.");
         TextView backendNote = text(
                 "Use a matching ARM64 Cuttlefish guest archive when possible: its kernel/ramdisk and super.img provide a QEMU virt profile, and the app extracts vendor_a automatically. Pixel factory and ranchu emulator images are hardware-specific and may not boot on virt. This button produces a transparent launch plan and refuses to fake a boot when required pieces are unavailable.",
-                14, Color.rgb(174, 187, 197));
-        backendNote.setPadding(0, 8, 0, 12);
-        page.addView(backendNote);
+                14, MUTED);
+        backendNote.setPadding(0, dp(12), 0, dp(4));
+        backendSection.addView(backendNote);
 
         bootButton = button("Check VM backend / prepare launch");
         bootButton.setEnabled(false);
@@ -128,53 +145,91 @@ public final class MainActivity extends Activity {
             if (session == null) probeRuntime();
             else stopTestVm();
         });
-        page.addView(bootButton);
+        backendSection.addView(bootButton);
 
-        page.addView(sectionTitle("ACTIVITY LOG"));
+        LinearLayout logSection = cardSection(page, "ACTIVITY LOG", "The latest import, analysis, and QEMU events appear here.");
         logText = console("");
-        logText.setTypeface(Typeface.MONOSPACE, Typeface.NORMAL);
         logText.setTextSize(12);
-        page.addView(logText);
+        logSection.addView(logText);
         return scroll;
     }
 
-    private TextView sectionTitle(String value) {
-        TextView title = text(value, 12, Color.rgb(119, 214, 200));
-        title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        title.setPadding(0, 24, 0, 0);
-        return title;
+    private LinearLayout cardSection(LinearLayout parent, String title, String description) {
+        MaterialCardView card = new MaterialCardView(this);
+        card.setCardBackgroundColor(ColorStateList.valueOf(SURFACE));
+        card.setStrokeColor(ColorStateList.valueOf(Color.rgb(52, 69, 80)));
+        card.setStrokeWidth(dp(1));
+        card.setRadius(dp(18));
+        card.setUseCompatPadding(true);
+        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        cardParams.setMargins(0, dp(8), 0, dp(8));
+        card.setLayoutParams(cardParams);
+
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(16), dp(14), dp(16), dp(8));
+        card.addView(content);
+        MaterialTextView heading = text(title, 13, ACCENT);
+        heading.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        content.addView(heading);
+        content.addView(text(description, 13, MUTED));
+        parent.addView(card);
+        return content;
     }
 
-    private TextView text(String value, int size, int color) {
-        TextView view = new TextView(this);
+    private MaterialTextView text(String value, int size, int color) {
+        MaterialTextView view = new MaterialTextView(this);
         view.setText(value);
         view.setTextSize(size);
         view.setTextColor(color);
         return view;
     }
 
-    private TextView console(String value) {
-        TextView view = text(value, 13, Color.rgb(213, 225, 231));
+    private MaterialTextView console(String value) {
+        MaterialTextView view = text(value, 13, TEXT);
         view.setTypeface(Typeface.MONOSPACE, Typeface.NORMAL);
-        view.setBackgroundColor(Color.rgb(21, 28, 36));
-        view.setPadding(14, 14, 14, 14);
+        view.setTextIsSelectable(true);
+        GradientDrawable background = new GradientDrawable();
+        background.setColor(SURFACE_VARIANT);
+        background.setCornerRadius(dp(12));
+        view.setBackground(background);
+        view.setPadding(dp(12), dp(12), dp(12), dp(12));
+        view.setLayoutParams(wrapParams(8));
         return view;
     }
 
-    private Button button(String label) {
-        Button button = new Button(this);
+    private MaterialButton button(String label) {
+        MaterialButton button = new MaterialButton(this);
         button.setText(label);
-        button.setTextColor(Color.rgb(11, 15, 20));
-        button.setTextSize(14);
-        button.setGravity(Gravity.CENTER);
         button.setAllCaps(false);
-        button.setMinHeight(48);
-        button.setBackgroundColor(Color.rgb(119, 214, 200));
+        button.setTextColor(BACKGROUND);
+        button.setTextSize(14);
+        button.setMinHeight(dp(48));
+        button.setCornerRadius(dp(14));
+        button.setBackgroundTintList(ColorStateList.valueOf(ACCENT));
+        button.setLayoutParams(wrapParams(8));
+        return button;
+    }
+
+    private MaterialButton outlinedButton(String label) {
+        MaterialButton button = button(label);
+        button.setTextColor(ACCENT);
+        button.setBackgroundTintList(ColorStateList.valueOf(SURFACE));
+        button.setStrokeColor(ColorStateList.valueOf(ACCENT));
+        button.setStrokeWidth(dp(1));
+        return button;
+    }
+
+    private LinearLayout.LayoutParams wrapParams(int topMargin) {
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        params.setMargins(0, 0, 0, 10);
-        button.setLayoutParams(params);
-        return button;
+        params.setMargins(0, topMargin, 0, 0);
+        return params;
+    }
+
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
     }
 
     private void chooseInput() {
