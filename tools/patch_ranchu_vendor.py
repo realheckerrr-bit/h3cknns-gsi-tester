@@ -15,6 +15,8 @@ def transform(line):
     if len(columns) < 2:
         return line
     device, mountpoint = columns[0], columns[1]
+    if trimmed.startswith("file ") and "/dev/block/by-name/" in trimmed:
+        return b"#" + line[1:] if line[:1] != b"#" else line
     if mountpoint == "/metadata" or device.endswith("/metadata"):
         return b"#" + line[1:] if line[:1] != b"#" else line
     if "first_stage_mount" not in trimmed or "logical" not in trimmed:
@@ -38,7 +40,7 @@ def main():
         changed = 0
         with open(path, "r+b") as file, mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_WRITE) as image:
             line_starts = set()
-            for needle in (b"logical", b"/metadata", b"super"):
+            for needle in (b"logical", b"/metadata", b"super", b"/dev/block/by-name/"):
                 cursor = 0
                 while True:
                     match = image.find(needle, cursor)
