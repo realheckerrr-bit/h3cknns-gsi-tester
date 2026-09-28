@@ -73,7 +73,10 @@ jobs:
           test -s guest/system.img
 
       - name: Adapt Ranchu ramdisk for direct GSI system and vendor disks
-        run: python3 tools/patch_ranchu_ramdisk.py guest/ramdisk.img guest/ramdisk.patched.img
+        run: |
+          file guest/ramdisk.img
+          xxd -l 32 guest/ramdisk.img
+          python3 tools/patch_ranchu_ramdisk.py guest/ramdisk.img guest/ramdisk.patched.img
 
       - name: Run the app-equivalent Ranchu headless QEMU boot
         shell: bash
