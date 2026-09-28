@@ -27,11 +27,19 @@ jobs:
           curl --fail --location --retry 3 --retry-delay 3 \
             -o guest/emulator.zip \
             https://dl.google.com/android/repository/sys-img/google_apis/arm64-v8a-35_r08.zip
+          entries=$(unzip -Z1 guest/emulator.zip)
           for asset in kernel-ranchu ramdisk.img userdata.img encryptionkey.img; do
-            unzip -p guest/emulator.zip "*/$asset" > "guest/$asset"
+            entry=$(printf '%s\n' "$entries" | grep -E "(^|/)$asset$" | head -1 || true)
+            if [[ -z "$entry" && "$asset" == userdata.img ]]; then
+              continue
+            fi
+            [[ -n "$entry" ]]
+            unzip -p guest/emulator.zip "$entry" > "guest/$asset"
             test -s "guest/$asset"
           done
-          unzip -p guest/emulator.zip '*/vendor.img.gz' | gzip -dc > guest/vendor.img
+          vendor_entry=$(printf '%s\n' "$entries" | grep -E '(^|/)vendor\.img\.gz$' | head -1 || true)
+          [[ -n "$vendor_entry" ]]
+          unzip -p guest/emulator.zip "$vendor_entry" | gzip -dc > guest/vendor.img
           test -s guest/vendor.img
 
       - name: Download and verify official Android 15 ARM64 AOSP GSI
@@ -62,8 +70,6 @@ jobs:
             -append 'console=ttyAMA0,115200 androidboot.console=ttyAMA1 androidboot.hardware=ranchu androidboot.verifiedbootstate=orange' \
             -drive if=none,format=raw,id=system,file=$PWD/guest/system.img,readonly=on \
             -device virtio-blk-pci,scsi=off,drive=system \
-            -drive if=none,format=raw,id=userdata,file=$PWD/guest/userdata.img \
-            -device virtio-blk-pci,scsi=off,drive=userdata \
             -drive if=none,format=raw,id=vendor,file=$PWD/guest/vendor.img,readonly=on \
             -device virtio-blk-pci,scsi=off,drive=vendor \
             -drive if=none,format=raw,id=encryptionkey,file=$PWD/guest/encryptionkey.img,readonly=on \
