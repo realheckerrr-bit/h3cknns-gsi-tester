@@ -57,16 +57,17 @@ public final class QemuBootSession {
                 ? "console=ttyAMA0,115200 androidboot.console=ttyAMA1 androidboot.hardware=ranchu "
                 + "androidboot.verifiedbootstate=orange"
                 : "console=ttyAMA0,115200 androidboot.hardware=generic");
-        addDrive(args, "system", assets.system, true, assets.cuttlefish, rom);
         if (assets.ranchu) {
-            addDrive(args, "vendor", assets.vendor, true, false, rom);
-            if (assets.cache != null) addDrive(args, "cache", assets.cache, false, false, rom);
-            if (assets.userdata != null) addDrive(args, "userdata", assets.userdata, false, false, rom);
-            if (assets.encryptionKey != null) addDrive(args, "encryptionkey", assets.encryptionKey, true, false, rom);
+            // virtio-mmio enumerates devices in reverse declaration order:
+            // userdata -> system -> vendor gives vda=vendor, vdb=system, vdc=userdata.
+            if (assets.userdata != null) addDrive(args, "userdata", assets.userdata, false, false, rom, true);
+            addDrive(args, "system", assets.system, true, false, rom, true);
+            addDrive(args, "vendor", assets.vendor, true, false, rom, true);
         } else {
-            if (assets.userdata != null) addDrive(args, "userdata", assets.userdata, false, assets.cuttlefish, rom);
-            if (assets.cache != null) addDrive(args, "cache", assets.cache, false, assets.cuttlefish, rom);
-            addDrive(args, "vendor", assets.vendor, true, assets.cuttlefish, rom);
+            addDrive(args, "system", assets.system, true, assets.cuttlefish, rom, false);
+            if (assets.userdata != null) addDrive(args, "userdata", assets.userdata, false, assets.cuttlefish, rom, false);
+            if (assets.cache != null) addDrive(args, "cache", assets.cache, false, assets.cuttlefish, rom, false);
+            addDrive(args, "vendor", assets.vendor, true, assets.cuttlefish, rom, false);
         }
         if (assets.cuttlefish) {
             args.add("-device"); args.add("virtio-gpu-pci,id=gpu0");
@@ -83,14 +84,18 @@ public final class QemuBootSession {
     }
 
     private static void addDrive(List<String> args, String id, File image, boolean readOnly,
-                                 boolean nonTransitional, File rom) {
+                                 boolean nonTransitional, File rom, boolean mmio) {
         args.add("-drive");
         args.add("if=none,format=raw,id=" + id + ",file=" + image.getAbsolutePath()
                 + (readOnly ? ",readonly=on" : ""));
         args.add("-device");
-        args.add((nonTransitional ? "virtio-blk-pci-non-transitional" : "virtio-blk-pci")
-                + (rom == null ? "" : ",romfile=" + rom.getAbsolutePath())
-                + ",scsi=off,drive=" + id);
+        if (mmio) {
+            args.add("virtio-blk-device,drive=" + id);
+        } else {
+            args.add((nonTransitional ? "virtio-blk-pci-non-transitional" : "virtio-blk-pci")
+                    + (rom == null ? "" : ",romfile=" + rom.getAbsolutePath())
+                    + ",scsi=off,drive=" + id);
+        }
     }
 
     private static File copyBundledRom(Context context, File work) {

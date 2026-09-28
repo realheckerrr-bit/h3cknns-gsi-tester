@@ -96,6 +96,8 @@ public final class BootAssets {
         if (ranchu) {
             RanchuVendorPatcher.patch(system);
             RanchuVendorPatcher.patch(vendor);
+            vendor = RanchuVendorPatcher.extractFirstGptPartition(vendor, new File(output, "vendor.ranchu.raw.img"));
+            ramdisk = RanchuRamdiskPatcher.patch(ramdisk, new File(output, "ramdisk.ranchu.img"));
         }
         return new BootAssets(system, kernel, ramdisk, vendor, userdata, cache, encryptionKey, qemu, rom, cuttlefish, ranchu);
     }

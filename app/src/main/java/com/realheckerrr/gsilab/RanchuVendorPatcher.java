@@ -1,6 +1,8 @@
 package com.realheckerrr.gsilab;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
@@ -11,6 +13,8 @@ import java.util.Arrays;
 
 /** Patches the Ranchu vendor fstab without rebuilding the ext4 filesystem. */
 public final class RanchuVendorPatcher {
+    private static final long SECTOR_SIZE = 512L;
+
     private RanchuVendorPatcher() {}
 
     public static void patch(File vendor) throws IOException {
@@ -36,6 +40,48 @@ public final class RanchuVendorPatcher {
                 start = end + 1;
             }
             image.force();
+        }
+    }
+
+    /** Extracts the first non-empty GPT partition used by the official Ranchu vendor.img wrapper. */
+    public static File extractFirstGptPartition(File source, File target) throws IOException {
+        if (source.length() < 1024) return source;
+        try (RandomAccessFile input = new RandomAccessFile(source, "r")) {
+            input.seek(SECTOR_SIZE);
+            byte[] header = new byte[92];
+            input.readFully(header);
+            if (!"EFI PART".equals(new String(header, 0, 8, StandardCharsets.US_ASCII))) return source;
+            long entriesLba = littleLong(header, 72);
+            long entryCount = littleInt(header, 80);
+            long entrySize = littleInt(header, 84);
+            if (entriesLba <= 0 || entryCount <= 0 || entrySize < 48 || entrySize > 4096) return source;
+            long tableOffset = entriesLba * SECTOR_SIZE;
+            if (tableOffset < 0 || tableOffset > source.length() - entrySize) return source;
+            input.seek(tableOffset);
+            byte[] entry = new byte[(int) entrySize];
+            input.readFully(entry);
+            long firstLba = littleLong(entry, 32);
+            long lastLba = littleLong(entry, 40);
+            if (firstLba <= 0 || lastLba < firstLba) return source;
+            long offset = firstLba * SECTOR_SIZE;
+            long length = (lastLba - firstLba + 1) * SECTOR_SIZE;
+            if (offset < 0 || length <= 0 || offset > source.length() || length > source.length() - offset) {
+                return source;
+            }
+            if (target.getParentFile() != null && !target.getParentFile().isDirectory()
+                    && !target.getParentFile().mkdirs()) throw new IOException("Cannot create vendor output directory.");
+            input.seek(offset);
+            try (FileOutputStream output = new FileOutputStream(target)) {
+                byte[] buffer = new byte[1024 * 1024];
+                long remaining = length;
+                while (remaining > 0) {
+                    int read = input.read(buffer, 0, (int) Math.min(buffer.length, remaining));
+                    if (read < 0) throw new IOException("Unexpected end of GPT vendor partition.");
+                    output.write(buffer, 0, read);
+                    remaining -= read;
+                }
+            }
+            return target;
         }
     }
 
@@ -93,5 +139,16 @@ public final class RanchuVendorPatcher {
         byte[] result = Arrays.copyOf(line, length);
         Arrays.fill(result, line.length, length, (byte) ' ');
         return result;
+    }
+
+    private static long littleLong(byte[] bytes, int offset) {
+        long value = 0;
+        for (int i = 0; i < 8; i++) value |= (bytes[offset + i] & 0xffL) << (8 * i);
+        return value;
+    }
+
+    private static long littleInt(byte[] bytes, int offset) {
+        return (bytes[offset] & 0xffL) | ((bytes[offset + 1] & 0xffL) << 8)
+                | ((bytes[offset + 2] & 0xffL) << 16) | ((bytes[offset + 3] & 0xffL) << 24);
     }
 }

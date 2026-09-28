@@ -32,10 +32,10 @@ public final class QemuBootPlan {
         out.append("\nThe final runner will extract only verified guest entries into app-private storage and invoke:\n");
         out.append("  libqemu-system-aarch64.so -M virt (Cuttlefish=gic2, generic=gic3) -cpu max -m 2048 -smp 4\n");
         out.append("    -kernel <kernel> -initrd <ramdisk.img>\n");
-        out.append("    -drive file=<system.img>,format=raw,readonly=on + profile-specific virtio-blk-pci\n");
+        out.append("    -drive file=<system.img>,format=raw,readonly=on + profile-specific virtio block device\n");
         out.append("    -drive file=<cache/userdata/vendor>,format=raw + profile-specific disk order\n");
         out.append("    -drive file=<vendor.img or super/vendor_a>,format=raw,readonly=on\n");
-        out.append("  Cuttlefish uses virtio-blk-pci-non-transitional; Ranchu uses virtio-blk-pci.\n");
+        out.append("  Cuttlefish uses virtio-blk-pci-non-transitional; Ranchu uses virtio-mmio in userdata/system/vendor order.\n");
         out.append("    -drive file=<userdata.img>,format=raw -display none -serial <console.log>\n");
         if (!enginePresent) out.append("\nSTATUS: not runnable; this APK has no bundled QEMU system engine.\n");
         else out.append("\nSTATUS: engine detected; the app can make a headless boot attempt. Display/input and device-specific validation remain.\n");
