@@ -51,7 +51,7 @@ GitHub Actions is configured in `.github/workflows/android.yml`.
 2. Run **Build h3cknn's GSI tester APK** or push to `main`.
 3. Download the `h3cknns-gsi-tester-debug-apk` artifact.
 
-For a real host-side boot check, run the separate **Cuttlefish GSI boot smoke test** workflow. Its defaults fetch a public ARM64 Cuttlefish image artifact and a matching-era Android 14 ARM64 AOSP GSI, launch the same headless `virt` layout, and upload the serial log. You can override the CI build ID, target, GSI URL, and checksum from the workflow form.
+For a real host-side boot check, run the separate **Cuttlefish GSI boot smoke test** workflow. Its defaults fetch a public ARM64 Cuttlefish image artifact and an official ARM64 AOSP GSI, launch the same headless `virt` layout, and upload the serial log. You can override the CI build ID, target, GSI URL, and checksum from the workflow form.
 
 The project uses Java 17, Android Gradle Plugin 8.6.0, compile SDK 35, AndroidX, and Material Components 1.14.0. Unit tests cover raw/gzip GSI imports and official-style guest archives before the APK is assembled.
 

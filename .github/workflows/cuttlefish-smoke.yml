@@ -6,19 +6,19 @@ on:
       cuttlefish_build_id:
         description: 'AOSP CI build ID for aosp_cf_arm64_only_phone'
         required: true
-        default: '12309296'
+        default: '14981173'
       cuttlefish_target:
         description: 'Exact AOSP CI target containing the image artifact'
         required: true
-        default: 'aosp_cf_arm64_only_phone-trunk_staging-userdebug'
+        default: 'aosp_cf_arm64_only_phone-userdebug'
       gsi_url:
         description: 'Official ARM64 GSI ZIP URL'
         required: true
-        default: 'https://dl.google.com/developers/android/udc/images/gsi/aosp_arm64-exp-UP1A.231005.007-10754064-68dd726a.zip'
+        default: 'https://dl.google.com/developers/android/cinnamonbun/images/gsi/aosp_arm64-exp-CP41.260831.007-16416850-5e61c946.zip'
       gsi_sha256:
         description: 'SHA-256 for the GSI ZIP (empty disables the check)'
         required: false
-        default: '68dd726a861678bb5abb251719e7b95632d9d05d4f097e63e094188a81346c29'
+        default: '5e61c946ee45680365336968827bf62509d90f66ed78938f88e4deedda40a7fe'
 
 permissions:
   contents: read
