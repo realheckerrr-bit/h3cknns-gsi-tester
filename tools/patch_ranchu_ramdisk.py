@@ -71,32 +71,52 @@ def repack(data, compression):
     return data
 
 
+def parse_archive(data, start):
+    entries = []
+    offset = start
+    while offset + 110 <= len(data):
+        header = data[offset:offset + 110]
+        if header[:6] not in (b"070701", b"070702"):
+            return None
+        try:
+            fields = [int(header[i:i + 8], 16) for i in range(6, 110, 8)]
+        except ValueError:
+            return None
+        size = fields[6]
+        namesize = fields[11]
+        name_start = offset + 110
+        name_end = name_start + namesize
+        if namesize < 1 or name_end > len(data):
+            return None
+        name = data[name_start:name_end - 1].decode("utf-8", "replace")
+        content_start = align4(name_end)
+        content_end = content_start + size
+        if content_end > len(data):
+            return None
+        offset = align4(content_end)
+        if name == "TRAILER!!!":
+            return entries, offset
+        entries.append((header, name, data[content_start:content_end]))
+    return None
+
+
 def parse_cpio(data):
     entries = []
-    offset = 0
-    while True:
-        while offset < len(data) and data[offset] == 0:
-            offset += 1
-        if offset + 110 > len(data):
+    cursor = 0
+    while cursor < len(data):
+        candidates = [position for position in (
+            data.find(b"070701", cursor), data.find(b"070702", cursor)
+        ) if position >= 0]
+        if not candidates:
             break
-        if data[offset:offset + 6] not in (b"070701", b"070702"):
-            break
-        while True:
-            header = data[offset:offset + 110]
-            fields = [int(header[i:i + 8], 16) for i in range(6, 110, 8)]
-            size = fields[6]
-            namesize = fields[11]
-            name_start = offset + 110
-            name_end = name_start + namesize
-            name = data[name_start:name_end - 1].decode("utf-8", "replace")
-            content_start = align4(name_end)
-            content_end = content_start + size
-            if content_end > len(data):
-                raise ValueError("truncated cpio entry")
-            offset = align4(content_end)
-            if name == "TRAILER!!!":
-                break
-            entries.append((header, name, data[content_start:content_end]))
+        start = min(candidates)
+        parsed = parse_archive(data, start)
+        if parsed is None:
+            cursor = start + 6
+            continue
+        archive_entries, end = parsed
+        entries.extend(archive_entries)
+        cursor = max(end, start + 6)
     if not entries:
         raise ValueError("no newc entries in Ranchu ramdisk")
     return entries
