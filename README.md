@@ -1,6 +1,6 @@
 # h3cknn's GSI tester for Android
 
-h3cknn's GSI tester is a from-scratch Android test harness for importing and preflighting Generic System Images. It accepts a raw `system.img`, a gzip-compressed image, or a ZIP containing `system.img`/`system.img.gz`, calculates hashes, recognizes Android sparse/raw-ext4 headers, and reports whether the input is a plausible GSI candidate.
+h3cknn's GSI tester is a from-scratch Android test harness for importing and preflighting Generic System Images. It accepts a raw `system.img`, gzip/XZ-compressed images, or a ZIP containing `system.img`, `system.img.gz`, or `system.img.xz`, calculates hashes, recognizes Android sparse/raw-ext4 headers, and reports whether the input is a plausible GSI candidate.
 
 ## Scope
 
@@ -15,9 +15,9 @@ Select a ZIP containing these files:
 ```text
 guest.zip
 ├── kernel                 # or kernel-ranchu / kernel-ranchu-64
-├── ramdisk.img            # .gz is accepted
-├── vendor.img             # vendor.img.gz and vendor_a.img are accepted
-├── userdata.img           # optional; gzip is accepted
+├── ramdisk.img            # .gz/.xz are accepted
+├── vendor.img             # vendor.img.gz/.xz and vendor_a.img are accepted
+├── userdata.img           # optional; gzip/XZ is accepted
 └── libqemu-system-aarch64.so  # optional engine override
 ```
 

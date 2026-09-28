@@ -14,6 +14,8 @@ import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import org.tukaani.xz.XZOutputStream;
+
 import org.junit.Test;
 
 public final class ImageImportTest {
@@ -28,6 +30,19 @@ public final class ImageImportTest {
         assertEquals("raw ext4 image", result.imageFormat);
         assertTrue(result.bootCandidate);
         assertTrue(result.warnings.get(0).contains("decompressed"));
+    }
+
+    @Test
+    public void analyzesXzGsiImage() throws Exception {
+        byte[] ext4 = ext4Image(4096);
+        File image = tempFile("system.img.xz");
+        writeXz(image, ext4);
+
+        GsiAnalysis result = GsiAnalyzer.analyze(image);
+
+        assertEquals("raw ext4 image", result.imageFormat);
+        assertTrue(result.bootCandidate);
+        assertTrue(result.warnings.get(0).contains("XZ"));
     }
 
     @Test
@@ -179,6 +194,12 @@ public final class ImageImportTest {
     private static void writeGzip(File target, byte[] bytes) throws IOException {
         try (GZIPOutputStream gzip = new GZIPOutputStream(new FileOutputStream(target))) {
             gzip.write(bytes);
+        }
+    }
+
+    private static void writeXz(File target, byte[] bytes) throws IOException {
+        try (XZOutputStream xz = new XZOutputStream(new FileOutputStream(target), new org.tukaani.xz.LZMA2Options())) {
+            xz.write(bytes);
         }
     }
 

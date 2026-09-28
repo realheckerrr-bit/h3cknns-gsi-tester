@@ -37,19 +37,20 @@ public final class BootAssets {
         if (!output.isDirectory() && !output.mkdirs()) throw new IOException("Cannot create VM working directory.");
         File systemSource = new File(output, "system.source.img");
         if (gsi.getName().toLowerCase(Locale.US).endsWith(".zip")) {
-            copyEntry(gsi, systemSource, "system.img", "system.img.gz");
+            copyEntry(gsi, systemSource, "system.img", "system.img.gz", "system.img.xz");
         } else {
             copyMaybeGzip(gsi, systemSource);
         }
         File system = materializeImage(systemSource, new File(output, "system.img"));
 
-        File kernel = copyBundleEntry(guestBundle, output, "kernel", "kernel.gz", "kernel-ranchu", "kernel-ranchu.gz",
-                "kernel-ranchu-64", "kernel-ranchu-64.gz", "kernel_16k", "kernel_16k.gz");
-        File ramdisk = copyBundleEntry(guestBundle, output, "ramdisk.img", "ramdisk.img.gz", "ramdisk_16k.img",
-                "ramdisk_16k.img.gz");
-        File bootImage = copyBundleEntry(guestBundle, output, "boot.img");
-        File initBootImage = copyBundleEntry(guestBundle, output, "init_boot.img", "init_boot.img.gz");
-        File vendorBootImage = copyBundleEntry(guestBundle, output, "vendor_boot.img", "vendor_boot.img.gz");
+        File kernel = copyBundleEntry(guestBundle, output, "kernel", "kernel.gz", "kernel.xz", "kernel-ranchu",
+                "kernel-ranchu.gz", "kernel-ranchu.xz", "kernel-ranchu-64", "kernel-ranchu-64.gz",
+                "kernel-ranchu-64.xz", "kernel_16k", "kernel_16k.gz", "kernel_16k.xz");
+        File ramdisk = copyBundleEntry(guestBundle, output, "ramdisk.img", "ramdisk.img.gz", "ramdisk.img.xz",
+                "ramdisk_16k.img", "ramdisk_16k.img.gz", "ramdisk_16k.img.xz");
+        File bootImage = copyBundleEntry(guestBundle, output, "boot.img", "boot.img.gz", "boot.img.xz");
+        File initBootImage = copyBundleEntry(guestBundle, output, "init_boot.img", "init_boot.img.gz", "init_boot.img.xz");
+        File vendorBootImage = copyBundleEntry(guestBundle, output, "vendor_boot.img", "vendor_boot.img.gz", "vendor_boot.img.xz");
         if (kernel == null && bootImage != null) {
             kernel = AndroidBootImage.extractKernel(bootImage, new File(output, "kernel.from-boot.img"));
         }
@@ -63,11 +64,12 @@ public final class BootAssets {
             ramdisk = AndroidBootImage.extractVendorRamdisk(vendorBootImage,
                     new File(output, "ramdisk.from-vendor_boot.img"));
         }
-        File vendor = copyBundleEntry(guestBundle, output, "vendor.img", "vendor.img.gz", "vendor_a.img", "vendor_a.img.gz");
-        File userdata = copyBundleEntry(guestBundle, output, "userdata.img", "userdata.img.gz",
-                "userdata-qemu.img", "userdata-qemu.img.gz");
+        File vendor = copyBundleEntry(guestBundle, output, "vendor.img", "vendor.img.gz", "vendor.img.xz", "vendor_a.img",
+                "vendor_a.img.gz", "vendor_a.img.xz");
+        File userdata = copyBundleEntry(guestBundle, output, "userdata.img", "userdata.img.gz", "userdata.img.xz",
+                "userdata-qemu.img", "userdata-qemu.img.gz", "userdata-qemu.img.xz");
         File qemu = copyBundleEntry(guestBundle, output, "libqemu-system-aarch64.so", "qemu-system-aarch64");
-        File superImage = copyBundleEntry(guestBundle, output, "super.img", "super.img.gz");
+        File superImage = copyBundleEntry(guestBundle, output, "super.img", "super.img.gz", "super.img.xz");
         boolean cuttlefish = superImage != null || (kernel != null && kernel.getName().startsWith("kernel_16k"));
         if (vendor == null && superImage != null) {
             File rawSuper = materializeImage(superImage, new File(output, "super.raw.img"));
@@ -85,9 +87,9 @@ public final class BootAssets {
             ZipEntry entry = findEntry(zip, names);
             if (entry == null) return null;
             String base = entry.getName().substring(entry.getName().lastIndexOf('/') + 1);
-            File target = new File(output, safeName(stripGzipSuffix(base)));
+            File target = new File(output, safeName(stripCompressionSuffix(base)));
             try (InputStream raw = zip.getInputStream(entry);
-                 InputStream input = maybeGzip(raw, base);
+                 InputStream input = maybeCompressed(raw, base);
                  FileOutputStream out = new FileOutputStream(target)) {
                 copy(input, out);
             }
@@ -98,10 +100,10 @@ public final class BootAssets {
     private static void copyEntry(File archive, File target, String... wantedBases) throws IOException {
         try (ZipFile zip = new ZipFile(archive)) {
             ZipEntry entry = findEntry(zip, wantedBases);
-            if (entry == null) throw new IOException("GSI ZIP does not contain system.img or system.img.gz.");
+            if (entry == null) throw new IOException("GSI ZIP does not contain system.img, system.img.gz, or system.img.xz.");
             String base = entry.getName().substring(entry.getName().lastIndexOf('/') + 1);
             try (InputStream raw = zip.getInputStream(entry);
-                 InputStream input = maybeGzip(raw, base);
+                 InputStream input = maybeCompressed(raw, base);
                  FileOutputStream out = new FileOutputStream(target)) {
                 copy(input, out);
             }
@@ -185,14 +187,17 @@ public final class BootAssets {
 
     private static void copyMaybeGzip(File source, File target) throws IOException {
         try (InputStream raw = new FileInputStream(source);
-             InputStream input = maybeGzip(raw, source.getName());
+             InputStream input = maybeCompressed(raw, source.getName());
              FileOutputStream output = new FileOutputStream(target)) {
             copy(input, output);
         }
     }
 
-    private static InputStream maybeGzip(InputStream input, String name) throws IOException {
-        return name.toLowerCase(Locale.US).endsWith(".gz") ? new GZIPInputStream(input) : input;
+    private static InputStream maybeCompressed(InputStream input, String name) throws IOException {
+        String lower = name.toLowerCase(Locale.US);
+        if (lower.endsWith(".gz")) return new GZIPInputStream(input);
+        if (lower.endsWith(".xz")) return new org.tukaani.xz.XZInputStream(input);
+        return input;
     }
 
     private static void copy(InputStream input, FileOutputStream output) throws IOException {
@@ -249,9 +254,10 @@ public final class BootAssets {
         return name.replaceAll("[^A-Za-z0-9._-]", "_");
     }
 
-    private static String stripGzipSuffix(String name) {
-        return name.toLowerCase(Locale.US).endsWith(".gz")
-                ? name.substring(0, name.length() - 3)
-                : name;
+    private static String stripCompressionSuffix(String name) {
+        String lower = name.toLowerCase(Locale.US);
+        if (lower.endsWith(".gz")) return name.substring(0, name.length() - 3);
+        if (lower.endsWith(".xz")) return name.substring(0, name.length() - 3);
+        return name;
     }
 }

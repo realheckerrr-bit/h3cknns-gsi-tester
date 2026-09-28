@@ -38,21 +38,21 @@ public final class GuestBundleAnalyzer {
                 if (entry.isDirectory()) continue;
                 String name = entry.getName().replace('\\', '/');
                 String base = name.substring(name.lastIndexOf('/') + 1).toLowerCase(Locale.US);
-                if (kernel == null && (base.equals("kernel") || base.equals("kernel.gz")
-                        || base.equals("kernel-ranchu") || base.equals("kernel-ranchu.gz")
-                        || base.equals("kernel-ranchu-64") || base.equals("kernel-ranchu-64.gz")
-                        || base.equals("kernel_16k") || base.equals("kernel_16k.gz"))) kernel = name;
-                if (ramdisk == null && (base.equals("ramdisk.img") || base.equals("ramdisk.img.gz")
-                        || base.equals("ramdisk_16k.img") || base.equals("ramdisk_16k.img.gz"))) ramdisk = name;
-                if (vendor == null && (base.equals("vendor.img") || base.equals("vendor.img.gz")
-                        || base.equals("vendor_a.img") || base.equals("vendor_a.img.gz"))) vendor = name;
-                if (userdata == null && (base.equals("userdata.img") || base.equals("userdata.img.gz")
-                        || base.equals("userdata-qemu.img") || base.equals("userdata-qemu.img.gz"))) userdata = name;
+                if (kernel == null && (base.equals("kernel") || base.equals("kernel.gz") || base.equals("kernel.xz")
+                        || base.equals("kernel-ranchu") || base.equals("kernel-ranchu.gz") || base.equals("kernel-ranchu.xz")
+                        || base.equals("kernel-ranchu-64") || base.equals("kernel-ranchu-64.gz") || base.equals("kernel-ranchu-64.xz")
+                        || base.equals("kernel_16k") || base.equals("kernel_16k.gz") || base.equals("kernel_16k.xz"))) kernel = name;
+                if (ramdisk == null && (base.equals("ramdisk.img") || base.equals("ramdisk.img.gz") || base.equals("ramdisk.img.xz")
+                        || base.equals("ramdisk_16k.img") || base.equals("ramdisk_16k.img.gz") || base.equals("ramdisk_16k.img.xz"))) ramdisk = name;
+                if (vendor == null && (base.equals("vendor.img") || base.equals("vendor.img.gz") || base.equals("vendor.img.xz")
+                        || base.equals("vendor_a.img") || base.equals("vendor_a.img.gz") || base.equals("vendor_a.img.xz"))) vendor = name;
+                if (userdata == null && (base.equals("userdata.img") || base.equals("userdata.img.gz") || base.equals("userdata.img.xz")
+                        || base.equals("userdata-qemu.img") || base.equals("userdata-qemu.img.gz") || base.equals("userdata-qemu.img.xz"))) userdata = name;
                 if (qemu == null && (base.equals("qemu-system-aarch64") || base.equals("libqemu-system-aarch64.so"))) qemu = name;
-                if (superImage == null && (base.equals("super.img") || base.equals("super.img.gz"))) superImage = name;
-                if (bootImage == null && (base.equals("boot.img") || base.equals("boot.img.gz"))) bootImage = name;
-                if (initBootImage == null && (base.equals("init_boot.img") || base.equals("init_boot.img.gz"))) initBootImage = name;
-                if (vendorBootImage == null && (base.equals("vendor_boot.img") || base.equals("vendor_boot.img.gz"))) vendorBootImage = name;
+                if (superImage == null && (base.equals("super.img") || base.equals("super.img.gz") || base.equals("super.img.xz"))) superImage = name;
+                if (bootImage == null && (base.equals("boot.img") || base.equals("boot.img.gz") || base.equals("boot.img.xz"))) bootImage = name;
+                if (initBootImage == null && (base.equals("init_boot.img") || base.equals("init_boot.img.gz") || base.equals("init_boot.img.xz"))) initBootImage = name;
+                if (vendorBootImage == null && (base.equals("vendor_boot.img") || base.equals("vendor_boot.img.gz") || base.equals("vendor_boot.img.xz"))) vendorBootImage = name;
             }
         }
         if (kernel == null && bootImage != null) {
