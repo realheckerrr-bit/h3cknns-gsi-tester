@@ -11,6 +11,14 @@ on:
         options:
           - gsi
           - stock
+      gsi_url:
+        description: "Official ARM64 GSI ZIP URL"
+        required: true
+        default: https://dl.google.com/developers/android/vic/images/gsi/aosp_arm64-exp-AP4A.241205.013-12621605-14e72a7c.zip
+      gsi_sha256:
+        description: "SHA-256 for the GSI ZIP (empty disables the check)"
+        required: false
+        default: 14e72a7c1b6b6600ba4f7b6057c79e531bbb9aa763e9e998ab5e1a8709e5075b
 
 permissions:
   contents: read
@@ -71,12 +79,17 @@ jobs:
       - name: Download and verify official Android 15 ARM64 AOSP GSI
         if: inputs.system_source != 'stock'
         shell: bash
+        env:
+          GSI_URL: ${{ inputs.gsi_url }}
+          GSI_SHA256: ${{ inputs.gsi_sha256 }}
         run: |
           set -euo pipefail
           curl --fail --location --retry 3 --retry-delay 3 \
             -o guest/gsi.zip \
-            https://dl.google.com/developers/android/vic/images/gsi/aosp_arm64-exp-AP4A.241205.013-12621605-14e72a7c.zip
-          echo '14e72a7c1b6b6600ba4f7b6057c79e531bbb9aa763e9e998ab5e1a8709e5075b  guest/gsi.zip' | sha256sum --check --status
+            "$GSI_URL"
+          if [[ -n "$GSI_SHA256" ]]; then
+            echo "$GSI_SHA256  guest/gsi.zip" | sha256sum --check --status
+          fi
           system_entry=$(unzip -Z1 guest/gsi.zip | grep -E '(^|/)system\.img(\.gz)?$' | head -1)
           [[ -n "$system_entry" ]]
           if [[ "$system_entry" == *.gz ]]; then

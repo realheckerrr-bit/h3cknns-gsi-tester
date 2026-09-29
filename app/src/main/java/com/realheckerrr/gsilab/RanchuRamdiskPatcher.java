@@ -27,22 +27,24 @@ public final class RanchuRamdiskPatcher {
         if (!looksLikeRamdisk(encoded)) return source;
         byte[] raw = unpack(encoded, source.getName());
         List<Entry> entries = parseCpio(raw);
-        boolean changed = false;
+        boolean hasSystem = false;
+        boolean hasVendor = false;
         List<Entry> patched = new ArrayList<>();
         for (Entry entry : entries) {
             String base = entry.name.substring(entry.name.lastIndexOf('/') + 1);
             if ("fstab.ranchu".equals(base) || "fstab.ranchu.initrd".equals(base)) {
                 PatchResult result = patchFstab(entry.content);
                 entry = new Entry(entry.name, result.content);
-                changed |= result.changed;
+                hasSystem |= result.hasSystem;
+                hasVendor |= result.hasVendor;
             }
             patched.add(entry);
         }
-        if (!changed) {
-            patched.add(new Entry("fstab.ranchu", (
-                    "/dev/block/vdb /system ext4 ro wait,first_stage_mount\n"
-                            + "/dev/block/vda /vendor ext4 ro wait,first_stage_mount\n")
-                    .getBytes(StandardCharsets.UTF_8)));
+        if (!hasSystem || !hasVendor) {
+            StringBuilder fallback = new StringBuilder();
+            if (!hasSystem) fallback.append("/dev/block/vdb /system ext4 ro wait,first_stage_mount\n");
+            if (!hasVendor) fallback.append("/dev/block/vda /vendor ext4 ro wait,first_stage_mount\n");
+            patched.add(new Entry("fstab.ranchu", fallback.toString().getBytes(StandardCharsets.UTF_8)));
         }
         File parent = target.getParentFile();
         if (parent != null && !parent.isDirectory() && !parent.mkdirs()) {
@@ -227,14 +229,8 @@ public final class RanchuRamdiskPatcher {
                 changed = true;
                 continue;
             }
-            if (!stripped.contains("first_stage_mount") || !stripped.contains("logical")) {
+            if (!stripped.contains("first_stage_mount")) {
                 result.append(line);
-                continue;
-            }
-            if (("/system".equals(mountpoint) || "/vendor".equals(mountpoint))
-                    && columns.length > 2 && "erofs".equals(columns[2])) {
-                result.append('#').append(line.startsWith("#") ? line.substring(1) : line);
-                changed = true;
                 continue;
             }
             if ("/system".equals(mountpoint)) columns[0] = "/dev/block/vdb";
@@ -244,6 +240,11 @@ public final class RanchuRamdiskPatcher {
                 changed = true;
                 continue;
             }
+            if (columns.length > 2 && ("erofs".equals(columns[2]) || "f2fs".equals(columns[2]))) {
+                columns[2] = "ext4";
+            }
+            if ("/system".equals(mountpoint)) hasSystem = true;
+            else hasVendor = true;
             for (int i = 0; i < columns.length; i++) {
                 StringBuilder flags = new StringBuilder();
                 for (String flag : columns[i].split(",")) {
@@ -257,7 +258,7 @@ public final class RanchuRamdiskPatcher {
             if (line.endsWith("\n")) result.append('\n');
             changed = true;
         }
-        return new PatchResult(result.toString().getBytes(StandardCharsets.UTF_8), changed);
+        return new PatchResult(result.toString().getBytes(StandardCharsets.UTF_8), changed, hasSystem, hasVendor);
     }
 
     private static byte[] buildCpio(List<Entry> entries) throws IOException {
@@ -328,6 +329,13 @@ public final class RanchuRamdiskPatcher {
     private static final class PatchResult {
         final byte[] content;
         final boolean changed;
-        PatchResult(byte[] content, boolean changed) { this.content = content; this.changed = changed; }
+        final boolean hasSystem;
+        final boolean hasVendor;
+        PatchResult(byte[] content, boolean changed, boolean hasSystem, boolean hasVendor) {
+            this.content = content;
+            this.changed = changed;
+            this.hasSystem = hasSystem;
+            this.hasVendor = hasVendor;
+        }
     }
 }

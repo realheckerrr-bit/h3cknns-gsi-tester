@@ -169,10 +169,13 @@ public final class RanchuVendorPatcher {
             }
             return fit(String.join(" ", columns).getBytes(StandardCharsets.UTF_8), line.length);
         }
-        if (!trimmed.contains("first_stage_mount") || !trimmed.contains("logical")) return line;
+        if (!trimmed.contains("first_stage_mount")) return line;
         if ("/system".equals(mountpoint)) columns[0] = "/dev/block/vdb";
         else if ("/vendor".equals(mountpoint)) columns[0] = "/dev/block/vda";
         else return comment(line);
+        if (columns.length > 2 && ("erofs".equals(columns[2]) || "f2fs".equals(columns[2]))) {
+            columns[2] = "ext4";
+        }
         for (int i = 0; i < columns.length; i++) {
             StringBuilder cleaned = new StringBuilder();
             for (String flag : columns[i].split(",")) {
