@@ -219,7 +219,7 @@ jobs:
           old = "for (s = getdtablesize() - 1; s >= 3; s--)"
           if old not in text:
               raise SystemExit('slirp getdtablesize call was not found')
-          path.write_text(text.replace(old, "for (s = 1024 - 1; s >= 3; s--", 1))
+          path.write_text(text.replace(old, "for (s = 1024 - 1; s >= 3; s--)", 1))
           PY
           # Limbo's Android link rule is also the desired shared-library
           # boundary for QEMU's qemu_init/qemu_main_loop API.
