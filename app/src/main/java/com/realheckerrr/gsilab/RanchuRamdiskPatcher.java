@@ -24,6 +24,7 @@ public final class RanchuRamdiskPatcher {
 
     public static File patch(File source, File target) throws IOException {
         byte[] encoded = readAll(source);
+        if (!looksLikeRamdisk(encoded)) return source;
         byte[] raw = unpack(encoded, source.getName());
         List<Entry> entries = parseCpio(raw);
         boolean changed = false;
@@ -52,6 +53,17 @@ public final class RanchuRamdiskPatcher {
             gzip.write(buildCpio(patched));
         }
         return target;
+    }
+
+    private static boolean looksLikeRamdisk(byte[] data) {
+        if (data.length >= 6) {
+            String magic = ascii(data, 0, 6);
+            if ("070701".equals(magic) || "070702".equals(magic)) return true;
+        }
+        return (data.length >= 2 && (data[0] & 0xff) == 0x1f && (data[1] & 0xff) == 0x8b)
+                || (data.length >= 6 && data[0] == (byte) 0xfd && data[1] == '7'
+                && data[2] == 'z' && data[3] == 'X' && data[4] == 'Z' && data[5] == 0)
+                || (data.length >= 4 && littleInt(data, 0) == LZ4_MAGIC);
     }
 
     private static byte[] unpack(byte[] encoded, String name) throws IOException {

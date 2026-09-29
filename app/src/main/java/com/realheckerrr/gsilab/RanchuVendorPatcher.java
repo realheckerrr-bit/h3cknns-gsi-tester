@@ -103,11 +103,15 @@ public final class RanchuVendorPatcher {
                 StringBuilder flags = new StringBuilder();
                 for (String flag : columns[3].split(",")) {
                     if (!("noatime".equals(flag) || "nosuid".equals(flag) || "nodev".equals(flag)
-                            || "errors=panic".equals(flag) || "wait".equals(flag))) continue;
+                            || "errors=panic".equals(flag))) continue;
                     if (flags.length() > 0) flags.append(',');
                     flags.append(flag);
                 }
-                columns[3] = flags.length() == 0 ? "wait" : flags.toString();
+                columns[3] = flags.length() == 0 ? "defaults" : flags.toString();
+            }
+            if (columns.length > 4) {
+                columns[4] = "wait";
+                columns = Arrays.copyOf(columns, 5);
             }
             return fit(String.join(" ", columns).getBytes(StandardCharsets.UTF_8), line.length);
         }

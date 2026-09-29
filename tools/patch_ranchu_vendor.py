@@ -24,10 +24,13 @@ def transform(line):
         if len(columns) > 2 and columns[2] in ("f2fs", "erofs"):
             columns[2] = "ext4"
         if len(columns) > 3:
-            allowed = {"noatime", "nosuid", "nodev", "errors=panic", "wait"}
+            allowed = {"noatime", "nosuid", "nodev", "errors=panic"}
             columns[3] = ",".join(flag for flag in columns[3].split(",") if flag in allowed)
             if not columns[3]:
-                columns[3] = "wait"
+                columns[3] = "defaults"
+        if len(columns) > 4:
+            columns[4] = "wait"
+            columns = columns[:5]
         rebuilt = " ".join(columns).encode("utf-8")
         if len(rebuilt) > len(line):
             raise ValueError("patched data fstab line is longer than its ext4 slot")
