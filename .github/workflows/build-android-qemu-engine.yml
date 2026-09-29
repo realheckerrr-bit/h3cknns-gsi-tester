@@ -191,6 +191,7 @@ jobs:
           from pathlib import Path
           path = Path(__import__('sys').argv[1])
           text = path.read_text()
+          text = text.replace("./qemu/VERSION", "./qemu/QEMU_VERSION")
           old = "cd $(LIMBO_JNI_ROOT)/qemu && $(MAKE) all -j $(BUILD_THREADS) BUILD_GUEST=$(BUILD_GUEST)"
           new = "cd $(LIMBO_JNI_ROOT)/qemu && $(MAKE) $(BUILD_GUEST) -j $(BUILD_THREADS) BUILD_GUEST=$(BUILD_GUEST)"
           if old not in text:
