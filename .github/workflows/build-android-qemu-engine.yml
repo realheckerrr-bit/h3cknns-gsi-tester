@@ -274,6 +274,7 @@ jobs:
           qemuutilobj := $(patsubst ../generated-tracers.o,../trace/generated-tracers.o,$(qemuutilobj))
           qemuutilobj := $(patsubst ../simple.o,../trace/simple.o,$(qemuutilobj))
           qemuutilobj := $(patsubst ../ftrace.o,../trace/ftrace.o,$(qemuutilobj))
+          qemuutilobj := $(patsubst ../pbkdf-stub.o,../crypto/pbkdf-stub.o,$(qemuutilobj))
           $(COMMON_LDADDS): $(qemuutilobj)
           \t$(AR) rcs $@ $(qemuutilobj)
           """
