@@ -86,9 +86,17 @@ jobs:
           from pathlib import Path
           path = Path(__import__('sys').argv[1])
           text = path.read_text()
-          for operation in ("add", "and", "or", "xor"):
-              old = f"__sync_fetch_and_{operation} ((atomic), (val))"
-              new = f"__sync_fetch_and_{operation} ((atomic), (gpointer) (val))"
+          replacements = {
+              "(gssize) __sync_fetch_and_add ((atomic), (val))":
+                  "(gssize) __sync_fetch_and_add ((atomic), (gpointer) (val))",
+              "(gsize) __sync_fetch_and_and ((atomic), (val))":
+                  "(gsize) __sync_fetch_and_and ((atomic), (gpointer) (val))",
+              "(gsize) __sync_fetch_and_or ((atomic), (val))":
+                  "(gsize) __sync_fetch_and_or ((atomic), (gpointer) (val))",
+              "(gsize) __sync_fetch_and_xor ((atomic), (val))":
+                  "(gsize) __sync_fetch_and_xor ((atomic), (gpointer) (val))",
+          }
+          for old, new in replacements.items():
               text = text.replace(old, new)
           path.write_text(text)
           PY
