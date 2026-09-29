@@ -259,6 +259,9 @@ jobs:
           \t\tCFLAGS="$(CFLAGS) $(QEMU_CFLAGS)" \
           \t\tLDFLAGS="$(LDFLAGS)" ARFLAGS="$(ARFLAGS)" \
           \t\tCC="$(CC)" AR="$(AR)" LD="$(LD)" libfdt/libfdt.a
+
+          $(COMMON_LDADDS):
+          \t$(MAKE) -C .. libqemuutil.a
           """
           if old not in text:
               raise SystemExit('Limbo slirp link block was not found')
