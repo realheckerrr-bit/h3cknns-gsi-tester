@@ -377,7 +377,7 @@ public final class MainActivity extends Activity {
             appendLog("Boot not started: the current guest path requires an ARM64 host.");
         } else {
             bootButton.setEnabled(false);
-            appendLog("Preparing private VM files and starting headless QEMU...");
+            appendLog("Preparing private VM files and opening the guest display...");
             worker.execute(() -> {
                 try {
                     QemuBootSession started = QemuBootSession.start(this, selectedFile, guestFile);
@@ -404,7 +404,7 @@ public final class MainActivity extends Activity {
         session = null;
         lastQemuRunning = null;
         mainHandler.removeCallbacks(consolePoller);
-        bootButton.setText("Start headless test VM");
+        bootButton.setText("Start test VM");
         bootButton.setEnabled(false);
         if (stopping != null) {
             appendLog("Stopping QEMU...");

@@ -83,7 +83,10 @@ public final class QemuBootSession {
             args.add("-object"); args.add("rng-random,id=objrng0,filename=/dev/urandom");
             args.add("-device"); args.add("virtio-rng-pci,rng=objrng0,max-bytes=1024,period=2000");
         }
-        args.add("-display"); args.add(assets.cuttlefish || assets.ranchu ? "egl-headless" : "none");
+        // The bundled QEMU is built with SDL2. Android's SDL backend presents the
+        // guest framebuffer as the VM screen while the activity remains the
+        // controller/log view; generic fallback guests stay serial-only.
+        args.add("-display"); args.add(assets.cuttlefish || assets.ranchu ? "sdl,gl=on" : "none");
         args.add("-monitor"); args.add("none");
         args.add("-serial"); args.add("file:" + log.getAbsolutePath());
         args.add("-no-reboot");
