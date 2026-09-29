@@ -144,6 +144,14 @@ jobs:
               (out / f"{name}.pc").write_text(
                   f"Name: {description}\nDescription: Android {description}\n" + common
               )
+          (out / "pixman-1.pc").write_text(
+              "Name: pixman-1\n"
+              "Description: Android Pixman\n"
+              "Version: 0.40.0\n"
+              "Libs: -L%s/../obj/local/arm64-v8a -lpixman-1\n"
+              "Cflags: -I%s/pixman -I%s/pixman/pixman\n"
+              % (jni, jni, jni)
+          )
           PY
           export PKG_CONFIG_PATH="$jni/pkgconfig"
           # The Android branch contains a legacy Python 2-only probe. The
