@@ -258,7 +258,7 @@ def patch_fstab(content):
         device, mountpoint = columns[0], columns[1]
         mount_entry = device.startswith("/") or device in ("none", "tmpfs")
         if mount_entry and (mountpoint == "/metadata" or device.endswith("/metadata")):
-            result.append("tmpfs /metadata tmpfs mode=0755 wait,first_stage_mount"
+            result.append("tmpfs /metadata tmpfs mode=0755 wait"
                           + ("\n" if line.endswith("\n") else ""))
             changed = True
             continue
