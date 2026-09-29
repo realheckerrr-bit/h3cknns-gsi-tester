@@ -69,7 +69,7 @@ public final class QemuBootSession {
             if (assets.cache != null) addDrive(args, "cache", assets.cache, false, assets.cuttlefish, rom, false);
             addDrive(args, "vendor", assets.vendor, true, assets.cuttlefish, rom, false);
         }
-        if (assets.cuttlefish) {
+        if (assets.cuttlefish || assets.ranchu) {
             args.add("-device"); args.add("virtio-gpu-pci,id=gpu0");
             args.add("-object"); args.add("rng-random,id=objrng0,filename=/dev/urandom");
             args.add("-device"); args.add("virtio-rng-pci,rng=objrng0,max-bytes=1024,period=2000");
