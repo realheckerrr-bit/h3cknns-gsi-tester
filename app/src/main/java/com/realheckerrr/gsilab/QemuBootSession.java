@@ -56,10 +56,10 @@ public final class QemuBootSession {
                 : assets.ranchu
                 ? "console=ttyAMA0,115200 androidboot.console=ttyAMA1 androidboot.hardware=ranchu "
                 + "androidboot.verifiedbootstate=orange androidboot.qemu=1 "
-                + "androidboot.qemu.vsync=60 androidboot.hardware.egl=mesa "
+                + "androidboot.qemu.vsync=60 androidboot.hardware.egl=angle "
                 + "androidboot.hardware.gralloc=minigbm androidboot.hardware.hwcomposer=ranchu "
-                + "androidboot.hardware.hwcomposer.mode=client androidboot.qemu.cpuvulkan.version=0 "
-                + "androidboot.opengles.version=196608 "
+                + "androidboot.hardware.vulkan=pastel androidboot.qemu.cpuvulkan.version=4202496 "
+                + "androidboot.opengles.version=196609 "
                 + "androidboot.debug.hwui.renderer=opengl androidboot.debug.renderengine.backend=skiagl "
                 + "androidboot.config.low_ram=0 androidboot.dalvik.vm.checkjni=1 "
                 + "androidboot.debug.stagefright.ccodec=4 androidboot.debug.sf.nobootanimation=1 "
@@ -79,14 +79,14 @@ public final class QemuBootSession {
             addDrive(args, "vendor", assets.vendor, true, assets.cuttlefish, rom, false);
         }
         if (assets.cuttlefish || assets.ranchu) {
-            args.add("-device"); args.add("virtio-gpu-gl-pci,id=gpu0,xres=1080,yres=1920");
+            args.add("-device"); args.add("virtio-gpu-pci,id=gpu0,xres=1080,yres=1920");
             args.add("-object"); args.add("rng-random,id=objrng0,filename=/dev/urandom");
             args.add("-device"); args.add("virtio-rng-pci,rng=objrng0,max-bytes=1024,period=2000");
         }
-        // The bundled QEMU is built with SDL2. Android's SDL backend presents the
+        // The bundled QEMU is built with SDL2 but without host OpenGL. Android's SDL backend presents the
         // guest framebuffer as the VM screen while the activity remains the
         // controller/log view; generic fallback guests stay serial-only.
-        args.add("-display"); args.add(assets.cuttlefish || assets.ranchu ? "sdl,gl=on" : "none");
+        args.add("-display"); args.add(assets.cuttlefish || assets.ranchu ? "sdl" : "none");
         args.add("-monitor"); args.add("none");
         args.add("-serial"); args.add("file:" + log.getAbsolutePath());
         args.add("-no-reboot");
