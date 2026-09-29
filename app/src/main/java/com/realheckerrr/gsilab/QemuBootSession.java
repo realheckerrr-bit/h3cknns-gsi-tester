@@ -58,6 +58,8 @@ public final class QemuBootSession {
                 + "androidboot.verifiedbootstate=orange androidboot.qemu=1 "
                 + "androidboot.qemu.vsync=60 androidboot.hardware.egl=angle "
                 + "androidboot.hardware.gralloc=minigbm androidboot.hardware.hwcomposer=ranchu "
+                + "androidboot.hardware.hwcomposer.display_finder_mode=drm "
+                + "androidboot.hardware.hwcomposer.display_framebuffer_format=rgba "
                 + "androidboot.hardware.vulkan=pastel androidboot.qemu.cpuvulkan.version=4202496 "
                 + "androidboot.opengles.version=196609 "
                 + "androidboot.debug.hwui.renderer=opengl androidboot.debug.renderengine.backend=skiagl "
