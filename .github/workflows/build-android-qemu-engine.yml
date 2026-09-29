@@ -264,7 +264,7 @@ jobs:
           \t\tCC="$(CC)" AR="$(AR)" LD="$(LD)" libfdt/libfdt.a
 
           dummy := $(call unnest-vars,.., util-obj-y stub-obj-y)
-          qemuutilobj=$(sort $(util-obj-y) $(stub-obj-y) \
+          qemuutilobj=$(sort $(util-obj-y) \
             ../trace-root.o ../qapi/trace.o ../accel/tcg/trace.o \
             ../accel/kvm/trace.o ../nbd/trace.o ../scsi/trace.o)
           # The Android QEMU makefile is included from Limbo's target build
