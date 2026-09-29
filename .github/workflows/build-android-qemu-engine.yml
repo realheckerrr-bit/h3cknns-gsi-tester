@@ -58,6 +58,7 @@ jobs:
           export AR="$toolchain/bin/llvm-ar"
           export RANLIB="$toolchain/bin/llvm-ranlib"
           export STRIP="$toolchain/bin/llvm-strip"
+          export PKG_CONFIG=/usr/bin/pkg-config
           export PKG_CONFIG_LIBDIR=""
           export PKG_CONFIG_PATH=""
           cd qemu-source
