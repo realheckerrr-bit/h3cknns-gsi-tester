@@ -17,7 +17,13 @@ def transform(line):
     device, mountpoint = columns[0], columns[1]
     if trimmed.startswith("file ") and "/dev/block/by-name/" in trimmed:
         return b"#" + line[1:] if line[:1] != b"#" else line
-    if mountpoint in ("/metadata", "/data") or device.endswith("/metadata"):
+    if mountpoint == "/metadata" or device.endswith("/metadata"):
+        columns = ["tmpfs", "/metadata", "tmpfs", "mode=0755,uid=0,gid=0", "wait,first_stage_mount"]
+        rebuilt = " ".join(columns).encode("utf-8")
+        if len(rebuilt) > len(line):
+            raise ValueError("patched metadata fstab line is longer than its ext4 slot")
+        return rebuilt + b" " * (len(line) - len(rebuilt))
+    if mountpoint == "/data":
         columns[0] = "/dev/block/vdc"
         if len(columns) > 2 and columns[2] in ("f2fs", "erofs"):
             columns[2] = "ext4"
@@ -29,9 +35,6 @@ def transform(line):
         if len(columns) > 4:
             columns[4] = "wait"
             columns = columns[:5]
-        if mountpoint == "/metadata" or device.endswith("/metadata"):
-            if len(columns) > 4:
-                columns[4] = "wait,first_stage_mount"
         rebuilt = " ".join(columns).encode("utf-8")
         if len(rebuilt) > len(line):
             raise ValueError("patched data/metadata fstab line is longer than its ext4 slot")
@@ -52,6 +55,37 @@ def transform(line):
     if len(rebuilt) > len(line):
         raise ValueError("patched fstab line is longer than its ext4 slot")
     return rebuilt + b" " * (len(line) - len(rebuilt))
+
+
+def disable_sensor_service(image):
+    needle = b"service vendor.sensors-hal-multihal"
+    cursor = 0
+    changed = 0
+    while True:
+        match = image.find(needle, cursor)
+        if match < 0:
+            return changed
+        start = image.rfind(b"\n", 0, match) + 1
+        end = image.find(b"\n", start)
+        if end < 0:
+            end = len(image)
+        if image[start:end][:1] != b"#":
+            image[start:end] = b"#" + image[start + 1:end]
+            changed += 1
+        position = end + 1
+        while position < len(image):
+            next_end = image.find(b"\n", position)
+            if next_end < 0:
+                next_end = len(image)
+            line = image[position:next_end]
+            if line and line[:1] not in (b" ", b"\t"):
+                break
+            if line and b"#" not in line.lstrip()[:1]:
+                first = position + len(line) - len(line.lstrip(b" \t"))
+                image[first:first + 1] = b"#"
+                changed += 1
+            position = next_end + 1
+        cursor = position
 
 
 def main():
@@ -83,6 +117,10 @@ def main():
                     image[start:end] = updated
                     changed += 1
                     print(f"{path}: {original.rstrip()!r} -> {updated.rstrip()!r}")
+            disabled = disable_sensor_service(image)
+            if disabled:
+                print(f"{path}: disabled crashing Ranchu sensor service ({disabled} lines)")
+                changed += disabled
             image.flush()
         print(f"{path}: patched {changed} Ranchu vendor fstab lines")
 

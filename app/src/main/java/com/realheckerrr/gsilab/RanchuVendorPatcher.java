@@ -39,8 +39,58 @@ public final class RanchuVendorPatcher {
                 }
                 start = end + 1;
             }
+            changed += disableSensorService(image, size);
             image.force();
         }
+    }
+
+    private static int disableSensorService(MappedByteBuffer image, int size) {
+        byte[] needle = "service vendor.sensors-hal-multihal".getBytes(StandardCharsets.US_ASCII);
+        int cursor = 0;
+        int changed = 0;
+        while (true) {
+            int match = find(image, size, needle, cursor);
+            if (match < 0) return changed;
+            int start = lineStart(image, match);
+            int end = lineEnd(image, size, start);
+            if (image.get(start) != '#') {
+                image.put(start, (byte) '#');
+                changed++;
+            }
+            int position = end + 1;
+            while (position < size) {
+                int nextEnd = lineEnd(image, size, position);
+                if (nextEnd > position && image.get(position) != ' ' && image.get(position) != '\t') break;
+                if (nextEnd > position) {
+                    int first = position;
+                    while (first < nextEnd && (image.get(first) == ' ' || image.get(first) == '\t')) first++;
+                    if (first < nextEnd && image.get(first) != '#') {
+                        image.put(first, (byte) '#');
+                        changed++;
+                    }
+                }
+                position = nextEnd + 1;
+            }
+            cursor = position;
+        }
+    }
+
+    private static int find(MappedByteBuffer image, int size, byte[] needle, int from) {
+        outer: for (int i = from; i + needle.length <= size; i++) {
+            for (int j = 0; j < needle.length; j++) if (image.get(i + j) != needle[j]) continue outer;
+            return i;
+        }
+        return -1;
+    }
+
+    private static int lineStart(MappedByteBuffer image, int position) {
+        while (position > 0 && image.get(position - 1) != '\n') position--;
+        return position;
+    }
+
+    private static int lineEnd(MappedByteBuffer image, int size, int position) {
+        while (position < size && image.get(position) != '\n') position++;
+        return position;
     }
 
     /** Extracts the first non-empty GPT partition used by the official Ranchu vendor.img wrapper. */
@@ -93,7 +143,11 @@ public final class RanchuVendorPatcher {
         if (columns.length < 2) return line;
         String device = columns[0];
         String mountpoint = columns[1];
-        if ("/metadata".equals(mountpoint) || "/data".equals(mountpoint) || device.endsWith("/metadata")) {
+        if ("/metadata".equals(mountpoint) || device.endsWith("/metadata")) {
+            columns = new String[]{"tmpfs", "/metadata", "tmpfs", "mode=0755,uid=0,gid=0", "wait,first_stage_mount"};
+            return fit(String.join(" ", columns).getBytes(StandardCharsets.UTF_8), line.length);
+        }
+        if ("/data".equals(mountpoint)) {
             columns[0] = "/dev/block/vdc";
             if (columns.length > 2 && ("f2fs".equals(columns[2]) || "erofs".equals(columns[2]))) {
                 columns[2] = "ext4";
@@ -109,8 +163,7 @@ public final class RanchuVendorPatcher {
                 columns[3] = flags.length() == 0 ? "defaults" : flags.toString();
             }
             if (columns.length > 4) {
-                columns[4] = ("/metadata".equals(mountpoint) || device.endsWith("/metadata"))
-                        ? "wait,first_stage_mount" : "wait";
+                columns[4] = "wait";
                 columns = Arrays.copyOf(columns, 5);
             }
             return fit(String.join(" ", columns).getBytes(StandardCharsets.UTF_8), line.length);
