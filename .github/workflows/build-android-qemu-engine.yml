@@ -264,6 +264,16 @@ jobs:
           qemuutilobj=$(sort $(util-obj-y) $(stub-obj-y) \
             ../trace-root.o ../qapi/trace.o ../accel/tcg/trace.o \
             ../accel/kvm/trace.o ../nbd/trace.o ../scsi/trace.o)
+          # The Android QEMU makefile is included from Limbo's target build
+          # directory.  Its trace subdirectory entries are emitted as bare
+          # names by this older unnest-vars implementation, so normalize them
+          # before creating the utility archive.
+          qemuutilobj := $(patsubst ../control.o,../trace/control.o,$(qemuutilobj))
+          qemuutilobj := $(patsubst ../qmp.o,../trace/qmp.o,$(qemuutilobj))
+          qemuutilobj := $(patsubst ../generated-events.o,../trace/generated-events.o,$(qemuutilobj))
+          qemuutilobj := $(patsubst ../generated-tracers.o,../trace/generated-tracers.o,$(qemuutilobj))
+          qemuutilobj := $(patsubst ../simple.o,../trace/simple.o,$(qemuutilobj))
+          qemuutilobj := $(patsubst ../ftrace.o,../trace/ftrace.o,$(qemuutilobj))
           $(COMMON_LDADDS): $(qemuutilobj)
           \t$(AR) rcs $@ $(qemuutilobj)
           """
