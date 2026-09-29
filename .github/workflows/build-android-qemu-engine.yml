@@ -125,6 +125,26 @@ jobs:
               % (jni, jni, jni)
           )
           PY
+          python3 - "$jni/pkgconfig" "$jni" <<'PY'
+          from pathlib import Path
+          import sys
+          out = Path(sys.argv[1])
+          jni = Path(sys.argv[2]).resolve()
+          common = (
+              "prefix=%s\n"
+              "exec_prefix=${prefix}\n"
+              "libdir=%s/../obj/local/arm64-v8a\n"
+              "includedir=%s/glib\n\n"
+              "Version: 2.56.1\n"
+              "Libs: -L${libdir} -lglib-2.0\n"
+              "Cflags: -I${includedir} -I%s/glib/glib\n"
+              % (jni, jni, jni, jni)
+          )
+          for name, description in (("glib-2.0", "GLib"), ("gthread-2.0", "GThread")):
+              (out / f"{name}.pc").write_text(
+                  f"Name: {description}\nDescription: Android {description}\n" + common
+              )
+          PY
           export PKG_CONFIG_PATH="$jni/pkgconfig"
           # The Android branch contains a legacy Python 2-only probe. The
           # generated build itself works with Python 3 on the runner.
