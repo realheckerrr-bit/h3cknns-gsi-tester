@@ -80,7 +80,7 @@ public final class MainActivity extends Activity {
         getWindow().setStatusBarColor(BACKGROUND);
         getWindow().setNavigationBarColor(BACKGROUND);
         setContentView(buildView());
-        appendLog("h3cknn's GSI tester 0.2.0 ready.");
+        appendLog("h3cknn's GSI tester " + BuildConfig.VERSION_NAME + " ready.");
         appendLog("Import a GSI and a compatible guest bundle to prepare a VM launch.");
     }
 
