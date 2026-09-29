@@ -17,7 +17,7 @@ jobs:
       - name: Install ARM QEMU and archive tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends cpio e2fsprogs ipxe-qemu libegl1 libgl1-mesa-dri libvirglrenderer1 lz4 qemu-system-arm qemu-system-common qemu-system-modules-opengl unzip xz-utils
+          sudo apt-get install -y --no-install-recommends cpio e2fsprogs ipxe-qemu libegl1 libgl1-mesa-dri libvirglrenderer1 lz4 qemu-system-arm qemu-system-common qemu-system-gui qemu-system-modules-opengl unzip x11-xserver-utils xvfb xz-utils
 
       - name: Download official ARM64 Emulator guest pack
         shell: bash
@@ -105,6 +105,9 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
+          Xvfb :99 -screen 0 1024x768x24 -ac > xvfb.log 2>&1 &
+          xvfb_pid=$!
+          export DISPLAY=:99
           qemu-system-aarch64 \
             -M virt,gic-version=3 \
             -cpu max -m 2048 -smp 4 -rtc base=utc \
@@ -117,7 +120,7 @@ jobs:
             -drive if=none,format=raw,id=vendor,file=$PWD/guest/vendor.raw.img,readonly=on \
             -device virtio-blk-device,drive=vendor \
             -device virtio-gpu-pci,id=gpu0,virgl=on \
-            -display egl-headless -monitor none -serial file:$PWD/serial.log -no-reboot \
+            -display gtk,gl=on -monitor none -serial file:$PWD/serial.log -no-reboot \
             > qemu.stdout 2> qemu.stderr &
           qemu_pid=$!
           booted=0
@@ -137,6 +140,7 @@ jobs:
           else
             wait "$qemu_pid" 2>/dev/null || true
           fi
+          kill "$xvfb_pid" 2>/dev/null || true
           cat serial.log 2>/dev/null || true
           cat qemu.stderr 2>/dev/null || true
           if [[ "$booted" != 1 ]]; then

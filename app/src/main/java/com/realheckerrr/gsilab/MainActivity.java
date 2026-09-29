@@ -121,7 +121,7 @@ public final class MainActivity extends Activity {
         analyzeButton.setOnClickListener(view -> analyzeInput());
         imageSection.addView(analyzeButton);
 
-        LinearLayout guestSection = cardSection(page, "2  BASE GUEST BUNDLE", "Use a matching ARM64 Cuttlefish guest ZIP when possible.");
+        LinearLayout guestSection = cardSection(page, "2  BASE GUEST BUNDLE", "Use the official ARM64 Ranchu emulator ZIP for the ready-made test guest.");
         guestText = text("No guest bundle selected", 14, TEXT);
         guestText.setPadding(0, dp(12), 0, dp(4));
         guestSection.addView(guestText);
@@ -141,7 +141,7 @@ public final class MainActivity extends Activity {
 
         LinearLayout backendSection = cardSection(page, "4  VM BACKEND", "A transparent ARM64 QEMU launch path for testing, not a promise that arbitrary hardware images will boot.");
         TextView backendNote = text(
-                "Use a matching ARM64 Cuttlefish guest archive when possible: its kernel/ramdisk and super.img provide a QEMU virt profile, and the app extracts vendor_a automatically. Pixel factory and ranchu emulator images are hardware-specific and may not boot on virt. This button produces a transparent launch plan and refuses to fake a boot when required pieces are unavailable.",
+                "For this tester, use the official ARM64 emulator archive arm64-v8a-35_r08.zip: it supplies kernel-ranchu, ramdisk.img, vendor.img.gz, userdata.img, and the QEMU guest contract. The app adapts its fstab for the selected GSI and opens the guest display. Pixel factory images remain device-specific rather than universal VM bases.",
                 14, MUTED);
         backendNote.setPadding(0, dp(12), 0, dp(4));
         backendSection.addView(backendNote);

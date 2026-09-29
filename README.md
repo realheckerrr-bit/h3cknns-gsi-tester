@@ -6,7 +6,7 @@ h3cknn's GSI tester is a from-scratch Android test harness for importing and pre
 
 A GSI is the generic system partition, not a complete device. A real guest also needs a compatible kernel, generic ramdisk, vendor interface, device model, and VM engine. Android's Virtualization Framework is privileged and its ordinary app flow is not a drop-in API for booting arbitrary GSIs.
 
-The app packages a pinned ARM64 QEMU runtime and can make a real headless boot attempt on an ARM64 Android host. It streams the guest serial log into the report. The guest assets still need a matching Android `virt` or emulator-style boot contract.
+The app packages a pinned ARM64 QEMU runtime and can make a real boot attempt on an ARM64 Android host. Ranchu/Cuttlefish launches open an SDL guest display and stream the guest serial log into the report. The guest assets still need a matching Android `virt` or emulator-style boot contract.
 
 ## Guest bundle input
 
@@ -53,13 +53,13 @@ GitHub Actions is configured in `.github/workflows/android.yml`.
 2. Run **Build h3cknn's GSI tester APK** or push to `main`.
 3. Download the `h3cknns-gsi-tester-debug-apk` artifact.
 
-For a real host-side boot check, run the separate **Cuttlefish GSI boot smoke test** workflow. Its defaults fetch a public ARM64 Cuttlefish image artifact and an official ARM64 AOSP GSI, launch the same headless `virt` layout, and upload the serial log. You can override the CI build ID, target, GSI URL, and checksum from the workflow form.
+For a real host-side boot check, run the separate **Android Emulator GSI boot smoke test** workflow. Its defaults fetch the official ARM64 Ranchu guest archive and an official ARM64 AOSP GSI, adapt the same Ranchu disk layout, and upload the serial log. You can override the GSI URL and checksum in the workflow source.
 
 The project uses Java 17, Android Gradle Plugin 8.6.0, compile SDK 35, AndroidX, and Material Components 1.14.0. Unit tests cover raw/gzip GSI imports and official-style guest archives before the APK is assembled.
 
 ## Limitations
 
-- The current VM milestone is headless serial output; display/input and ADB transport are next.
+- Ranchu/Cuttlefish display and touch input use the bundled SDL2 Android surface; ADB transport and device-specific validation remain separate work.
 - Android dynamic partitions, AVB state, API/VNDK compatibility, and guest kernel configuration still determine whether a particular GSI boots.
 - The APK currently ships the ARM64 QEMU backend, so the real boot path requires an ARM64 Android host.
 - “Boot anything” is not a valid compatibility guarantee without a matching guest profile for each image family.
