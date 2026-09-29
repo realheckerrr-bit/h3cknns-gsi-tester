@@ -193,7 +193,7 @@ jobs:
           text = path.read_text()
           text = text.replace("./qemu/VERSION", "./qemu/QEMU_VERSION")
           old = "cd $(LIMBO_JNI_ROOT)/qemu && $(MAKE) all -j $(BUILD_THREADS) BUILD_GUEST=$(BUILD_GUEST)"
-          new = "cd $(LIMBO_JNI_ROOT)/qemu && ./config.status && sh scripts/create_config < config-host.mak > config-host.h && mkdir -p $(BUILD_GUEST) && sh scripts/make_device_config.sh default-configs/$(BUILD_GUEST).mak $(BUILD_GUEST)-config-devices.mak.d $(BUILD_GUEST)/config-devices.mak > $(BUILD_GUEST)/config-devices.mak && cd $(BUILD_GUEST) && $(MAKE) -f Makefile all -j $(BUILD_THREADS) BUILD_GUEST=$(BUILD_GUEST)"
+          new = "cd $(LIMBO_JNI_ROOT)/qemu && ./config.status && sh scripts/create_config < config-host.mak > config-host.h && $(MAKE) qapi-gen-timestamp && mkdir -p $(BUILD_GUEST) && sh scripts/make_device_config.sh default-configs/$(BUILD_GUEST).mak $(BUILD_GUEST)-config-devices.mak.d $(BUILD_GUEST)/config-devices.mak > $(BUILD_GUEST)/config-devices.mak && cd $(BUILD_GUEST) && $(MAKE) -f Makefile all -j $(BUILD_THREADS) BUILD_GUEST=$(BUILD_GUEST)"
           if old not in text:
               raise SystemExit('Limbo QEMU build rule was not found')
           path.write_text(text.replace(old, new, 1))
