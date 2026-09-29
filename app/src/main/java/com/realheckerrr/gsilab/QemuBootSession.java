@@ -40,7 +40,7 @@ public final class QemuBootSession {
                 ? "virt,gic-version=2,mte=on,usb=off,dump-guest-core=off"
                 : "virt,gic-version=3");
         args.add("-cpu"); args.add("max");
-        args.add("-m"); args.add("2048");
+        args.add("-m"); args.add("4096");
         args.add("-smp"); args.add("4");
         args.add("-rtc"); args.add("base=utc");
         args.add("-kernel"); args.add(assets.kernel.getAbsolutePath());
