@@ -61,8 +61,12 @@ jobs:
           export PKG_CONFIG_LIBDIR=""
           export PKG_CONFIG_PATH=""
           cd qemu-source
-          ./configure \
+          # This Android branch carries an obsolete configure check that rejects
+          # Python 3 even though the build runner no longer ships Python 2.
+          sed -i 's/sys.version_info < (2,6) or sys.version_info >= (3,)/sys.version_info < (2,6)/' configure
+          bash ./configure \
             --target-list=aarch64-softmmu \
+            --python=python3 \
             --cross-prefix="$toolchain/bin/aarch64-linux-android-" \
             --disable-werror \
             --disable-gtk \
@@ -70,7 +74,7 @@ jobs:
             --disable-curses \
             --disable-opengl \
             --disable-virglrenderer \
-            --enable-sdl \
+            --disable-sdl \
             --extra-cflags="-DANDROID -fPIC" \
             --extra-ldflags="-fuse-ld=lld -Wl,-z,max-page-size=16384 -shared"
           make -j"$(nproc)" qemu-system-aarch64
