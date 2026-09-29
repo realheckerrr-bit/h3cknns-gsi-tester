@@ -212,6 +212,15 @@ jobs:
               raise SystemExit('QEMU feature-control network guard was not found')
           path.write_text(text.replace(old, "    if (!default_net) {", 1))
           PY
+          python3 - "$jni/qemu/slirp/misc.c" <<'PY'
+          from pathlib import Path
+          path = Path(__import__('sys').argv[1])
+          text = path.read_text()
+          old = "for (s = getdtablesize() - 1; s >= 3; s--)"
+          if old not in text:
+              raise SystemExit('slirp getdtablesize call was not found')
+          path.write_text(text.replace(old, "for (s = (int)sysconf(_SC_OPEN_MAX) - 1; s >= 3; s--", 1))
+          PY
           # Limbo's Android link rule is also the desired shared-library
           # boundary for QEMU's qemu_init/qemu_main_loop API.
           python3 - "$jni/qemu/Makefile.target" <<'PY'
