@@ -55,7 +55,13 @@ public final class QemuBootSession {
                 + "androidboot.selinux=permissive audit=1 buildvariant=userdebug"
                 : assets.ranchu
                 ? "console=ttyAMA0,115200 androidboot.console=ttyAMA1 androidboot.hardware=ranchu "
-                + "androidboot.verifiedbootstate=orange"
+                + "androidboot.verifiedbootstate=orange androidboot.qemu=1 "
+                + "androidboot.qemu.vsync=60 androidboot.qemu.gltransport.name=virtio-gpu-pipe "
+                + "androidboot.hardware.gltransport=virtio-gpu-pipe androidboot.hardwareegl=emulation "
+                + "androidboot.hardware.egl=emulation androidboot.hardware.gralloc=minigbm "
+                + "androidboot.hardware.hwcomposer=ranchu androidboot.hardware.vulkan=ranchu "
+                + "androidboot.qemu.cpuvulkan.version=0 androidboot.opengles.version=196609 "
+                + "androidboot.debug.hwui.renderer=opengl androidboot.dalvik.vm.heapsize=192m"
                 : "console=ttyAMA0,115200 androidboot.hardware=generic");
         if (assets.ranchu) {
             // virtio-mmio enumerates devices in reverse declaration order:
