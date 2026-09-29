@@ -1,0 +1,88 @@
+name: Build Android Ranchu QEMU engine
+
+on:
+  workflow_dispatch:
+    inputs:
+      qemu_ref:
+        description: "Android QEMU branch or tag"
+        required: true
+        default: emu-35-3-release
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out app source
+        uses: actions/checkout@v4
+
+      - name: Install QEMU build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            autoconf automake bc bison build-essential flex \
+            libaio-dev libcap-dev libcap-ng-dev libcurl4-gnutls-dev \
+            libfdt-dev libglib2.0-dev libpixman-1-dev libslirp-dev \
+            libusb-1.0-0-dev libx11-dev libxext-dev libxrender-dev \
+            ninja-build pkg-config python3 python3-venv rsync texinfo \
+            xz-utils zip
+
+      - name: Set up Android NDK
+        uses: android-actions/setup-android@v3
+      - name: Install Android NDK
+        run: sdkmanager --install "ndk;27.2.12479018"
+
+      - name: Fetch Android QEMU source
+        env:
+          QEMU_REF: ${{ inputs.qemu_ref }}
+        run: |
+          git clone --depth 1 --branch "$QEMU_REF" \
+            https://android.googlesource.com/platform/external/qemu qemu-source
+
+      - name: Configure and build Android QEMU
+        shell: bash
+        run: |
+          set -euo pipefail
+          ndk="$ANDROID_SDK_ROOT/ndk/27.2.12479018"
+          toolchain="$ndk/toolchains/llvm/prebuilt/linux-x86_64"
+          export PATH="$toolchain/bin:$PATH"
+          export CC="$toolchain/bin/aarch64-linux-android35-clang"
+          export CXX="$toolchain/bin/aarch64-linux-android35-clang++"
+          export AR="$toolchain/bin/llvm-ar"
+          export RANLIB="$toolchain/bin/llvm-ranlib"
+          export STRIP="$toolchain/bin/llvm-strip"
+          export PKG_CONFIG_LIBDIR=""
+          export PKG_CONFIG_PATH=""
+          cd qemu-source
+          ./configure \
+            --target-list=aarch64-softmmu \
+            --cross-prefix="$toolchain/bin/aarch64-linux-android-" \
+            --disable-werror \
+            --disable-gtk \
+            --disable-vnc \
+            --disable-curses \
+            --disable-opengl \
+            --disable-virglrenderer \
+            --enable-sdl \
+            --extra-cflags="-DANDROID -fPIC" \
+            --extra-ldflags="-fuse-ld=lld -Wl,-z,max-page-size=16384 -shared"
+          make -j"$(nproc)" qemu-system-aarch64
+          file aarch64-softmmu/qemu-system-aarch64
+
+      - name: Package engine artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p engine
+          cp qemu-source/aarch64-softmmu/qemu-system-aarch64 engine/libqemu-system-aarch64.so
+          "$ANDROID_SDK_ROOT/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" engine/libqemu-system-aarch64.so
+          sha256sum engine/libqemu-system-aarch64.so > engine/SHA256SUMS.txt
+
+      - name: Upload Android QEMU engine
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-ranchu-qemu-engine
+          path: engine
