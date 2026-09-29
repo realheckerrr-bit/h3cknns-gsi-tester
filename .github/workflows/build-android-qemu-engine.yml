@@ -261,7 +261,7 @@ jobs:
           \t\tCC="$(CC)" AR="$(AR)" LD="$(LD)" libfdt/libfdt.a
 
           $(COMMON_LDADDS):
-          \t$(MAKE) -f ../../qemu/Makefile -C ../../qemu libqemuutil.a
+          \t$(MAKE) -C ../../qemu -f Makefile libqemuutil.a
           """
           if old not in text:
               raise SystemExit('Limbo slirp link block was not found')
