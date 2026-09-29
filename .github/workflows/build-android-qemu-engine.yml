@@ -233,6 +233,29 @@ jobs:
               raise SystemExit('QEMU Makefile.target link rule was not found')
           path.write_text(text.replace(old, new, 1))
           PY
+          python3 - "$jni/android-qemu-build.mak" <<'PY'
+          from pathlib import Path
+          path = Path(__import__('sys').argv[1])
+          text = path.read_text()
+          old = """ifeq ($(USE_SLIRP_LIB),true)
+          \tslirplib=../../qemu/slirp/libslirp.a
+          \tRELINK_LIBSLIRP=$(OBJ_COPY) $(RELINK_PARAMS) $(slirplib)
+          \tRELINK_LIBSLIRP_2=$(OBJ_COPY) $(RELINK_PARAMS_2) $(slirplib)
+          endif
+          """
+          new = """ifeq ($(USE_SLIRP_LIB),true)
+          \tslirplib=../../qemu/slirp/libslirp.a
+          \tslirpobj=$(filter ../slirp/%.o,$(all-obj-y))
+          \t$(slirplib): $(slirpobj)
+          \t\t$(AR) rcs $@ $(slirpobj)
+          \tRELINK_LIBSLIRP=$(OBJ_COPY) $(RELINK_PARAMS) $(slirplib)
+          \tRELINK_LIBSLIRP_2=$(OBJ_COPY) $(RELINK_PARAMS_2) $(slirplib)
+          endif
+          """
+          if old not in text:
+              raise SystemExit('Limbo slirp link block was not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
           python3 - "$jni/Makefile" <<'PY'
           from pathlib import Path
           path = Path(__import__('sys').argv[1])
