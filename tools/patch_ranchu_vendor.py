@@ -18,7 +18,7 @@ def transform(line):
     if trimmed.startswith("file ") and "/dev/block/by-name/" in trimmed:
         return b"#" + line[1:] if line[:1] != b"#" else line
     if mountpoint == "/metadata" or device.endswith("/metadata"):
-        columns = ["tmpfs", "/metadata", "tmpfs", "mode=0755,uid=0,gid=0", "wait,first_stage_mount"]
+        columns = ["tmpfs", "/metadata", "tmpfs", "mode=0755", "wait,first_stage_mount"]
         rebuilt = " ".join(columns).encode("utf-8")
         if len(rebuilt) > len(line):
             raise ValueError("patched metadata fstab line is longer than its ext4 slot")

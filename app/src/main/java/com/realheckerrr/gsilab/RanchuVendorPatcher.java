@@ -144,7 +144,7 @@ public final class RanchuVendorPatcher {
         String device = columns[0];
         String mountpoint = columns[1];
         if ("/metadata".equals(mountpoint) || device.endsWith("/metadata")) {
-            columns = new String[]{"tmpfs", "/metadata", "tmpfs", "mode=0755,uid=0,gid=0", "wait,first_stage_mount"};
+            columns = new String[]{"tmpfs", "/metadata", "tmpfs", "mode=0755", "wait,first_stage_mount"};
             return fit(String.join(" ", columns).getBytes(StandardCharsets.UTF_8), line.length);
         }
         if ("/data".equals(mountpoint)) {
