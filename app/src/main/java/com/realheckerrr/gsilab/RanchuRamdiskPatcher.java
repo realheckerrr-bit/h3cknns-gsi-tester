@@ -220,7 +220,8 @@ public final class RanchuRamdiskPatcher {
             }
             String device = columns[0];
             String mountpoint = columns[1];
-            if ("/metadata".equals(mountpoint) || device.endsWith("/metadata")) {
+            boolean mountEntry = device.startsWith("/") || "none".equals(device) || "tmpfs".equals(device);
+            if (mountEntry && ("/metadata".equals(mountpoint) || device.endsWith("/metadata"))) {
                 result.append("tmpfs /metadata tmpfs mode=0755 wait,first_stage_mount");
                 if (line.endsWith("\n")) result.append('\n');
                 changed = true;

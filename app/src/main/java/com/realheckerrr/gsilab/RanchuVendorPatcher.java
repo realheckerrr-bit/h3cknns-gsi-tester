@@ -143,11 +143,12 @@ public final class RanchuVendorPatcher {
         if (columns.length < 2) return line;
         String device = columns[0];
         String mountpoint = columns[1];
-        if ("/metadata".equals(mountpoint) || device.endsWith("/metadata")) {
+        boolean mountEntry = device.startsWith("/") || "none".equals(device) || "tmpfs".equals(device);
+        if (mountEntry && ("/metadata".equals(mountpoint) || device.endsWith("/metadata"))) {
             columns = new String[]{"tmpfs", "/metadata", "tmpfs", "mode=0755", "wait,first_stage_mount"};
             return fit(String.join(" ", columns).getBytes(StandardCharsets.UTF_8), line.length);
         }
-        if ("/data".equals(mountpoint)) {
+        if (mountEntry && "/data".equals(mountpoint)) {
             columns[0] = "/dev/block/vdc";
             if (columns.length > 2 && ("f2fs".equals(columns[2]) || "erofs".equals(columns[2]))) {
                 columns[2] = "ext4";
