@@ -119,7 +119,7 @@ jobs:
             -device virtio-blk-device,drive=system \
             -drive if=none,format=raw,id=vendor,file=$PWD/guest/vendor.raw.img,readonly=on \
             -device virtio-blk-device,drive=vendor \
-            -device virtio-gpu-pci,id=gpu0,virgl=on \
+            -device virtio-gpu-gl,id=gpu0 \
             -display gtk,gl=on -monitor none -serial file:$PWD/serial.log -no-reboot \
             > qemu.stdout 2> qemu.stderr &
           qemu_pid=$!
