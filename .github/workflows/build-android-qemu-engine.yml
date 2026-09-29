@@ -96,6 +96,16 @@ jobs:
           # the NDK LLVM toolchain above.
           sed -i '/ARCH_LD_FLAGS += -Wc,-gcc-toolchain/d' \
             "$jni/android-config/android-device-config/android-armv8.mak"
+          python3 - "$jni/android-config/android-qemu-config.mak" <<'PY'
+          from pathlib import Path
+          path = Path(__import__('sys').argv[1])
+          text = path.read_text()
+          text = text.replace(
+              "\t--cross-prefix=$(TOOLCHAIN_PREFIX)- \\\n",
+              "\t--cross-prefix= \\\n",
+          )
+          path.write_text(text)
+          PY
           # The Android branch contains a legacy Python 2-only probe. The
           # generated build itself works with Python 3 on the runner.
           sed -i 's/sys.version_info < (2,6) or sys.version_info >= (3,)/sys.version_info < (2,6)/' "$jni/qemu/configure"
