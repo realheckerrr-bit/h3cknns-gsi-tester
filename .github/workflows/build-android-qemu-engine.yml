@@ -295,8 +295,13 @@ jobs:
               1,
           )
           updated = updated.replace(
-              "\t$(QEMU_UTIL_STUB) \\\n",
+              "\t$(QEMU_UTIL_LIB) \\\n",
+              "\t-Wl,--no-whole-archive \\\n\t$(QEMU_UTIL_LIB) \\\n",
+              1,
+          )
+          updated = updated.replace(
               "\t$(QEMU_UTIL_STUB) \\\n\t-Wl,--no-whole-archive \\\n",
+              "\t$(QEMU_UTIL_STUB) \\\n",
               1,
           )
           path.write_text(updated)
