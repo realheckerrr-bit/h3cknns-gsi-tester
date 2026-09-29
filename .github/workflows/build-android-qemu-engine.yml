@@ -81,18 +81,18 @@ jobs:
             "$jni/compat/limbo_compat.c"
           # The Android branch contains a legacy Python 2-only probe. The
           # generated build itself works with Python 3 on the runner.
-        sed -i 's/sys.version_info < (2,6) or sys.version_info >= (3,)/sys.version_info < (2,6)/' "$jni/qemu/configure"
-        python3 - "$jni/glib/glib/gatomic.h" <<'PY'
-        from pathlib import Path
-        path = Path(__import__('sys').argv[1])
-        text = path.read_text()
-        for operation in ("add", "and", "or", "xor"):
-            old = f"__sync_fetch_and_{operation} ((atomic), (val))"
-            new = f"__sync_fetch_and_{operation} ((atomic), (gpointer) (val))"
-            text = text.replace(old, new)
-        path.write_text(text)
-        PY
-        # Limbo's Android link rule is also the desired shared-library
+          sed -i 's/sys.version_info < (2,6) or sys.version_info >= (3,)/sys.version_info < (2,6)/' "$jni/qemu/configure"
+          python3 - "$jni/glib/glib/gatomic.h" <<'PY'
+          from pathlib import Path
+          path = Path(__import__('sys').argv[1])
+          text = path.read_text()
+          for operation in ("add", "and", "or", "xor"):
+              old = f"__sync_fetch_and_{operation} ((atomic), (val))"
+              new = f"__sync_fetch_and_{operation} ((atomic), (gpointer) (val))"
+              text = text.replace(old, new)
+          path.write_text(text)
+          PY
+          # Limbo's Android link rule is also the desired shared-library
           # boundary for QEMU's qemu_init/qemu_main_loop API.
           python3 - "$jni/qemu/Makefile.target" <<'PY'
           from pathlib import Path
