@@ -65,7 +65,7 @@ public final class QemuBootSession {
                 + "androidboot.debug.hwui.renderer=opengl androidboot.debug.renderengine.backend=skiagl "
                 + "androidboot.config.low_ram=0 androidboot.dalvik.vm.checkjni=1 "
                 + "androidboot.debug.stagefright.ccodec=4 androidboot.debug.sf.nobootanimation=1 "
-                + "qemu.logcat=start androidboot.selinux=permissive security=selinux enforcing=0 "
+                + "qemu.logcat=start androidboot.selinux=permissive selinux=0 security=selinux enforcing=0 "
                 + "androidboot.dalvik.vm.heapsize=192m"
                 : "console=ttyAMA0,115200 androidboot.hardware=generic");
         if (assets.ranchu) {
