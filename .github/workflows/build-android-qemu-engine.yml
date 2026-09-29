@@ -88,13 +88,13 @@ jobs:
           text = path.read_text()
           replacements = {
               "(gssize) __sync_fetch_and_add ((atomic), (val))":
-                  "(gssize) __sync_fetch_and_add ((atomic), (gpointer) (val))",
+                  "(gssize) __sync_fetch_and_add ((volatile gsize *) (atomic), (gsize) (val))",
               "(gsize) __sync_fetch_and_and ((atomic), (val))":
-                  "(gsize) __sync_fetch_and_and ((atomic), (gpointer) (val))",
+                  "(gsize) __sync_fetch_and_and ((volatile gsize *) (atomic), (gsize) (val))",
               "(gsize) __sync_fetch_and_or ((atomic), (val))":
-                  "(gsize) __sync_fetch_and_or ((atomic), (gpointer) (val))",
+                  "(gsize) __sync_fetch_and_or ((volatile gsize *) (atomic), (gsize) (val))",
               "(gsize) __sync_fetch_and_xor ((atomic), (val))":
-                  "(gsize) __sync_fetch_and_xor ((atomic), (gpointer) (val))",
+                  "(gsize) __sync_fetch_and_xor ((volatile gsize *) (atomic), (gsize) (val))",
           }
           for old, new in replacements.items():
               text = text.replace(old, new)
