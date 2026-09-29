@@ -253,7 +253,12 @@ jobs:
           endif
 
           $(fdtlib):
-          \t$(MAKE) -C ../../qemu subdir-dtc
+          \t$(MAKE) -I../../qemu/dtc VPATH=../../qemu/dtc -C ../../qemu/dtc \
+          \t\tLIBFDT_srcdir=../../qemu/dtc/libfdt \
+          \t\tCPPFLAGS="-I../../qemu/dtc -I../../qemu/dtc/libfdt" \
+          \t\tCFLAGS="$(CFLAGS) $(QEMU_CFLAGS)" \
+          \t\tLDFLAGS="$(LDFLAGS)" ARFLAGS="$(ARFLAGS)" \
+          \t\tCC="$(CC)" AR="$(AR)" LD="$(LD)" libfdt/libfdt.a
           """
           if old not in text:
               raise SystemExit('Limbo slirp link block was not found')
