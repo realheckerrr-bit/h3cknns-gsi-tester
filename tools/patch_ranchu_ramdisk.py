@@ -257,6 +257,15 @@ def patch_fstab(content):
             continue
         device, mountpoint = columns[0], columns[1]
         if mountpoint == "/metadata" or device.endswith("/metadata"):
+            columns[0] = "/dev/block/vdc"
+            if len(columns) > 2 and columns[2] in ("f2fs", "erofs"):
+                columns[2] = "ext4"
+            if len(columns) > 3:
+                columns[3] = "noatime,nosuid,nodev"
+            if len(columns) > 4:
+                columns[4] = "wait,first_stage_mount"
+                columns = columns[:5]
+            result.append(" ".join(columns) + ("\n" if line.endswith("\n") else ""))
             changed = True
             continue
         if "first_stage_mount" not in stripped or "logical" not in stripped:

@@ -221,6 +221,17 @@ public final class RanchuRamdiskPatcher {
             String device = columns[0];
             String mountpoint = columns[1];
             if ("/metadata".equals(mountpoint) || device.endsWith("/metadata")) {
+                columns[0] = "/dev/block/vdc";
+                if (columns.length > 2 && ("f2fs".equals(columns[2]) || "erofs".equals(columns[2]))) {
+                    columns[2] = "ext4";
+                }
+                if (columns.length > 3) columns[3] = "noatime,nosuid,nodev";
+                if (columns.length > 4) {
+                    columns[4] = "wait,first_stage_mount";
+                    columns = java.util.Arrays.copyOf(columns, 5);
+                }
+                result.append(String.join(" ", columns));
+                if (line.endsWith("\n")) result.append('\n');
                 changed = true;
                 continue;
             }

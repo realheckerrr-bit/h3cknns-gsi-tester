@@ -17,9 +17,7 @@ def transform(line):
     device, mountpoint = columns[0], columns[1]
     if trimmed.startswith("file ") and "/dev/block/by-name/" in trimmed:
         return b"#" + line[1:] if line[:1] != b"#" else line
-    if mountpoint == "/metadata" or device.endswith("/metadata"):
-        return b"#" + line[1:] if line[:1] != b"#" else line
-    if mountpoint == "/data":
+    if mountpoint in ("/metadata", "/data") or device.endswith("/metadata"):
         columns[0] = "/dev/block/vdc"
         if len(columns) > 2 and columns[2] in ("f2fs", "erofs"):
             columns[2] = "ext4"
@@ -31,9 +29,12 @@ def transform(line):
         if len(columns) > 4:
             columns[4] = "wait"
             columns = columns[:5]
+        if mountpoint == "/metadata" or device.endswith("/metadata"):
+            if len(columns) > 4:
+                columns[4] = "wait,first_stage_mount"
         rebuilt = " ".join(columns).encode("utf-8")
         if len(rebuilt) > len(line):
-            raise ValueError("patched data fstab line is longer than its ext4 slot")
+            raise ValueError("patched data/metadata fstab line is longer than its ext4 slot")
         return rebuilt + b" " * (len(line) - len(rebuilt))
     if "first_stage_mount" not in trimmed or "logical" not in trimmed:
         return line

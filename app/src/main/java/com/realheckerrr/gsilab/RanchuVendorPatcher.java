@@ -93,8 +93,7 @@ public final class RanchuVendorPatcher {
         if (columns.length < 2) return line;
         String device = columns[0];
         String mountpoint = columns[1];
-        if ("/metadata".equals(mountpoint) || device.endsWith("/metadata")) return comment(line);
-        if ("/data".equals(mountpoint)) {
+        if ("/metadata".equals(mountpoint) || "/data".equals(mountpoint) || device.endsWith("/metadata")) {
             columns[0] = "/dev/block/vdc";
             if (columns.length > 2 && ("f2fs".equals(columns[2]) || "erofs".equals(columns[2]))) {
                 columns[2] = "ext4";
@@ -110,7 +109,8 @@ public final class RanchuVendorPatcher {
                 columns[3] = flags.length() == 0 ? "defaults" : flags.toString();
             }
             if (columns.length > 4) {
-                columns[4] = "wait";
+                columns[4] = ("/metadata".equals(mountpoint) || device.endsWith("/metadata"))
+                        ? "wait,first_stage_mount" : "wait";
                 columns = Arrays.copyOf(columns, 5);
             }
             return fit(String.join(" ", columns).getBytes(StandardCharsets.UTF_8), line.length);
