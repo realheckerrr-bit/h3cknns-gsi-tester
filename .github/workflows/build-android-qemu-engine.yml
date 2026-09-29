@@ -187,6 +187,16 @@ jobs:
               raise SystemExit('QEMU Makefile.target link rule was not found')
           path.write_text(text.replace(old, new, 1))
           PY
+          python3 - "$jni/Makefile" <<'PY'
+          from pathlib import Path
+          path = Path(__import__('sys').argv[1])
+          text = path.read_text()
+          old = "cd $(LIMBO_JNI_ROOT)/qemu && $(MAKE) all -j $(BUILD_THREADS) BUILD_GUEST=$(BUILD_GUEST)"
+          new = "cd $(LIMBO_JNI_ROOT)/qemu && $(MAKE) $(BUILD_GUEST) -j $(BUILD_THREADS) BUILD_GUEST=$(BUILD_GUEST)"
+          if old not in text:
+              raise SystemExit('Limbo QEMU build rule was not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
           make -C "$jni" limbo \
             NDK_ROOT="$ndk" \
             BUILD_HOST=arm64-v8a APP_ABI=arm64-v8a \
