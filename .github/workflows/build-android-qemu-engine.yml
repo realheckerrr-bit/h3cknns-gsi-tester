@@ -190,6 +190,15 @@ jobs:
               raise SystemExit('virtio-gpu VirGL fallback was not found')
           path.write_text(text.replace(old, "    data = NULL;", 1))
           PY
+          python3 - "$jni/qemu/hw/vfio/Makefile.objs" <<'PY'
+          from pathlib import Path
+          path = Path(__import__('sys').argv[1])
+          text = path.read_text()
+          old = "ifeq ($(CONFIG_LINUX), y)"
+          if old not in text:
+              raise SystemExit('VFIO makefile guard was not found')
+          path.write_text(text.replace(old, "ifeq ($(CONFIG_VFIO), y)", 1))
+          PY
           # Limbo's Android link rule is also the desired shared-library
           # boundary for QEMU's qemu_init/qemu_main_loop API.
           python3 - "$jni/qemu/Makefile.target" <<'PY'
