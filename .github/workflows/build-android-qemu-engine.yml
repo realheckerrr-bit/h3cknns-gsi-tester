@@ -266,7 +266,8 @@ jobs:
           dummy := $(call unnest-vars,.., util-obj-y stub-obj-y)
           qemuutilobj=$(sort $(util-obj-y) \
             ../trace-root.o ../qapi/trace.o ../accel/tcg/trace.o \
-            ../accel/kvm/trace.o ../nbd/trace.o ../scsi/trace.o)
+            ../accel/kvm/trace.o ../nbd/trace.o ../scsi/trace.o \
+            $(foreach trace_dir,$(trace-events-subdirs),../$(trace_dir)/trace.o))
           # The Android QEMU makefile is included from Limbo's target build
           # directory.  Its trace subdirectory entries are emitted as bare
           # names by this older unnest-vars implementation, so normalize them
