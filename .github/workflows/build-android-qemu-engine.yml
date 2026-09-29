@@ -72,6 +72,10 @@ jobs:
           ndk="$ANDROID_SDK_ROOT/ndk/27.2.12479018"
           jni="$PWD/limbo-source/limbo-android-lib/src/main/jni"
           export PATH="$ndk:$PATH"
+          # SDL 2.0.8 declares the GLES shader-source callback with the
+          # pre-NDK-r27 const signature.
+          sed -i 's/const GLchar \*\*, const GLint \*/const GLchar *const *, const GLint */' \
+            "$jni/SDL2/src/render/opengles2/SDL_gles2funcs.h"
           # The Android branch contains a legacy Python 2-only probe. The
           # generated build itself works with Python 3 on the runner.
           sed -i 's/sys.version_info < (2,6) or sys.version_info >= (3,)/sys.version_info < (2,6)/' "$jni/qemu/configure"
