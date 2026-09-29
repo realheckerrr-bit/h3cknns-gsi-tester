@@ -23,12 +23,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            autoconf automake bc bison build-essential flex \
-            libaio-dev libcap-dev libcap-ng-dev libcurl4-gnutls-dev \
-            libfdt-dev libglib2.0-dev libpixman-1-dev libslirp-dev \
-            libusb-1.0-0-dev libx11-dev libxext-dev libxrender-dev \
-            ninja-build pkg-config python3 python3-venv rsync texinfo \
-            xz-utils zip
+            autoconf automake bc bison build-essential flex gettext \
+            libtool make patch pkg-config python3 rsync xz-utils zip
 
       - name: Install Android NDK
         shell: bash
@@ -39,56 +35,78 @@ jobs:
           yes | "$sdkmanager_bin" --licenses >/dev/null 2>&1 || true
           "$sdkmanager_bin" "platform-tools" "ndk;27.2.12479018"
 
-      - name: Fetch Android QEMU source
+      - name: Fetch Android QEMU and Android-native dependencies
         env:
           QEMU_REF: ${{ inputs.qemu_ref }}
+        shell: bash
         run: |
+          set -euo pipefail
+          git clone --depth 1 --branch Branch_Branch_6.0.1 \
+            https://github.com/limboemu/limbo limbo-source
+          jni="$PWD/limbo-source/limbo-android-lib/src/main/jni"
           git clone --depth 1 --branch "$QEMU_REF" \
-            https://android.googlesource.com/platform/external/qemu qemu-source
+            https://android.googlesource.com/platform/external/qemu "$jni/qemu"
+          curl --fail --location --retry 3 -o /tmp/glib.tar.xz \
+            https://download.gnome.org/sources/glib/2.56/glib-2.56.1.tar.xz
+          curl --fail --location --retry 3 -o /tmp/libffi.tar.gz \
+            https://sourceware.org/pub/libffi/libffi-3.3.tar.gz
+          curl --fail --location --retry 3 -o /tmp/pixman.tar.gz \
+            https://www.cairographics.org/releases/pixman-0.40.0.tar.gz
+          curl --fail --location --retry 3 -o /tmp/sdl2.tar.gz \
+            https://www.libsdl.org/release/SDL2-2.0.8.tar.gz
+          tar -xf /tmp/glib.tar.xz -C "$jni"
+          tar -xf /tmp/libffi.tar.gz -C "$jni"
+          tar -xf /tmp/pixman.tar.gz -C "$jni"
+          tar -xf /tmp/sdl2.tar.gz -C "$jni"
+          mv "$jni/glib-2.56.1" "$jni/glib"
+          mv "$jni/libffi-3.3" "$jni/libffi"
+          mv "$jni/pixman-0.40.0" "$jni/pixman"
+          mv "$jni/SDL2-2.0.8" "$jni/SDL2"
+          patch -d "$jni/glib" -p1 < "$jni/patches/glib-2.56.1.patch"
+          patch -d "$jni/SDL2" -p1 < "$jni/patches/sdl2-2.0.8.patch"
 
-      - name: Configure and build Android QEMU
+      - name: Build Android QEMU engine
         shell: bash
         run: |
           set -euo pipefail
           ndk="$ANDROID_SDK_ROOT/ndk/27.2.12479018"
-          toolchain="$ndk/toolchains/llvm/prebuilt/linux-x86_64"
-          export PATH="$toolchain/bin:$PATH"
-          export CC="$toolchain/bin/aarch64-linux-android35-clang"
-          export CXX="$toolchain/bin/aarch64-linux-android35-clang++"
-          export AR="$toolchain/bin/llvm-ar"
-          export RANLIB="$toolchain/bin/llvm-ranlib"
-          export STRIP="$toolchain/bin/llvm-strip"
-          export PKG_CONFIG=/usr/bin/pkg-config
-          export PKG_CONFIG_LIBDIR=""
-          export PKG_CONFIG_PATH=""
-          cd qemu-source
-          # This Android branch carries an obsolete configure check that rejects
-          # Python 3 even though the build runner no longer ships Python 2.
-          sed -i 's/sys.version_info < (2,6) or sys.version_info >= (3,)/sys.version_info < (2,6)/' configure
-          bash ./configure \
-            --target-list=aarch64-softmmu \
-            --python=python3 \
-            --cross-prefix="$toolchain/bin/aarch64-linux-android-" \
-            --disable-werror \
-            --disable-gtk \
-            --disable-vnc \
-            --disable-curses \
-            --disable-opengl \
-            --disable-virglrenderer \
-            --disable-sdl \
-            --extra-cflags="-DANDROID -fPIC" \
-            --extra-ldflags="-fuse-ld=lld -Wl,-z,max-page-size=16384 -shared"
-          make -j"$(nproc)" qemu-system-aarch64
-          file aarch64-softmmu/qemu-system-aarch64
+          jni="$PWD/limbo-source/limbo-android-lib/src/main/jni"
+          export PATH="$ndk:$PATH"
+          # The Android branch contains a legacy Python 2-only probe. The
+          # generated build itself works with Python 3 on the runner.
+          sed -i 's/sys.version_info < (2,6) or sys.version_info >= (3,)/sys.version_info < (2,6)/' "$jni/qemu/configure"
+          # Limbo's Android link rule is also the desired shared-library
+          # boundary for QEMU's qemu_init/qemu_main_loop API.
+          python3 - "$jni/qemu/Makefile.target" <<'PY'
+          from pathlib import Path
+          path = Path(__import__('sys').argv[1])
+          text = path.read_text()
+          old = "$(QEMU_PROG_BUILD): $(all-obj-y) $(COMMON_LDADDS)\n\t$(call LINK, $(filter-out %.mak, $^))"
+          new = "# Android app shared-library link rule\ninclude ../../android-qemu-build.mak"
+          if old not in text:
+              raise SystemExit('QEMU Makefile.target link rule was not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+          make -C "$jni" limbo \
+            NDK_ROOT="$ndk" \
+            BUILD_HOST=arm64-v8a APP_ABI=arm64-v8a \
+            BUILD_GUEST=aarch64-softmmu \
+            USE_QEMU_VERSION=5.1.0 \
+            NDK_ENV=linux-x86_64 NDK_PLATFORM_API=21 \
+            NDK_TOOLCHAIN_VERSION=clang USE_AAUDIO=false \
+            BUILD_THREADS="$(nproc)"
+          file "$jni/libs/arm64-v8a/libqemu-system-aarch64.so"
 
       - name: Package engine artifact
         shell: bash
         run: |
           set -euo pipefail
+          jni="$PWD/limbo-source/limbo-android-lib/src/main/jni"
           mkdir -p engine
-          cp qemu-source/aarch64-softmmu/qemu-system-aarch64 engine/libqemu-system-aarch64.so
-          "$ANDROID_SDK_ROOT/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" engine/libqemu-system-aarch64.so
-          sha256sum engine/libqemu-system-aarch64.so > engine/SHA256SUMS.txt
+          cp "$jni/libs/arm64-v8a/libqemu-system-aarch64.so" engine/
+          cp "$jni/libs/arm64-v8a/libSDL2.so" engine/ || true
+          llvm-strip "$jni/libs/arm64-v8a/libqemu-system-aarch64.so" || true
+          sha256sum engine/* > engine/SHA256SUMS.txt
 
       - name: Upload Android QEMU engine
         uses: actions/upload-artifact@v4
