@@ -260,8 +260,10 @@ jobs:
           \t\tLDFLAGS="$(LDFLAGS)" ARFLAGS="$(ARFLAGS)" \
           \t\tCC="$(CC)" AR="$(AR)" LD="$(LD)" libfdt/libfdt.a
 
-          dummy := $(call unnest-vars,.., util-obj-y trace-obj-y stub-obj-y)
-          qemuutilobj=$(sort $(util-obj-y) $(trace-obj-y) $(stub-obj-y))
+          dummy := $(call unnest-vars,.., util-obj-y stub-obj-y)
+          qemuutilobj=$(sort $(util-obj-y) $(stub-obj-y) \
+            ../trace-root.o ../qapi/trace.o ../accel/tcg/trace.o \
+            ../accel/kvm/trace.o ../nbd/trace.o ../scsi/trace.o)
           $(COMMON_LDADDS): $(qemuutilobj)
           \t$(AR) rcs $@ $(qemuutilobj)
           """
