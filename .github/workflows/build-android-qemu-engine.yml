@@ -64,6 +64,18 @@ jobs:
           mv "$jni/SDL2-2.0.8" "$jni/SDL2"
           patch -d "$jni/glib" -p1 < "$jni/patches/glib-2.56.1.patch"
           patch -d "$jni/SDL2" -p1 < "$jni/patches/sdl2-2.0.8.patch"
+          python3 - "$jni/pixman/pixman/pixman-bits-image.c" <<'PY'
+          import re
+          from pathlib import Path
+          path = Path(__import__('sys').argv[1])
+          text = path.read_text()
+          text = re.sub(
+              r"static const float\s+(dither_factor_(?:blue_noise_64|bayer_8)\s*\()",
+              r"static float \1",
+              text,
+          )
+          path.write_text(text)
+          PY
 
       - name: Build Android QEMU engine
         shell: bash
