@@ -101,6 +101,9 @@ jobs:
           sed -i '/#include <unistd.h>/a #include <malloc.h>' "$jni/compat/limbo_compat.c"
           sed -i 's/int endofs = s + length;/const char *endofs = s + length;/' \
             "$jni/compat/limbo_compat.c"
+          # Android does not expose the host openpty() API used by this
+          # optional QEMU utility, and the emulator does not need it.
+          sed -i 's/ qemu-openpty\.o//' "$jni/qemu/util/Makefile.objs"
           # NDK r27 removed the legacy GCC 4.9 toolchain directory. Limbo's
           # ARMv8 linker flags still reference it, but Clang already selects
           # the NDK LLVM toolchain above.
