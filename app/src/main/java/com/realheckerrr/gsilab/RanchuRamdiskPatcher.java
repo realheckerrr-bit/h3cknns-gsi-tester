@@ -208,6 +208,8 @@ public final class RanchuRamdiskPatcher {
         String text = new String(content, StandardCharsets.UTF_8);
         StringBuilder result = new StringBuilder();
         boolean changed = false;
+        boolean hasSystem = false;
+        boolean hasVendor = false;
         String[] lines = text.split("(?<=\\n)", -1);
         for (String line : lines) {
             String stripped = line.trim();
