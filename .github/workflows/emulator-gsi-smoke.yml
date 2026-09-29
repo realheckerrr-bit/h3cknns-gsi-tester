@@ -17,7 +17,7 @@ jobs:
       - name: Install ARM QEMU and archive tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends cpio e2fsprogs ipxe-qemu libegl1 libgl1-mesa-dri libvirglrenderer1 lz4 qemu-system-arm qemu-system-common unzip xz-utils
+          sudo apt-get install -y --no-install-recommends cpio e2fsprogs ipxe-qemu libegl1 libgl1-mesa-dri libvirglrenderer1 lz4 qemu-system-arm qemu-system-common qemu-system-modules-opengl unzip xz-utils
 
       - name: Download official ARM64 Emulator guest pack
         shell: bash
