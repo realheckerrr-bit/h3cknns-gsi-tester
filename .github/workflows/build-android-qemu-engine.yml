@@ -23,7 +23,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            autoconf automake bc bison build-essential flex gettext \
+            autoconf automake bc bison build-essential flex gettext gtk-doc-tools \
             libtool make patch pkg-config python3 rsync xz-utils zip
 
       - name: Install Android NDK
