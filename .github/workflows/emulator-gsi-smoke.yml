@@ -17,7 +17,7 @@ jobs:
       - name: Install ARM QEMU and archive tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends cpio e2fsprogs ipxe-qemu lz4 qemu-system-arm qemu-system-common unzip xz-utils
+          sudo apt-get install -y --no-install-recommends cpio e2fsprogs ipxe-qemu libegl1 libgl1-mesa-dri libvirglrenderer1 lz4 qemu-system-arm qemu-system-common unzip xz-utils
 
       - name: Download official ARM64 Emulator guest pack
         shell: bash
@@ -109,15 +109,15 @@ jobs:
             -M virt,gic-version=3 \
             -cpu max -m 2048 -smp 4 -rtc base=utc \
             -kernel guest/kernel-ranchu -initrd guest/ramdisk.patched.img \
-            -append 'console=ttyAMA0,115200 androidboot.console=ttyAMA1 androidboot.hardware=ranchu androidboot.verifiedbootstate=orange androidboot.qemu=1 androidboot.qemu.vsync=60 androidboot.qemu.gltransport.name=virtio-gpu-pipe androidboot.hardware.gltransport=virtio-gpu-pipe androidboot.hardwareegl=emulation androidboot.hardware.egl=emulation androidboot.hardware.gralloc=minigbm androidboot.hardware.hwcomposer=ranchu androidboot.hardware.vulkan=ranchu androidboot.qemu.cpuvulkan.version=0 androidboot.opengles.version=196609 androidboot.debug.hwui.renderer=opengl androidboot.dalvik.vm.heapsize=192m' \
+            -append 'console=ttyAMA0,115200 androidboot.console=ttyAMA1 androidboot.hardware=ranchu androidboot.verifiedbootstate=orange androidboot.qemu=1 androidboot.qemu.vsync=60 androidboot.qemu.gltransport.name=virtio-gpu-pipe androidboot.hardware.gltransport=virtio-gpu-pipe androidboot.hardwareegl=emulation androidboot.hardware.egl=emulation androidboot.hardware.gralloc=minigbm androidboot.hardware.hwcomposer=ranchu androidboot.hardware.vulkan=ranchu androidboot.qemu.cpuvulkan.version=0 androidboot.opengles.version=196609 androidboot.debug.hwui.renderer=opengl androidboot.debug.renderengine.backend=skiagl androidboot.config.low_ram=0 androidboot.dalvik.vm.checkjni=1 androidboot.debug.stagefright.ccodec=4 androidboot.debug.sf.nobootanimation=1 androidboot.dalvik.vm.heapsize=192m' \
             -drive if=none,format=raw,id=userdata,file=$PWD/guest/userdata.img \
             -device virtio-blk-device,drive=userdata \
             -drive if=none,format=raw,id=system,file=$PWD/guest/system.img,readonly=on \
             -device virtio-blk-device,drive=system \
             -drive if=none,format=raw,id=vendor,file=$PWD/guest/vendor.raw.img,readonly=on \
             -device virtio-blk-device,drive=vendor \
-            -device virtio-gpu-pci,id=gpu0 \
-            -display none -monitor none -serial file:$PWD/serial.log -no-reboot \
+            -device virtio-gpu-pci,id=gpu0,virgl=on \
+            -display egl-headless -monitor none -serial file:$PWD/serial.log -no-reboot \
             > qemu.stdout 2> qemu.stderr &
           qemu_pid=$!
           booted=0

@@ -61,7 +61,10 @@ public final class QemuBootSession {
                 + "androidboot.hardware.egl=emulation androidboot.hardware.gralloc=minigbm "
                 + "androidboot.hardware.hwcomposer=ranchu androidboot.hardware.vulkan=ranchu "
                 + "androidboot.qemu.cpuvulkan.version=0 androidboot.opengles.version=196609 "
-                + "androidboot.debug.hwui.renderer=opengl androidboot.dalvik.vm.heapsize=192m"
+                + "androidboot.debug.hwui.renderer=opengl androidboot.debug.renderengine.backend=skiagl "
+                + "androidboot.config.low_ram=0 androidboot.dalvik.vm.checkjni=1 "
+                + "androidboot.debug.stagefright.ccodec=4 androidboot.debug.sf.nobootanimation=1 "
+                + "androidboot.dalvik.vm.heapsize=192m"
                 : "console=ttyAMA0,115200 androidboot.hardware=generic");
         if (assets.ranchu) {
             // virtio-mmio enumerates devices in reverse declaration order:
@@ -76,11 +79,11 @@ public final class QemuBootSession {
             addDrive(args, "vendor", assets.vendor, true, assets.cuttlefish, rom, false);
         }
         if (assets.cuttlefish || assets.ranchu) {
-            args.add("-device"); args.add("virtio-gpu-pci,id=gpu0");
+            args.add("-device"); args.add("virtio-gpu-pci,id=gpu0,virgl=on");
             args.add("-object"); args.add("rng-random,id=objrng0,filename=/dev/urandom");
             args.add("-device"); args.add("virtio-rng-pci,rng=objrng0,max-bytes=1024,period=2000");
         }
-        args.add("-display"); args.add("none");
+        args.add("-display"); args.add(assets.cuttlefish || assets.ranchu ? "egl-headless" : "none");
         args.add("-monitor"); args.add("none");
         args.add("-serial"); args.add("file:" + log.getAbsolutePath());
         args.add("-no-reboot");
