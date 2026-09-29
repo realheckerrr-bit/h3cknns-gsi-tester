@@ -246,8 +246,8 @@ jobs:
           new = """ifeq ($(USE_SLIRP_LIB),true)
           \tslirplib=../../qemu/slirp/libslirp.a
           \tslirpobj=$(filter ../slirp/%.o,$(all-obj-y))
-          \t$(slirplib): $(slirpobj)
-          \t\t$(AR) rcs $@ $(slirpobj)
+          $(slirplib): $(slirpobj)
+          \t$(AR) rcs $@ $(slirpobj)
           \tRELINK_LIBSLIRP=$(OBJ_COPY) $(RELINK_PARAMS) $(slirplib)
           \tRELINK_LIBSLIRP_2=$(OBJ_COPY) $(RELINK_PARAMS_2) $(slirplib)
           endif
