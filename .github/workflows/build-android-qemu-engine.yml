@@ -46,6 +46,12 @@ jobs:
           jni="$PWD/limbo-source/limbo-android-lib/src/main/jni"
           git clone --depth 1 --branch "$QEMU_REF" \
             https://android.googlesource.com/platform/external/qemu "$jni/qemu"
+          git clone --depth 1 \
+            https://android.googlesource.com/platform/hardware/google/aemu /tmp/aemu-source
+          mkdir -p "$jni/qemu/android/android-emu/host-common"
+          cp /tmp/aemu-source/host-common/include/host-common/goldfish_pipe.h \
+            /tmp/aemu-source/host-common/include/host-common/android_pipe_base.h \
+            "$jni/qemu/android/android-emu/host-common/"
           curl --fail --location --retry 3 -o /tmp/glib.tar.xz \
             https://download.gnome.org/sources/glib/2.56/glib-2.56.1.tar.xz
           curl --fail --location --retry 3 -o /tmp/libffi.tar.gz \
