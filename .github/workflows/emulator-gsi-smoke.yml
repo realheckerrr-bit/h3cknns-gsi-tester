@@ -2,6 +2,15 @@ name: Android Emulator GSI boot smoke test
 
 on:
   workflow_dispatch:
+    inputs:
+      system_source:
+        description: "System image to boot against the Ranchu guest"
+        required: true
+        default: gsi
+        type: choice
+        options:
+          - gsi
+          - stock
 
 permissions:
   contents: read
@@ -60,6 +69,7 @@ jobs:
           test -s guest/userdata.img
 
       - name: Download and verify official Android 15 ARM64 AOSP GSI
+        if: inputs.system_source != 'stock'
         shell: bash
         run: |
           set -euo pipefail
@@ -74,6 +84,17 @@ jobs:
           else
             unzip -p guest/gsi.zip "$system_entry" > guest/system.img
           fi
+          test -s guest/system.img
+
+      - name: Extract stock Android Emulator system image
+        if: inputs.system_source == 'stock'
+        shell: bash
+        run: |
+          set -euo pipefail
+          entries=$(unzip -Z1 guest/emulator.zip)
+          system_entry=$(printf '%s\n' "$entries" | grep -E '(^|/)system\.img$' | head -1)
+          [[ -n "$system_entry" ]]
+          unzip -p guest/emulator.zip "$system_entry" > guest/system.img
           test -s guest/system.img
 
       - name: Adapt Ranchu vendor fstab for direct GSI system and vendor disks
