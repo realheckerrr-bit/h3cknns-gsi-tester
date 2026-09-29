@@ -30,10 +30,12 @@ jobs:
             ninja-build pkg-config python3 python3-venv rsync texinfo \
             xz-utils zip
 
-      - name: Set up Android NDK
-        uses: android-actions/setup-android@v3
       - name: Install Android NDK
-        run: sdkmanager --install "ndk;27.2.12479018"
+        shell: bash
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager "platform-tools" "ndk;27.2.12479018"
 
       - name: Fetch Android QEMU source
         env:
