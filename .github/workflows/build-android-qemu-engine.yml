@@ -34,8 +34,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          yes | sdkmanager --licenses >/dev/null
-          sdkmanager "platform-tools" "ndk;27.2.12479018"
+          sdkmanager_bin=$(find "$ANDROID_SDK_ROOT/cmdline-tools" -type f -name sdkmanager | sort | tail -1)
+          test -x "$sdkmanager_bin"
+          yes | "$sdkmanager_bin" --licenses >/dev/null 2>&1 || true
+          "$sdkmanager_bin" "platform-tools" "ndk;27.2.12479018"
 
       - name: Fetch Android QEMU source
         env:
