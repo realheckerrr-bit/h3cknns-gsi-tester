@@ -214,10 +214,12 @@ jobs:
           set -euo pipefail
           jni="$PWD/limbo-source/limbo-android-lib/src/main/jni"
           mkdir -p engine
-          cp "$jni/libs/arm64-v8a/libqemu-system-aarch64.so" engine/
-          cp "$jni/libs/arm64-v8a/libSDL2.so" engine/ || true
-          llvm-strip "$jni/libs/arm64-v8a/libqemu-system-aarch64.so" || true
-          sha256sum engine/* > engine/SHA256SUMS.txt
+          cp "$jni/../libs/arm64-v8a/"*.so engine/
+          strip_bin="$ANDROID_SDK_ROOT/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
+          for library in engine/*.so; do
+            "$strip_bin" "$library" || true
+          done
+          sha256sum engine/*.so > engine/SHA256SUMS.txt
 
       - name: Upload Android QEMU engine
         uses: actions/upload-artifact@v4
