@@ -378,7 +378,16 @@ public final class MainActivity extends Activity {
         } else {
             bootButton.setEnabled(false);
             appendLog("Preparing private VM files and opening the guest display...");
-            worker.execute(() -> {
+            try {
+                startActivity(new Intent(this, org.libsdl.app.GsiSDLActivity.class));
+            } catch (Exception error) {
+                bootButton.setEnabled(true);
+                appendLog("ERROR opening guest display: " + error.getMessage());
+                return;
+            }
+            // Give SDLActivity time to create its Android SurfaceView before QEMU
+            // initializes its SDL video backend on the worker thread.
+            mainHandler.postDelayed(() -> worker.execute(() -> {
                 try {
                     QemuBootSession started = QemuBootSession.start(this, selectedFile, guestFile);
                     mainHandler.post(() -> {
@@ -386,7 +395,7 @@ public final class MainActivity extends Activity {
                         lastQemuRunning = null;
                         bootButton.setEnabled(true);
                         bootButton.setText("Stop test VM");
-                        appendLog("QEMU thread started; reading console.log.");
+                        appendLog("QEMU thread started; guest display is active.");
                         mainHandler.post(consolePoller);
                     });
                 } catch (Exception error) {
@@ -395,7 +404,7 @@ public final class MainActivity extends Activity {
                         appendLog("ERROR starting QEMU: " + error.getMessage());
                     });
                 }
-            });
+            }), 500L);
         }
     }
 
