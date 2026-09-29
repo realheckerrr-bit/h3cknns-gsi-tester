@@ -175,6 +175,15 @@ jobs:
               text = text.replace(old, new)
           path.write_text(text)
           PY
+          python3 - "$jni/qemu/hw/display/virtio-gpu.c" <<'PY'
+          from pathlib import Path
+          path = Path(__import__('sys').argv[1])
+          text = path.read_text()
+          old = "    data = virgl_renderer_get_cursor_data(resource_id, &width, &height);"
+          if old not in text:
+              raise SystemExit('virtio-gpu VirGL fallback was not found')
+          path.write_text(text.replace(old, "    data = NULL;", 1))
+          PY
           # Limbo's Android link rule is also the desired shared-library
           # boundary for QEMU's qemu_init/qemu_main_loop API.
           python3 - "$jni/qemu/Makefile.target" <<'PY'
