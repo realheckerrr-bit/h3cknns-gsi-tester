@@ -20,9 +20,10 @@ def main() -> None:
         raise SystemExit("Ranchu TCG PSCI guard was not found")
     text = text.replace(old_psci, new_psci, 1)
     old_max_cpus = "    .max_cpus = 1,"
-    if old_max_cpus not in text:
+    if old_max_cpus in text:
+        text = text.replace(old_max_cpus, "    .max_cpus = 8,", 1)
+    elif "    mc->max_cpus = 16;" not in text:
         raise SystemExit("Ranchu max CPU limit was not found")
-    text = text.replace(old_max_cpus, "    .max_cpus = 8,", 1)
     path.write_text(text)
 
 
