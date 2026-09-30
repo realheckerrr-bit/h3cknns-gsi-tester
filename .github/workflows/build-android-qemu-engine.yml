@@ -59,6 +59,8 @@ jobs:
             "$jni/qemu/android/android-emu/host-common/"
           python3 "$GITHUB_WORKSPACE/tools/patch_standalone_goldfish_pipe.py" \
             "$jni/qemu/hw/misc/goldfish_pipe.c"
+          python3 "$GITHUB_WORKSPACE/tools/patch_ranchu_smp.py" \
+            "$jni/qemu/hw/arm/ranchu.c"
           cp "$GITHUB_WORKSPACE/tools/goldfish_pipe_bridge.cpp" \
             "$jni/qemu/android-qemu2-glue/emulation/goldfish_pipe_bridge.cpp"
           mkdir -p "$GITHUB_WORKSPACE/aosp/hardware/google" \

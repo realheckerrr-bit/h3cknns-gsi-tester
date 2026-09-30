@@ -65,6 +65,7 @@ jobs:
           # services close cleanly instead of dereferencing null callbacks.
           python3 tools/patch_standalone_goldfish_pipe.py \
             qemu/hw/misc/goldfish_pipe.c
+          python3 tools/patch_ranchu_smp.py qemu/hw/arm/ranchu.c
 
       - name: Build current Ranchu QEMU for the ARM64 runner
         shell: bash
