@@ -39,7 +39,11 @@ jobs:
           sdk_root="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
           for attempt in 1 2 3; do
             rm -rf "$sdk_root/ndk/27.2.12479018"
-            if yes | sdkmanager --install "ndk;27.2.12479018"; then
+            set +e
+            yes | sdkmanager --install "ndk;27.2.12479018"
+            sdk_status="${PIPESTATUS[1]}"
+            set -e
+            if [[ "$sdk_status" == "0" ]]; then
               break
             fi
             if [[ "$attempt" == 3 ]]; then exit 1; fi
