@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   build:
@@ -31,19 +32,31 @@ jobs:
         with:
           packages: platform-tools ndk;27.2.12479018 cmake;3.22.1
 
-      - name: Fetch pinned ARM64 QEMU runtime
+      - name: Fetch latest successful Ranchu QEMU engine
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           mkdir -p app/src/main/jniLibs/arm64-v8a
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}"
+          run_id="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "${api}/actions/workflows/build-android-qemu-engine.yml/runs?status=success&per_page=1" |
+            python3 -c 'import json,sys; print(json.load(sys.stdin)["workflow_runs"][0]["id"])')"
+          artifact_id="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "${api}/actions/runs/${run_id}/artifacts" |
+            python3 -c 'import json,sys; print(next(a["id"] for a in json.load(sys.stdin)["artifacts"] if a["name"]=="android-ranchu-qemu-engine"))')"
           curl --fail --location --retry 3 \
-            -o /tmp/limbo-qemu.apk \
-            https://github.com/limboemu/limbo/releases/download/v6.0.1-LimboEmulator/limbo-android-arm-6.0.1-qemu-5.1.0.apk
-          unzip -j -o /tmp/limbo-qemu.apk 'lib/arm64-v8a/*.so' -d app/src/main/jniLibs/arm64-v8a
-          mkdir -p app/src/main/assets
-          unzip -p /tmp/limbo-qemu.apk assets/roms/efi-virtio.rom > app/src/main/assets/efi-virtio.rom
-          test -s app/src/main/assets/efi-virtio.rom
-          rm -f app/src/main/jniLibs/arm64-v8a/liblimbo.so
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -o /tmp/ranchu-engine.zip \
+            "${api}/actions/artifacts/${artifact_id}/zip"
+          unzip -j -o /tmp/ranchu-engine.zip '*.so' -d app/src/main/jniLibs/arm64-v8a
+          test -s app/src/main/jniLibs/arm64-v8a/libqemu-system-aarch64.so
 
       - name: Accept licenses and install SDK
         run: |

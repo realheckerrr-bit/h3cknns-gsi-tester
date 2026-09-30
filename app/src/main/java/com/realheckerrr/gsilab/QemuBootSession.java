@@ -36,7 +36,9 @@ public final class QemuBootSession {
         if (log.exists() && !log.delete()) throw new IOException("Cannot reset console log.");
         List<String> args = new ArrayList<>();
         args.add("-M");
-        args.add(assets.cuttlefish
+        args.add(assets.ranchu
+                ? "ranchu"
+                : assets.cuttlefish
                 ? "virt,gic-version=2,mte=on,usb=off,dump-guest-core=off"
                 : "virt,gic-version=3");
         args.add("-cpu"); args.add("max");
