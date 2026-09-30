@@ -8,6 +8,8 @@ import com.realheckerrr.gsilab.QemuRunner;
 
 /** Android surface host for the QEMU SDL display. */
 public final class GsiSDLActivity extends SDLActivity {
+    private static volatile GsiSDLActivity active;
+
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -20,6 +22,22 @@ public final class GsiSDLActivity extends SDLActivity {
         layout.addView(mSurface, new RelativeLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         setContentView(layout);
+        active = this;
+    }
+
+    public static boolean isDisplayOpen() {
+        return active != null;
+    }
+
+    public static void closeDisplay() {
+        GsiSDLActivity display = active;
+        if (display != null) display.runOnUiThread(display::finish);
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (active == this) active = null;
+        super.onDestroy();
     }
 
     @Override

@@ -84,8 +84,6 @@ public final class QemuBootSession {
         }
         if (assets.cuttlefish || assets.ranchu) {
             args.add("-device"); args.add("virtio-gpu-device,id=gpu0,xres=1080,yres=1920");
-            args.add("-object"); args.add("rng-random,id=objrng0,filename=/dev/urandom");
-            args.add("-device"); args.add("virtio-rng-pci,rng=objrng0,max-bytes=1024,period=2000");
         }
         // The bundled QEMU is built with SDL2 but without host OpenGL. Android's SDL backend presents the
         // guest framebuffer as the VM screen while the activity remains the
