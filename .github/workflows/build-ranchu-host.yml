@@ -134,7 +134,7 @@ jobs:
             -M ranchu \
             -cpu max \
             -m 4096 \
-            -smp 4 \
+            -smp 1 \
             -rtc base=utc \
             -kernel "$PWD/guest/kernel-ranchu" \
             -initrd "$PWD/guest/ramdisk.patched.img" \
