@@ -132,7 +132,7 @@ jobs:
           qemu="$PWD/ranchu-qemu/aarch64-softmmu/qemu-system-aarch64"
           "$qemu" \
             -M ranchu \
-            -cpu max \
+            -cpu cortex-a57 \
             -m 4096 \
             -smp 1 \
             -rtc base=utc \
