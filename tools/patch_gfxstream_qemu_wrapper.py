@@ -10,7 +10,7 @@ extern "C" const GoldfishPipeServiceOps* gsi_android_pipe_init(void* backend);
 '''
 
 OLD = '    s_render.stream_renderer_set_service_ops(goldfish_pipe_get_service_ops());'
-NEW = '''    const GoldfishPipeServiceOps* pipe_ops = gsi_android_pipe_init(rendererSo);
+NEW = '''    pipe_ops = gsi_android_pipe_init(rendererSo);
     if (pipe_ops == NULL) {
         fprintf(stderr, "Could not initialize AndroidPipe service bridge\\n");
         return -1;
@@ -32,6 +32,12 @@ def main() -> None:
         text = text.replace(marker, marker + DECLARATION, 1)
     if OLD not in text:
         raise SystemExit("gfxstream service-op call was not found")
+    declaration = "    const GoldfishPipeServiceOps* pipe_ops = NULL;\n"
+    init_marker = "    int ret = -1;\n"
+    if declaration not in text:
+        if init_marker not in text:
+            raise SystemExit("gfxstream loader declarations were not found")
+        text = text.replace(init_marker, init_marker + declaration, 1)
     path.write_text(text.replace(OLD, NEW, 1))
 
 
