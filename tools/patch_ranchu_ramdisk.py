@@ -361,6 +361,12 @@ def main():
                 content, system_device, vendor_device, data_device,
                 extra_devices, cuttlefish)
             changed |= entry_changed
+        if cuttlefish and base == "init.rc":
+            marker = b"setenforce 0"
+            if marker not in content:
+                content += (b"\n\n# GSI tester permissive compatibility mode\n"
+                            b"on post-fs\n    setenforce 0\n")
+                changed = True
         patched.append((header, name, content))
     if not changed:
         content = (

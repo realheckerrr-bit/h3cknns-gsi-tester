@@ -56,6 +56,9 @@ public final class RanchuRamdiskPatcher {
                 hasSystem |= result.hasSystem;
                 hasVendor |= result.hasVendor;
             }
+            if (allFstabEntries && "init.rc".equals(base)) {
+                entry = entry.withContent(enablePermissiveCompatibility(entry.content));
+            }
             patched.add(entry);
         }
         if (!hasSystem || !hasVendor) {
@@ -74,6 +77,14 @@ public final class RanchuRamdiskPatcher {
             gzip.write(buildCpio(patched));
         }
         return target;
+    }
+
+    private static byte[] enablePermissiveCompatibility(byte[] content) {
+        String text = new String(content, StandardCharsets.UTF_8);
+        if (text.contains("setenforce 0")) return content;
+        String suffix = "\n\n# GSI tester permissive compatibility mode\n"
+                + "on post-fs\n    setenforce 0\n";
+        return (text + suffix).getBytes(StandardCharsets.UTF_8);
     }
 
     /**
