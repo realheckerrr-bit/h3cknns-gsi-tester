@@ -175,7 +175,7 @@ jobs:
             rm -f serial.log qemu.stdout qemu.stderr
             setsid --wait "$qemu_bin" \
             -accel tcg,thread=multi \
-            -machine ranchu \
+            -M ranchu \
             -cpu cortex-a57 \
             -m 4096 \
             -smp 2 \
