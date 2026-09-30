@@ -35,6 +35,7 @@ jobs:
           git -C qemu config submodule.ui/keycodemapdb.url \
             https://gitlab.com/qemu-project/keycodemapdb.git
           git -C qemu submodule update --init --depth 1 capstone dtc ui/keycodemapdb
+          printf '%s\n' "$(git -C qemu describe --always)" > qemu/VERSION
 
       - name: Build current Ranchu QEMU for the ARM64 runner
         shell: bash
