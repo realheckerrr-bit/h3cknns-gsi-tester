@@ -172,11 +172,11 @@ jobs:
           export SDL_AUDIODRIVER=dummy
           qemu="$PWD/qemu/aarch64-softmmu/qemu-system-aarch64"
           xvfb-run -a -s '-screen 0 1080x1920x24' \
-            gdb -batch -ex 'set pagination off' -ex run -ex bt --args "$qemu" \
+            "$qemu" \
               -M ranchu \
-              -cpu max \
+              -cpu cortex-a57 \
               -m 4096 \
-              -smp 4 \
+              -smp 1 \
               -rtc base=utc \
               -kernel "$PWD/guest/kernel-ranchu.raw" \
               -initrd "$PWD/guest/ramdisk.patched.img" \

@@ -41,9 +41,17 @@ public final class QemuBootSession {
                 : assets.cuttlefish
                 ? "virt,gic-version=2,mte=on,usb=off,dump-guest-core=off"
                 : "virt,gic-version=3");
-        args.add("-cpu"); args.add("max");
+        // The Android emulator's Ranchu guest is validated against the
+        // cortex-a57 model.  `max` exposes host/TCG features that can make
+        // this older Android 15 kernel enter the graphics pipe and never
+        // return from SurfaceFlinger on some ARM64 hosts.
+        args.add("-cpu"); args.add(assets.ranchu ? "cortex-a57" : "max");
         args.add("-m"); args.add("4096");
-        args.add("-smp"); args.add("4");
+        // One vCPU is the conservative Ranchu configuration used by the
+        // official ARM64 guest contract. It avoids the single-online-CPU /
+        // RCU starvation loop seen under TCG while keeping the guest UI
+        // usable for image testing.
+        args.add("-smp"); args.add(assets.ranchu ? "1" : "4");
         args.add("-rtc"); args.add("base=utc");
         args.add("-kernel"); args.add(assets.kernel.getAbsolutePath());
         args.add("-initrd"); args.add(assets.ramdisk.getAbsolutePath());

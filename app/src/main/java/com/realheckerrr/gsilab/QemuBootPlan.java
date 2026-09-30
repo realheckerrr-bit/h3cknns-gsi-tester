@@ -30,7 +30,7 @@ public final class QemuBootPlan {
         out.append("  system source: ").append(gsi == null ? "missing" : gsi.inputName).append('\n');
         out.append("  guest source: ").append(guest == null ? "missing" : guest.inputName).append('\n');
         out.append("\nThe final runner will extract only verified guest entries into app-private storage and invoke:\n");
-        out.append("  libqemu-system-aarch64.so -M ranchu (Cuttlefish=virt, generic=virt) -cpu max -m 4096 -smp 4\n");
+        out.append("  libqemu-system-aarch64.so -M ranchu (Cuttlefish=virt, generic=virt) -cpu cortex-a57 -m 4096 -smp 1\n");
         out.append("    -kernel <kernel> -initrd <ramdisk.img>\n");
         out.append("    -drive file=<system.img>,format=raw,readonly=on + profile-specific virtio block device\n");
         out.append("    -drive file=<cache/userdata/vendor>,format=raw + profile-specific disk order\n");
