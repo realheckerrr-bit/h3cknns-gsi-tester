@@ -129,6 +129,7 @@ jobs:
             'disabled' \
             'capabilities SYS_ADMIN' > gsi/apexd.rc
           debugfs -R 'stat /etc/init/apexd.rc' gsi/system.img
+          debugfs -w -R 'rm /etc/init/apexd.rc' gsi/system.img
           debugfs -w -R 'write gsi/apexd.rc /etc/init/apexd.rc' gsi/system.img
           debugfs -R 'dump /etc/init/apexd.rc gsi/apexd.after.rc' gsi/system.img
           grep -n 'apeXd-bootstrap\|apexd-bootstrap\|reboot_on_failure' gsi/apexd.after.rc || true
