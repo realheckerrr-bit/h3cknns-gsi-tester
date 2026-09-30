@@ -36,7 +36,10 @@ jobs:
             -e 's/sys.version_info < (2,4) or sys.version_info >= (3,)/sys.version_info < (2,4)/' \
             -e 's/sys.version_info < (2,6) or sys.version_info >= (3,)/sys.version_info < (2,6)/' \
             ranchu-qemu/configure
-          2to3 -w -n ranchu-qemu/scripts/tracetool.py ranchu-qemu/scripts/tracetool >/dev/null 2>&1
+          sed -i \
+            -e 's/except getopt.GetoptError, err:/except getopt.GetoptError as err:/' \
+            -e 's/except tracetool.TracetoolError, e:/except tracetool.TracetoolError as e:/' \
+            ranchu-qemu/scripts/tracetool.py
           cd ranchu-qemu
           ./configure \
             --target-list=aarch64-softmmu \
