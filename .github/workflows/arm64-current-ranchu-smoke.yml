@@ -1,0 +1,188 @@
+name: ARM64 current Ranchu GSI boot smoke test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  boot:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    steps:
+      - name: Check out app source
+        uses: actions/checkout@v4
+
+      - name: Install host build and image tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            autoconf automake bc bison build-essential cpio e2fsprogs flex \
+            gettext libfdt-dev libglib2.0-dev libpixman-1-dev libslirp-dev \
+            libtool lz4 ninja-build pkg-config python3 python3-lib2to3 \
+            rsync unzip x11-xserver-utils xvfb xz-utils
+
+      - name: Fetch current Android Ranchu QEMU source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch emu-35-3-release \
+            https://android.googlesource.com/platform/external/qemu qemu
+          git -C qemu config submodule.dtc.url https://github.com/qemu/dtc.git
+          git -C qemu config submodule.ui/keycodemapdb.url \
+            https://gitlab.com/qemu-project/keycodemapdb.git
+          git -C qemu submodule update --init --depth 1 dtc ui/keycodemapdb
+
+      - name: Build current Ranchu QEMU for the ARM64 runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd qemu
+          sed -i \
+            -e 's/sys.version_info < (2,4) or sys.version_info >= (3,)/sys.version_info < (2,4)/' \
+            -e 's/sys.version_info < (2,6) or sys.version_info >= (3,)/sys.version_info < (2,6)/' \
+            configure
+          python3 -m lib2to3 -w -n \
+            scripts/qapi.py scripts/qapi-commands.py scripts/qapi-types.py \
+            scripts/qapi-visit.py scripts/tracetool.py scripts/tracetool >/dev/null
+          ./configure \
+            --target-list=aarch64-softmmu \
+            --disable-werror \
+            --disable-sdl \
+            --disable-gtk \
+            --disable-vnc \
+            --disable-curses \
+            --disable-slirp \
+            --disable-user \
+            --enable-trace-backends=nop
+          make -j"$(nproc)"
+          test -x aarch64-softmmu/qemu-system-aarch64
+          aarch64-softmmu/qemu-system-aarch64 -machine help | grep -E '^ranchu '
+
+      - name: Download Android Emulator Ranchu guest pack
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p guest
+          curl --fail --location --retry 3 --retry-delay 3 \
+            -o guest/emulator.zip \
+            https://dl.google.com/android/repository/sys-img/google_apis/arm64-v8a-35_r08.zip
+          entries=$(unzip -Z1 guest/emulator.zip)
+          for asset in kernel-ranchu ramdisk.img; do
+            entry=$(printf '%s\n' "$entries" | grep -E "(^|/)$asset$" | head -1 || true)
+            [[ -n "$entry" ]]
+            unzip -p guest/emulator.zip "$entry" > "guest/$asset"
+            test -s "guest/$asset"
+          done
+          if gzip -t guest/kernel-ranchu 2>/dev/null; then
+            gzip -dc guest/kernel-ranchu > guest/kernel-ranchu.raw
+          else
+            cp guest/kernel-ranchu guest/kernel-ranchu.raw
+          fi
+          vendor_gz_entry=$(printf '%s\n' "$entries" | grep -E '(^|/)vendor\.img\.gz$' | head -1 || true)
+          vendor_raw_entry=$(printf '%s\n' "$entries" | grep -E '(^|/)vendor\.img$' | head -1 || true)
+          if [[ -n "$vendor_gz_entry" ]]; then
+            unzip -p guest/emulator.zip "$vendor_gz_entry" | gzip -dc > guest/vendor.img
+          else
+            [[ -n "$vendor_raw_entry" ]]
+            unzip -p guest/emulator.zip "$vendor_raw_entry" > guest/vendor.img
+          fi
+          userdata_entry=$(printf '%s\n' "$entries" | grep -E '(^|/)userdata\.img$' | head -1 || true)
+          if [[ -n "$userdata_entry" ]]; then
+            unzip -p guest/emulator.zip "$userdata_entry" > guest/userdata.img
+          else
+            truncate -s 2G guest/userdata.img
+            mkfs.ext4 -F -L userdata guest/userdata.img >/dev/null
+          fi
+          test -s guest/vendor.img
+          test -s guest/userdata.img
+
+      - name: Download and verify Android 15 AOSP ARM64 GSI
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 --retry-delay 3 \
+            -o guest/gsi.zip \
+            https://dl.google.com/developers/android/vic/images/gsi/aosp_arm64-exp-AP4A.241205.013-12621605-14e72a7c.zip
+          echo '14e72a7c1b6b6600ba4f7b6057c79e531bbb9aa763e9e998ab5e1a8709e5075b  guest/gsi.zip' | sha256sum --check --status
+          system_entry=$(unzip -Z1 guest/gsi.zip | grep -E '(^|/)system\.img(\.gz)?$' | head -1)
+          [[ -n "$system_entry" ]]
+          if [[ "$system_entry" == *.gz ]]; then
+            unzip -p guest/gsi.zip "$system_entry" | gzip -dc > guest/system.img
+          else
+            unzip -p guest/gsi.zip "$system_entry" > guest/system.img
+          fi
+          test -s guest/system.img
+
+      - name: Patch Ranchu fstab and prepare direct test disks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/patch_ranchu_vendor.py guest/vendor.img guest/system.img
+          python3 tools/patch_ranchu_ramdisk.py guest/ramdisk.img guest/ramdisk.patched.img
+          dd if=guest/vendor.img of=guest/vendor.raw.img bs=512 skip=2048 count=212992 status=none
+          test "$(stat -c%s guest/vendor.raw.img)" -eq 109051904
+
+      - name: Boot patched Android 15 GSI with current Ranchu
+        shell: bash
+        run: |
+          set -uo pipefail
+          qemu="$PWD/qemu/aarch64-softmmu/qemu-system-aarch64"
+          xvfb-run -a -s '-screen 0 1080x1920x24' \
+            "$qemu" \
+              -M ranchu \
+              -cpu max \
+              -m 4096 \
+              -smp 4 \
+              -rtc base=utc \
+              -kernel "$PWD/guest/kernel-ranchu.raw" \
+              -initrd "$PWD/guest/ramdisk.patched.img" \
+              -append 'console=ttyAMA0,115200 androidboot.console=ttyAMA1 androidboot.hardware=ranchu androidboot.verifiedbootstate=orange androidboot.qemu=1 androidboot.qemu.vsync=60 androidboot.hardware.egl=angle androidboot.hardware.gralloc=minigbm androidboot.hardware.hwcomposer=ranchu androidboot.hardware.hwcomposer.display_finder_mode=drm androidboot.hardware.hwcomposer.display_framebuffer_format=rgba androidboot.hardware.vulkan=pastel androidboot.qemu.cpuvulkan.version=4202496 androidboot.opengles.version=196609 androidboot.debug.hwui.renderer=opengl androidboot.debug.renderengine.backend=skiagl androidboot.config.low_ram=0 androidboot.dalvik.vm.checkjni=1 androidboot.debug.stagefright.ccodec=4 androidboot.debug.sf.nobootanimation=1 qemu.logcat=start androidboot.selinux=permissive selinux=0 security=selinux enforcing=0 androidboot.dalvik.vm.heapsize=192m' \
+              -drive if=none,format=raw,id=userdata,file="$PWD/guest/userdata.img" \
+              -device virtio-blk-device,drive=userdata \
+              -drive if=none,format=raw,id=system,file="$PWD/guest/system.img",readonly=on \
+              -device virtio-blk-device,drive=system \
+              -drive if=none,format=raw,id=vendor,file="$PWD/guest/vendor.raw.img",readonly=on \
+              -device virtio-blk-device,drive=vendor \
+              -display sdl \
+              -monitor none \
+              -serial file:serial.log \
+              -no-reboot \
+            > qemu.stdout 2> qemu.stderr &
+          emulator_pid=$!
+          booted=0
+          for _ in $(seq 1 300); do
+            if grep -Eiq 'sys\.boot_completed|boot animation stopped|starting service .zygote|Android runtime started' serial.log 2>/dev/null; then
+              booted=1
+              break
+            fi
+            if ! kill -0 "$emulator_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          if kill -0 "$emulator_pid" 2>/dev/null; then
+            kill "$emulator_pid" 2>/dev/null || true
+            wait "$emulator_pid" 2>/dev/null || true
+          else
+            wait "$emulator_pid" 2>/dev/null || true
+          fi
+          tail -300 serial.log 2>/dev/null || true
+          cat qemu.stdout 2>/dev/null || true
+          cat qemu.stderr 2>/dev/null || true
+          if [[ "$booted" != 1 ]]; then
+            echo 'No Android boot marker was observed from current ARM64 Ranchu QEMU.' >&2
+            exit 1
+          fi
+
+      - name: Upload ARM64 boot logs and framebuffer
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: arm64-current-ranchu-boot-logs
+          path: |
+            serial.log
+            qemu.stdout
+            qemu.stderr
+          if-no-files-found: ignore
