@@ -83,9 +83,9 @@ def find_partition(source, metadata, requested: str):
         value = (first_extent, extent_count)
         if name == requested:
             exact = value
-        if requested == "vendor" and name in ("vendor_a", "vendor_b"):
+        if requested == "vendor" and name in ("vendor_a", "vendor_b") and extent_count != 0:
             fallback = value
-        if requested == "system" and name in ("system_a", "system_b"):
+        if requested == "system" and name in ("system_a", "system_b") and extent_count != 0:
             fallback = value
     # Some dynamic-partition images carry an empty unsuffixed compatibility
     # entry alongside the populated slot partition. Prefer the slot entry
