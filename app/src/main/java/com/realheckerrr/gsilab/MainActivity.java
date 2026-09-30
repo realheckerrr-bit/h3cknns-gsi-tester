@@ -24,10 +24,14 @@ import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.textview.MaterialTextView;
 
 import java.io.File;
+import java.io.BufferedInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.security.MessageDigest;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -38,6 +42,10 @@ public final class MainActivity extends Activity {
     private static final int PICK_GUEST = 1003;
     private static final int GUEST_DISPLAY = 1004;
     private static final long GUEST_DISPLAY_WAIT_MS = 12000L;
+    private static final String DEFAULT_RANCHU_URL =
+            "https://dl.google.com/android/repository/sys-img/google_apis/arm64-v8a-35_r08.zip";
+    private static final String DEFAULT_RANCHU_SHA256 =
+            "dd0ed92f34600bd9edc6ec2f28d49bb6a12370edf36acc50b88425f73cbbcc6f";
     private static final int BACKGROUND = Color.rgb(11, 15, 20);
     private static final int SURFACE = Color.rgb(21, 28, 36);
     private static final int SURFACE_VARIANT = Color.rgb(38, 51, 61);
@@ -58,6 +66,7 @@ public final class MainActivity extends Activity {
     private MaterialButton analyzeButton;
     private MaterialButton bootButton;
     private MaterialButton exportButton;
+    private MaterialButton guestDownloadButton;
     private QemuBootSession session;
     private Boolean lastQemuRunning;
     private boolean launchInProgress;
@@ -137,6 +146,10 @@ public final class MainActivity extends Activity {
         MaterialButton guestButton = outlinedButton("Select guest bundle ZIP");
         guestButton.setOnClickListener(view -> chooseGuestBundle());
         guestSection.addView(guestButton);
+
+        guestDownloadButton = outlinedButton("Download official Ranchu guest");
+        guestDownloadButton.setOnClickListener(view -> downloadDefaultGuest());
+        guestSection.addView(guestDownloadButton);
 
         LinearLayout reportSection = cardSection(page, "3  PREFLIGHT REPORT", "Headers, compression, dynamic partitions, and boot assets are checked before launch.");
         reportText = console("Nothing analyzed yet.");
@@ -361,6 +374,76 @@ public final class MainActivity extends Activity {
         });
     }
 
+    private void downloadDefaultGuest() {
+        if (launchInProgress) return;
+        guestFile = null;
+        guestAnalysis = null;
+        bootButton.setEnabled(false);
+        guestDownloadButton.setEnabled(false);
+        guestText.setText("Downloading official Ranchu guest (about 1.7 GB)...");
+        appendLog("Downloading and verifying the official ARM64 Ranchu guest...");
+        worker.execute(() -> {
+            File partial = null;
+            try {
+                File directory = new File(getFilesDir(), "guest-bundles");
+                if (!directory.isDirectory() && !directory.mkdirs()) {
+                    throw new IOException("Cannot create app guest-bundle directory.");
+                }
+                partial = new File(directory, "official-ranchu-android35.zip.partial");
+                File destination = new File(directory, "official-ranchu-android35.zip");
+                HttpURLConnection connection = (HttpURLConnection) new URL(DEFAULT_RANCHU_URL).openConnection();
+                connection.setConnectTimeout(30000);
+                connection.setReadTimeout(120000);
+                connection.setInstanceFollowRedirects(true);
+                connection.connect();
+                if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
+                    throw new IOException("Guest download returned HTTP " + connection.getResponseCode());
+                }
+                MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                try (InputStream input = new BufferedInputStream(connection.getInputStream());
+                     FileOutputStream output = new FileOutputStream(partial)) {
+                    byte[] buffer = new byte[1024 * 1024];
+                    int read;
+                    while ((read = input.read(buffer)) != -1) {
+                        digest.update(buffer, 0, read);
+                        output.write(buffer, 0, read);
+                    }
+                } finally {
+                    connection.disconnect();
+                }
+                String actual = hex(digest.digest());
+                if (!DEFAULT_RANCHU_SHA256.equals(actual)) {
+                    throw new IOException("Guest checksum mismatch: " + actual);
+                }
+                if (destination.exists() && !destination.delete()) {
+                    throw new IOException("Cannot replace the previous Ranchu guest.");
+                }
+                if (!partial.renameTo(destination)) {
+                    throw new IOException("Cannot finalize the downloaded Ranchu guest.");
+                }
+                GuestBundleAnalysis result = GuestBundleAnalyzer.analyze(destination);
+                guestFile = destination;
+                mainHandler.post(() -> {
+                    guestAnalysis = result;
+                    guestDownloadButton.setEnabled(true);
+                    guestText.setText("Official Ranchu guest ready\nStored privately in app storage");
+                    reportText.setText(result.render());
+                    exportButton.setEnabled(analysis != null || guestAnalysis != null);
+                    refreshBootButton();
+                    appendLog("Official Ranchu guest verified and ready: " + formatBytes(destination.length()));
+                });
+            } catch (Exception error) {
+                if (partial != null) partial.delete();
+                mainHandler.post(() -> {
+                    guestDownloadButton.setEnabled(true);
+                    guestText.setText("Guest download failed: " + error.getMessage());
+                    refreshBootButton();
+                    appendLog("ERROR downloading guest: " + error.getMessage());
+                });
+            }
+        });
+    }
+
     private void analyzeInput() {
         if (selectedFile == null) return;
         analyzeButton.setEnabled(false);
@@ -563,6 +646,12 @@ public final class MainActivity extends Activity {
 
     private static String safeName(String name) {
         return name.replaceAll("[^A-Za-z0-9._-]", "_");
+    }
+
+    private static String hex(byte[] bytes) {
+        StringBuilder result = new StringBuilder(bytes.length * 2);
+        for (byte value : bytes) result.append(String.format(Locale.US, "%02x", value & 0xff));
+        return result.toString();
     }
 
     private void appendLog(String message) {

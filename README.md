@@ -39,6 +39,8 @@ Official ARM64 Android Emulator SDK archives (`kernel-ranchu`, `ramdisk.img`, `v
 
 If a Cuttlefish artifact is not available, the official SDK Manager package `system-images;android-35;google_apis;arm64-v8a` is another source for a test guest. Its direct package URL is [`arm64-v8a-35_r08.zip`](https://dl.google.com/android/repository/sys-img/google_apis/arm64-v8a-35_r08.zip); it contains the expected emulator files, including `kernel-ranchu`, `ramdisk.img`, `vendor.img.gz`, `userdata.img`, and `encryptionkey.img`. Import that ZIP as-is for inspection or experimentation, but prefer Cuttlefish for a real bundled-`virt` boot attempt.
 
+The app also provides **Download official Ranchu guest** in the base-guest section. It downloads that package into app-private storage, verifies its SHA-256, and analyzes it automatically, so only the GSI needs to be selected manually.
+
 The **Android Emulator GSI boot smoke test** workflow exercises that official `kernel-ranchu` guest pack with an Android 15 ARM64 AOSP GSI and stores the serial log as an artifact. It is a useful compatibility check for the Ranchu profile; it does not require a Pixel factory image.
 
 Gzip assets are expanded into private app storage and imported files are never mounted or modified.
