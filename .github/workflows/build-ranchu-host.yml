@@ -1,0 +1,54 @@
+name: Build Ranchu host smoke-test QEMU
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install QEMU build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            autoconf automake bc bison build-essential flex gettext \
+            libfdt-dev libglib2.0-dev libpixman-1-dev libslirp-dev \
+            libtool ninja-build pkg-config python3 rsync xz-utils
+
+      - name: Build desktop Ranchu QEMU
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch emu-35-3-release \
+            https://android.googlesource.com/platform/external/qemu \
+            ranchu-qemu
+          git -C ranchu-qemu config submodule.dtc.url https://github.com/qemu/dtc.git
+          git -C ranchu-qemu config submodule.ui/keycodemapdb.url https://gitlab.com/qemu-project/keycodemapdb.git
+          git -C ranchu-qemu submodule update --init --depth 1 dtc ui/keycodemapdb
+          sed -i 's/sys.version_info < (2,6) or sys.version_info >= (3,)/sys.version_info < (2,6)/' ranchu-qemu/configure
+          cd ranchu-qemu
+          ./configure \
+            --target-list=aarch64-softmmu \
+            --disable-werror \
+            --disable-sdl \
+            --disable-gtk \
+            --disable-vnc \
+            --disable-curses \
+            --disable-slirp \
+            --disable-opengl
+          make -j2
+          test -x aarch64-softmmu/qemu-system-aarch64
+          aarch64-softmmu/qemu-system-aarch64 -machine help | grep -E '^ranchu '
+
+      - name: Upload desktop Ranchu QEMU
+        uses: actions/upload-artifact@v4
+        with:
+          name: ranchu-host-qemu
+          path: ranchu-qemu/aarch64-softmmu/qemu-system-aarch64
