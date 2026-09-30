@@ -288,11 +288,12 @@ public final class RanchuRamdiskPatcher {
                 changed = true;
                 continue;
             }
-            if (allFstabEntries
-                    && ("/system".equals(mountpoint) || "/vendor".equals(mountpoint)
-                    || "/data".equals(mountpoint))
-                    && columns.length > 2
-                    && ("erofs".equals(columns[2]) || "f2fs".equals(columns[2]))) {
+            String desiredFs = null;
+            if ("/system".equals(mountpoint)) desiredFs = "ext4";
+            else if ("/vendor".equals(mountpoint)) desiredFs = "erofs";
+            else if ("/data".equals(mountpoint)) desiredFs = "ext4";
+            if (allFstabEntries && desiredFs != null
+                    && columns.length > 2 && !desiredFs.equals(columns[2])) {
                 result.append('#').append(line.startsWith("#") ? line.substring(1) : line);
                 changed = true;
                 continue;

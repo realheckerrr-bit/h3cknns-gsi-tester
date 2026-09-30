@@ -243,10 +243,11 @@ def make_header(name, content):
 
 
 def patch_fstab(content):
-    return patch_fstab_for_devices(content, "/dev/block/vdb", "/dev/block/vda", "/dev/block/vdc")
+    return patch_fstab_for_devices(
+        content, "/dev/block/vdb", "/dev/block/vda", "/dev/block/vdc", False)
 
 
-def patch_fstab_for_devices(content, system_device, vendor_device, data_device):
+def patch_fstab_for_devices(content, system_device, vendor_device, data_device, cuttlefish):
     text = content.decode("utf-8", "replace")
     result = []
     changed = False
@@ -266,8 +267,9 @@ def patch_fstab_for_devices(content, system_device, vendor_device, data_device):
                           + ("\n" if line.endswith("\n") else ""))
             changed = True
             continue
-        if (mountpoint in ("/system", "/vendor", "/data")
-                and len(columns) > 2 and columns[2] in ("erofs", "f2fs")):
+        desired_fs = {"/system": "ext4", "/vendor": "erofs", "/data": "ext4"}.get(mountpoint)
+        if (cuttlefish and desired_fs and len(columns) > 2
+                and columns[2] != desired_fs):
             result.append("#" + line[1:] if not line.startswith("#") else line)
             changed = True
             continue
@@ -323,7 +325,7 @@ def main():
         is_fstab = base.startswith("fstab") if cuttlefish else base in ("fstab.ranchu", "fstab.ranchu.initrd")
         if is_fstab:
             content, entry_changed = patch_fstab_for_devices(
-                content, system_device, vendor_device, data_device)
+                content, system_device, vendor_device, data_device, cuttlefish)
             changed |= entry_changed
         patched.append((header, name, content))
     if not changed:
