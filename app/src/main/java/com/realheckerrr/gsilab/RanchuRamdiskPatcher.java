@@ -11,8 +11,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
@@ -53,6 +55,29 @@ public final class RanchuRamdiskPatcher {
         try (FileOutputStream output = new FileOutputStream(target);
              GZIPOutputStream gzip = new GZIPOutputStream(output)) {
             gzip.write(buildCpio(patched));
+        }
+        return target;
+    }
+
+    /**
+     * Combines Android's generic init_boot ramdisk with its vendor_boot
+     * ramdisk.  Newer Android guests keep these layers separate; passing only
+     * one layer to QEMU leaves first-stage init without the other layer's
+     * mounts and services.
+     */
+    public static File merge(File generic, File vendor, File target) throws IOException {
+        List<Entry> genericEntries = parseCpio(unpack(readAll(generic), generic.getName()));
+        List<Entry> vendorEntries = parseCpio(unpack(readAll(vendor), vendor.getName()));
+        Map<String, Entry> merged = new LinkedHashMap<>();
+        for (Entry entry : genericEntries) merged.put(entry.name, entry);
+        for (Entry entry : vendorEntries) merged.put(entry.name, entry);
+        File parent = target.getParentFile();
+        if (parent != null && !parent.isDirectory() && !parent.mkdirs()) {
+            throw new IOException("Cannot create merged ramdisk output directory.");
+        }
+        try (FileOutputStream output = new FileOutputStream(target);
+             GZIPOutputStream gzip = new GZIPOutputStream(output)) {
+            gzip.write(buildCpio(new ArrayList<>(merged.values())));
         }
         return target;
     }

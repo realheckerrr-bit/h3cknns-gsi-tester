@@ -70,15 +70,27 @@ public final class BootAssets {
         if (kernel == null && bootImage != null) {
             kernel = AndroidBootImage.extractKernel(bootImage, new File(output, "kernel.from-boot.img"));
         }
-        if (ramdisk == null && bootImage != null) {
-            ramdisk = AndroidBootImage.extractRamdisk(bootImage, new File(output, "ramdisk.from-boot.img"));
-        }
-        if (ramdisk == null && initBootImage != null) {
-            ramdisk = AndroidBootImage.extractRamdisk(initBootImage, new File(output, "ramdisk.from-init_boot.img"));
-        }
-        if (ramdisk == null && vendorBootImage != null) {
-            ramdisk = AndroidBootImage.extractVendorRamdisk(vendorBootImage,
-                    new File(output, "ramdisk.from-vendor_boot.img"));
+        File bootRamdisk = bootImage == null ? null
+                : AndroidBootImage.extractRamdisk(bootImage, new File(output, "ramdisk.from-boot.img"));
+        File initBootRamdisk = initBootImage == null ? null
+                : AndroidBootImage.extractRamdisk(initBootImage, new File(output, "ramdisk.from-init_boot.img"));
+        File vendorBootRamdisk = vendorBootImage == null ? null
+                : AndroidBootImage.extractVendorRamdisk(vendorBootImage,
+                new File(output, "ramdisk.from-vendor_boot.img"));
+        if (ramdisk == null) {
+            if (bootRamdisk != null && vendorBootRamdisk != null) {
+                ramdisk = RanchuRamdiskPatcher.merge(bootRamdisk, vendorBootRamdisk,
+                        new File(output, "ramdisk.from-split-boot.img"));
+            } else if (initBootRamdisk != null && vendorBootRamdisk != null) {
+                ramdisk = RanchuRamdiskPatcher.merge(initBootRamdisk, vendorBootRamdisk,
+                        new File(output, "ramdisk.from-split-boot.img"));
+            } else if (bootRamdisk != null) {
+                ramdisk = bootRamdisk;
+            } else if (initBootRamdisk != null) {
+                ramdisk = initBootRamdisk;
+            } else {
+                ramdisk = vendorBootRamdisk;
+            }
         }
         File vendor = copyBundleEntry(guestBundle, output, "vendor.img", "vendor.img.gz", "vendor.img.xz", "vendor_a.img",
                 "vendor_a.img.gz", "vendor_a.img.xz", "vendor-qemu.img", "vendor-qemu.img.gz", "vendor-qemu.img.xz");

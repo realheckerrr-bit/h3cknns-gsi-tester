@@ -35,7 +35,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            android-sdk-libsparse-utils qemu-system-arm unzip xz-utils
+            android-sdk-libsparse-utils cpio lz4 qemu-system-arm unzip xz-utils
 
       - name: Install official Android virtio firmware
         shell: bash
@@ -152,9 +152,15 @@ jobs:
           if [[ ! -f boot/ramdisk && -n "$direct_ramdisk" ]]; then
             cp "$direct_ramdisk" boot/ramdisk
           fi
-          ramdisk=$(find boot boot-init boot-vendor -maxdepth 1 -type f -name ramdisk -print -quit)
-          [[ -f boot/kernel && -n "$ramdisk" ]]
-          [[ "$ramdisk" == 'boot/ramdisk' ]] || cp "$ramdisk" boot/ramdisk
+          if [[ ! -f boot/ramdisk && -f boot-init/ramdisk && -f boot-vendor/ramdisk ]]; then
+            python3 tools/merge_android_ramdisks.py \
+              boot-init/ramdisk boot-vendor/ramdisk boot/ramdisk
+          fi
+          if [[ ! -f boot/ramdisk ]]; then
+            ramdisk=$(find boot boot-init boot-vendor -maxdepth 1 -type f -name ramdisk -print -quit)
+            [[ -n "$ramdisk" ]] && cp "$ramdisk" boot/ramdisk
+          fi
+          [[ -f boot/kernel && -f boot/ramdisk ]]
           file boot/kernel boot/ramdisk
           wc -c boot/kernel boot/ramdisk
 
