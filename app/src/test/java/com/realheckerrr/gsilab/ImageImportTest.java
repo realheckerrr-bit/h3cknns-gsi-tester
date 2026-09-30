@@ -147,6 +147,17 @@ public final class ImageImportTest {
         assertArrayEquals(ramdisk, Files.readAllBytes(assets.ramdisk.toPath()));
     }
 
+    @Test
+    public void detectsErofsSystemImagesForRanchuFstab() throws Exception {
+        File image = tempFile("erofs.img");
+        try (RandomAccessFile output = new RandomAccessFile(image, "rw")) {
+            output.setLength(4096);
+            output.seek(1024);
+            output.writeInt(Integer.reverseBytes(0xE0F5E1E2));
+        }
+        assertEquals("erofs", RanchuVendorPatcher.detectFilesystem(image));
+    }
+
     private static byte[] ext4Image(int size) {
         byte[] image = new byte[size];
         image[1080] = 0x53;

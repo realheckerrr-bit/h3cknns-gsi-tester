@@ -94,9 +94,9 @@ public final class BootAssets {
         }
         if (vendor != null && isSparse(vendor)) vendor = materializeImage(vendor, new File(output, "vendor.raw.img"));
         if (ranchu) {
-            RanchuVendorPatcher.patch(system);
-            RanchuVendorPatcher.patch(vendor);
             vendor = RanchuVendorPatcher.extractFirstGptPartition(vendor, new File(output, "vendor.ranchu.raw.img"));
+            RanchuVendorPatcher.patch(system, RanchuVendorPatcher.detectFilesystem(system));
+            RanchuVendorPatcher.patch(vendor, RanchuVendorPatcher.detectFilesystem(vendor));
             ramdisk = RanchuRamdiskPatcher.patch(ramdisk, new File(output, "ramdisk.ranchu.img"));
         }
         return new BootAssets(system, kernel, ramdisk, vendor, userdata, cache, encryptionKey, qemu, rom, cuttlefish, ranchu);

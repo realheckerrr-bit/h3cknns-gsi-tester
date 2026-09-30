@@ -18,6 +18,10 @@ public final class RanchuVendorPatcher {
     private RanchuVendorPatcher() {}
 
     public static void patch(File vendor) throws IOException {
+        patch(vendor, null);
+    }
+
+    public static void patch(File vendor, String filesystem) throws IOException {
         long length = vendor.length();
         if (length > Integer.MAX_VALUE) throw new IOException("vendor image is too large to scan safely");
         try (RandomAccessFile file = new RandomAccessFile(vendor, "rw");
@@ -31,7 +35,7 @@ public final class RanchuVendorPatcher {
                 byte[] original = new byte[end - start];
                 image.position(start);
                 image.get(original);
-                byte[] updated = transform(original);
+                byte[] updated = transform(original, filesystem);
                 if (!Arrays.equals(original, updated)) {
                     image.position(start);
                     image.put(updated);
@@ -42,6 +46,19 @@ public final class RanchuVendorPatcher {
             changed += disableSensorService(image, size);
             image.force();
         }
+    }
+
+    public static String detectFilesystem(File image) throws IOException {
+        if (image == null || image.length() < 2048) return null;
+        try (RandomAccessFile file = new RandomAccessFile(image, "r")) {
+            file.seek(1024);
+            int superMagic = Integer.reverseBytes(file.readInt());
+            if (superMagic == 0xE0F5E1E2) return "erofs";
+            if (superMagic == 0xF2F52010) return "f2fs";
+            file.seek(1080);
+            if (Short.reverseBytes(file.readShort()) == (short) 0xEF53) return "ext4";
+        }
+        return null;
     }
 
     private static int disableSensorService(MappedByteBuffer image, int size) {
@@ -135,7 +152,7 @@ public final class RanchuVendorPatcher {
         }
     }
 
-    private static byte[] transform(byte[] line) throws IOException {
+    private static byte[] transform(byte[] line, String filesystem) throws IOException {
         String text = new String(line, StandardCharsets.UTF_8);
         String trimmed = text.trim();
         if (trimmed.isEmpty() || trimmed.startsWith("#")) return line;
@@ -170,12 +187,20 @@ public final class RanchuVendorPatcher {
             return fit(String.join(" ", columns).getBytes(StandardCharsets.UTF_8), line.length);
         }
         if (!trimmed.contains("first_stage_mount")) return line;
-        if ("/system".equals(mountpoint)) columns[0] = "/dev/block/vdb";
-        else if ("/vendor".equals(mountpoint)) columns[0] = "/dev/block/vda";
-        else return comment(line);
-        if (columns.length > 2 && ("erofs".equals(columns[2]) || "f2fs".equals(columns[2]))) {
-            columns[2] = "ext4";
+        if ("/system".equals(mountpoint)) {
+            columns[0] = "/dev/block/vdb";
+            if (columns.length > 2) {
+                if (filesystem != null) columns[2] = filesystem;
+                else if ("erofs".equals(columns[2]) || "f2fs".equals(columns[2])) columns[2] = "ext4";
+            }
+        } else if ("/vendor".equals(mountpoint)) {
+            columns[0] = "/dev/block/vda";
+            if (columns.length > 2) {
+                if (filesystem != null) columns[2] = filesystem;
+                else if ("erofs".equals(columns[2]) || "f2fs".equals(columns[2])) columns[2] = "ext4";
+            }
         }
+        else return comment(line);
         for (int i = 0; i < columns.length; i++) {
             StringBuilder cleaned = new StringBuilder();
             for (String flag : columns[i].split(",")) {
