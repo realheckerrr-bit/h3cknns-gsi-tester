@@ -448,6 +448,7 @@ jobs:
               "$(CXX) $(CFLAGS) $(QEMU_CFLAGS) $(QEMU_CXXFLAGS) -std=c++17 "
               "-DANDROID -DCONFIG_ANDROID -DCONFIG_STREAM_RENDERER "
               "-I. -Iinclude -Iandroid/android-emu "
+              "-I../glib -I../glib/glib -I../glib/gmodule -I../glib/io -I../glib/android "
               "-I$(GFXSTREAM_ROOT)/include -I$(GFXSTREAM_ROOT)/host/include "
               "-c android-qemu2-glue/emulation/virtio-gpu-gfxstream-renderer.cpp "
               "-o android-qemu2-glue/virtio-gpu-gfxstream-renderer.o &&"
