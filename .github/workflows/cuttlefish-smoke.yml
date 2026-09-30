@@ -156,8 +156,6 @@ jobs:
             "$super_for_lpunpack" vendor_a vendor/vendor.img
           vendor_img=$(find vendor -maxdepth 1 -type f -name vendor.img -print -quit)
           [[ -n "$vendor_img" ]]
-          romfile=$(find /usr/share/qemu /usr/lib -type f -name efi-virtio.rom -print -quit 2>/dev/null || true)
-          [[ -n "$romfile" && -f "$romfile" ]]
           cp "$userdata_img" cf-image/userdata.img
           printf 'kernel=%s\nramdisk=%s\nvendor=%s\n' \
             boot/kernel boot/ramdisk "$vendor_img"
@@ -167,7 +165,7 @@ jobs:
         run: |
           set -uo pipefail
           vendor_img=$(find vendor -maxdepth 1 -type f \( -name vendor_a.img -o -name vendor.img \) -print -quit)
-          romfile=$(find /usr/share/qemu /usr/lib -type f -name efi-virtio.rom -print -quit 2>/dev/null || true)
+          romfile=$(find /usr/share/qemu /usr/share/seabios /usr/lib -type f -name efi-virtio.rom -print -quit 2>/dev/null || true)
           [[ -n "$romfile" && -f "$romfile" ]]
           qemu-system-aarch64 \
             -M virt,gic-version=2,mte=on,usb=off,dump-guest-core=off \
