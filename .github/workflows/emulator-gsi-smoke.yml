@@ -154,7 +154,7 @@ jobs:
           test -n "$qemu_bin"
           export LD_LIBRARY_PATH="$ANDROID_HOME/emulator/lib64:$ANDROID_HOME/emulator/lib64/qt/lib:${LD_LIBRARY_PATH:-}"
           "$qemu_bin" \
-            -M ranchu \
+            -machine ranchu \
             -cpu max \
             -m 4096 \
             -smp 4 \
