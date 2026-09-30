@@ -58,8 +58,8 @@ public final class QemuBootSession {
                 : assets.ranchu
                 ? "console=ttyAMA0,115200 androidboot.console=ttyAMA1 androidboot.hardware=ranchu "
                 + "androidboot.verifiedbootstate=orange androidboot.qemu=1 "
-                + "androidboot.qemu.vsync=60 androidboot.hardware.egl=angle "
-                + "androidboot.hardware.gralloc=minigbm androidboot.hardware.hwcomposer=ranchu "
+                + "androidboot.qemu.vsync=60 androidboot.hardware.egl=swiftshader "
+                + "androidboot.hardware.gralloc=goldfish androidboot.hardware.hwcomposer=ranchu "
                 + "androidboot.hardware.hwcomposer.display_finder_mode=drm "
                 + "androidboot.hardware.hwcomposer.display_framebuffer_format=rgba "
                 + "androidboot.hardware.vulkan=pastel androidboot.qemu.cpuvulkan.version=4202496 "
@@ -83,7 +83,7 @@ public final class QemuBootSession {
             addDrive(args, "vendor", assets.vendor, true, assets.cuttlefish, rom, false);
         }
         if (assets.cuttlefish || assets.ranchu) {
-            args.add("-device"); args.add("virtio-gpu-pci,id=gpu0,xres=1080,yres=1920");
+            args.add("-device"); args.add("virtio-gpu-device,id=gpu0,xres=1080,yres=1920");
             args.add("-object"); args.add("rng-random,id=objrng0,filename=/dev/urandom");
             args.add("-device"); args.add("virtio-rng-pci,rng=objrng0,max-bytes=1024,period=2000");
         }
