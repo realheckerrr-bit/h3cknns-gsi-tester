@@ -192,13 +192,22 @@ jobs:
           }
           for attempt in 1 2; do
             rm -f serial.log qemu.stdout qemu.stderr monitor.sock framebuffer.ppm
+            if [[ "$attempt" == 1 ]]; then
+              accel='tcg,thread=multi'
+              cpu='cortex-a57'
+              smp='2'
+            else
+              accel='tcg,thread=single'
+              cpu='cortex-a53'
+              smp='1'
+            fi
             setsid --wait xvfb-run -a -s '-screen 0 1080x1920x24' \
               "$qemu" \
-                -accel tcg,thread=multi \
+                -accel "$accel" \
                 -M ranchu \
-                -cpu cortex-a57 \
+                -cpu "$cpu" \
                 -m 4096 \
-                -smp 2 \
+                -smp "$smp" \
                 -rtc base=utc \
                 -kernel "$PWD/guest/kernel-ranchu.raw" \
                 -initrd "$PWD/guest/ramdisk.patched.img" \

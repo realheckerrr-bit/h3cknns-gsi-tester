@@ -28,6 +28,17 @@ public final class QemuBootSession {
     }
 
     public static QemuBootSession start(Context context, File gsi, File guestBundle) throws IOException {
+        return start(context, gsi, guestBundle, false);
+    }
+
+    /**
+     * Starts the normal Ranchu profile or a conservative recovery profile.
+     * The recovery profile is deliberately different from the first attempt:
+     * some ARM64 TCG hosts make the Cortex-A57/multithreaded combination stall
+     * while SurfaceFlinger is opening the graphics pipe.
+     */
+    public static QemuBootSession start(Context context, File gsi, File guestBundle,
+                                         boolean recoveryProfile) throws IOException {
         File work = new File(context.getFilesDir(), "vm-session");
         BootAssets assets = BootAssets.prepare(gsi, guestBundle, work);
         File rom = assets.rom != null ? assets.rom : copyBundledRom(context, work);
@@ -40,7 +51,8 @@ public final class QemuBootSession {
         List<String> args = new ArrayList<>();
         // Keep the guest vCPU and device threads schedulable while SDL and
         // SurfaceFlinger are active on ARM64 TCG hosts.
-        args.add("-accel"); args.add("tcg,thread=multi");
+        args.add("-accel");
+        args.add(assets.ranchu && recoveryProfile ? "tcg,thread=single" : "tcg,thread=multi");
         args.add("-M");
         args.add(assets.ranchu
                 ? "ranchu"
@@ -51,12 +63,13 @@ public final class QemuBootSession {
         // cortex-a57 model.  `max` exposes host/TCG features that can make
         // this older Android 15 kernel enter the graphics pipe and never
         // return from SurfaceFlinger on some ARM64 hosts.
-        args.add("-cpu"); args.add(assets.ranchu ? "cortex-a57" : "max");
+        args.add("-cpu");
+        args.add(assets.ranchu ? (recoveryProfile ? "cortex-a53" : "cortex-a57") : "max");
         args.add("-m"); args.add("4096");
         // Keep the Ranchu request aligned with the Android Emulator guest pack;
         // multithreaded TCG lets host-side SDL and device work progress even
         // when this board's TCG PSCI path leaves one guest CPU online.
-        args.add("-smp"); args.add(assets.ranchu ? "2" : "4");
+        args.add("-smp"); args.add(assets.ranchu ? (recoveryProfile ? "1" : "2") : "4");
         args.add("-rtc"); args.add("base=utc");
         args.add("-kernel"); args.add(assets.kernel.getAbsolutePath());
         args.add("-initrd"); args.add(assets.ramdisk.getAbsolutePath());

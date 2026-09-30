@@ -564,7 +564,8 @@ public final class MainActivity extends Activity {
     private void startQemuSession() {
         worker.execute(() -> {
             try {
-                QemuBootSession started = QemuBootSession.start(this, selectedFile, guestFile);
+                QemuBootSession started = QemuBootSession.start(
+                        this, selectedFile, guestFile, coldRetryCount != 0);
                 mainHandler.post(() -> {
                     session = started;
                     launchInProgress = false;
@@ -574,7 +575,8 @@ public final class MainActivity extends Activity {
                     bootButton.setText("Stop test VM");
                     appendLog(coldRetryCount == 0
                             ? "QEMU thread started; guest display is active."
-                            : "Cold retry started; waiting for an Android boot marker.");
+                            : "Cold retry started with the conservative ARM64 TCG profile; "
+                            + "waiting for an Android boot marker.");
                     mainHandler.post(consolePoller);
                 });
             } catch (Exception error) {
@@ -598,7 +600,8 @@ public final class MainActivity extends Activity {
         mainHandler.removeCallbacks(consolePoller);
         bootButton.setText("Cold retrying VM...");
         bootButton.setEnabled(false);
-        appendLog("No Android boot marker; restarting QEMU once with a clean guest attempt.");
+        appendLog("No Android boot marker; restarting QEMU once with the conservative "
+                + "ARM64 TCG profile.");
         worker.execute(() -> {
             stalled.stop();
             mainHandler.post(() -> {
