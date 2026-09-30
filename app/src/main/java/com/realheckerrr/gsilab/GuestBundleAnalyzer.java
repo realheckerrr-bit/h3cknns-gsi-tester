@@ -47,8 +47,10 @@ public final class GuestBundleAnalyzer {
                 String rawBase = name.substring(name.lastIndexOf('/') + 1);
                 String base = stripCompressionSuffix(rawBase).toLowerCase(Locale.US);
                 if (kernel == null && (base.equals("kernel") || base.equals("kernel-ranchu")
-                        || base.equals("kernel-ranchu-64") || base.equals("kernel_16k"))) kernel = name;
-                if (ramdisk == null && (base.equals("ramdisk.img") || base.equals("ramdisk_16k.img"))) ramdisk = name;
+                        || base.equals("kernel-ranchu-64") || base.equals("kernel_16k")
+                        || base.equals("image") || base.equals("bzimage"))) kernel = name;
+                if (ramdisk == null && (base.equals("ramdisk.img") || base.equals("ramdisk_16k.img")
+                        || base.equals("initramfs.img") || base.equals("initramfs"))) ramdisk = name;
                 if (vendor == null && (base.equals("vendor.img") || base.equals("vendor_a.img"))) vendor = name;
                 if (userdata == null && (base.equals("userdata.img") || base.equals("userdata-qemu.img"))) userdata = name;
                 if (cache == null && base.equals("cache.img")) cache = name;

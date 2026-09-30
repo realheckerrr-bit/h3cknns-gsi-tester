@@ -220,6 +220,32 @@ public final class ImageImportTest {
     }
 
     @Test
+    public void acceptsCuttlefishImageAndInitramfsNames() throws Exception {
+        byte[] vendor = ext4Image(4096);
+        File superImage = tempFile("cuttlefish-named-super.img");
+        writeSuperImage(superImage, vendor);
+        File guest = tempFile("cuttlefish-named-guest.zip");
+        try (ZipOutputStream zip = new ZipOutputStream(new FileOutputStream(guest))) {
+            put(zip, "Image.lz4", legacyLz4Bytes(new byte[]{1, 2, 3}));
+            put(zip, "initramfs.img.lz4", legacyLz4Bytes(new byte[]{4, 5}));
+            put(zip, "super.img", Files.readAllBytes(superImage.toPath()));
+        }
+        File gsi = tempFile("cuttlefish-named-gsi.img");
+        Files.write(gsi.toPath(), ext4Image(4096));
+        File output = Files.createTempDirectory("cuttlefish-named-vm-").toFile();
+
+        GuestBundleAnalysis report = GuestBundleAnalyzer.analyze(guest);
+        BootAssets assets = BootAssets.prepare(gsi, guest, output);
+
+        assertTrue(report.bootCandidate);
+        assertEquals("Image.lz4", report.kernel);
+        assertEquals("initramfs.img.lz4", report.ramdisk);
+        assertTrue(assets.cuttlefish);
+        assertArrayEquals(new byte[]{1, 2, 3}, Files.readAllBytes(assets.kernel.toPath()));
+        assertArrayEquals(new byte[]{4, 5}, Files.readAllBytes(assets.ramdisk.toPath()));
+    }
+
+    @Test
     public void extractsPixelStyleBootAndVendorBootImages() throws Exception {
         byte[] kernel = new byte[]{9, 8, 7};
         byte[] ramdisk = new byte[]{6, 5, 4, 3};

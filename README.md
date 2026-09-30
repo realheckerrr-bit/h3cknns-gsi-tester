@@ -14,8 +14,8 @@ Select a ZIP containing these files:
 
 ```text
 guest.zip
-├── kernel                 # or kernel-ranchu / kernel-ranchu-64
-├── ramdisk.img            # .gz/.xz are accepted
+├── kernel                 # or kernel-ranchu / kernel-ranchu-64 / Image / bzImage
+├── ramdisk.img            # initramfs.img is also accepted; .gz/.xz/.lz4 are accepted
 ├── vendor.img             # vendor.img.gz/.xz and vendor_a.img are accepted
 ├── userdata.img           # optional; gzip/XZ is accepted
 ├── cache.img               # optional Ranchu/Cuttlefish cache disk

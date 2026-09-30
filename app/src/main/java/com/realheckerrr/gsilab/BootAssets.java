@@ -59,9 +59,12 @@ public final class BootAssets {
 
         File kernel = copyBundleEntry(guestBundle, output, "kernel", "kernel.gz", "kernel.xz", "kernel-ranchu",
                 "kernel-ranchu.gz", "kernel-ranchu.xz", "kernel-ranchu-64", "kernel-ranchu-64.gz",
-                "kernel-ranchu-64.xz", "kernel_16k", "kernel_16k.gz", "kernel_16k.xz");
+                "kernel-ranchu-64.xz", "kernel_16k", "kernel_16k.gz", "kernel_16k.xz", "Image", "Image.gz",
+                "Image.xz", "Image.lz4", "bzImage", "bzImage.gz", "bzImage.xz", "bzImage.lz4");
         File ramdisk = copyBundleEntry(guestBundle, output, "ramdisk.img", "ramdisk.img.gz", "ramdisk.img.xz",
-                "ramdisk_16k.img", "ramdisk_16k.img.gz", "ramdisk_16k.img.xz");
+                "ramdisk_16k.img", "ramdisk_16k.img.gz", "ramdisk_16k.img.xz", "initramfs.img",
+                "initramfs.img.gz", "initramfs.img.xz", "initramfs.img.lz4", "initramfs", "initramfs.gz",
+                "initramfs.xz", "initramfs.lz4");
         File bootImage = copyBundleEntry(guestBundle, output, "boot.img", "boot.img.gz", "boot.img.xz");
         File initBootImage = copyBundleEntry(guestBundle, output, "init_boot.img", "init_boot.img.gz", "init_boot.img.xz");
         File vendorBootImage = copyBundleEntry(guestBundle, output, "vendor_boot.img", "vendor_boot.img.gz", "vendor_boot.img.xz");
