@@ -133,6 +133,24 @@ jobs:
           debugfs -w -R 'write gsi/apexd.rc /etc/init/apexd.rc' gsi/system.img
           debugfs -R 'dump /etc/init/apexd.rc gsi/apexd.after.rc' gsi/system.img
           grep -n 'apeXd-bootstrap\|apexd-bootstrap\|reboot_on_failure' gsi/apexd.after.rc || true
+          debugfs -R 'dump /etc/init/hw/init.rc gsi/init.after.rc' gsi/system.img
+          python3 - gsi/init.after.rc gsi/init.compat.rc <<'PY'
+          import sys
+          from pathlib import Path
+
+          source = Path(sys.argv[1]).read_text(encoding='utf-8')
+          marker = '    perform_apex_config\n'
+          if marker not in source:
+              raise SystemExit('init.rc has no perform_apex_config action')
+          source = source.replace(
+              marker,
+              '    mount tmpfs tmpfs /vendor/apex mode=0755\n' + marker,
+              1,
+          )
+          Path(sys.argv[2]).write_text(source, encoding='utf-8')
+          PY
+          debugfs -w -R 'rm /etc/init/hw/init.rc' gsi/system.img
+          debugfs -w -R 'write gsi/init.compat.rc /etc/init/hw/init.rc' gsi/system.img
 
       - name: Extract Cuttlefish boot and vendor partitions
         shell: bash
