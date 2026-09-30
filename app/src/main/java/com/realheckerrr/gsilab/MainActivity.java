@@ -42,6 +42,7 @@ public final class MainActivity extends Activity {
     private static final int PICK_GUEST = 1003;
     private static final int GUEST_DISPLAY = 1004;
     private static final long GUEST_DISPLAY_WAIT_MS = 12000L;
+    private static final long BOOT_MARKER_TIMEOUT_MS = 180000L;
     private static final String DEFAULT_RANCHU_URL =
             "https://dl.google.com/android/repository/sys-img/google_apis/arm64-v8a-35_r08.zip";
     private static final String DEFAULT_RANCHU_SHA256 =
@@ -70,6 +71,9 @@ public final class MainActivity extends Activity {
     private QemuBootSession session;
     private Boolean lastQemuRunning;
     private boolean launchInProgress;
+    private boolean bootMarkerSeen;
+    private long bootStartedAt;
+    private int coldRetryCount;
     private final Runnable consolePoller = new Runnable() {
         @Override
         public void run() {
@@ -79,9 +83,19 @@ public final class MainActivity extends Activity {
                 appendLog(running ? "QEMU process is running." : "QEMU exited; inspect the serial log for the boot failure.");
                 lastQemuRunning = running;
             }
+            String console = session.readConsole();
+            if (hasAndroidBootMarker(console)) bootMarkerSeen = true;
             reportText.setText(analysis.render() + "\n" + guestAnalysis.render()
                     + "\n\nQEMU STATE\n  process: " + (running ? "running" : "exited")
-                    + "\n\nQEMU CONSOLE\n" + session.readConsole());
+                    + "\n  android marker: " + (bootMarkerSeen ? "observed" : "waiting")
+                    + "\n\nQEMU CONSOLE\n" + console);
+            boolean markerTimedOut = bootStartedAt > 0
+                    && System.currentTimeMillis() - bootStartedAt >= BOOT_MARKER_TIMEOUT_MS;
+            if (!bootMarkerSeen && !launchInProgress && coldRetryCount == 0
+                    && ((!running && bootStartedAt > 0) || (running && markerTimedOut))) {
+                retryStalledVm();
+                return;
+            }
             if (!running && !launchInProgress) {
                 org.libsdl.app.GsiSDLActivity.closeDisplay();
                 bootButton.setText("Start VM");
@@ -90,6 +104,16 @@ public final class MainActivity extends Activity {
             mainHandler.postDelayed(this, 1000L);
         }
     };
+
+    private static boolean hasAndroidBootMarker(String console) {
+        if (console == null) return false;
+        String lower = console.toLowerCase(Locale.US);
+        return lower.contains("sys.boot_completed")
+                || lower.contains("boot animation stopped")
+                || lower.contains("starting service .zygote")
+                || lower.contains("android runtime started")
+                || (lower.contains("class_start main") && lower.contains("succeeded"));
+    }
 
     @Override
     protected void onCreate(Bundle state) {
@@ -494,6 +518,9 @@ public final class MainActivity extends Activity {
         } else if (!probe.arm64) {
             appendLog("Boot not started: the current guest path requires an ARM64 host.");
         } else {
+            bootMarkerSeen = false;
+            bootStartedAt = 0L;
+            coldRetryCount = 0;
             launchInProgress = true;
             bootButton.setEnabled(false);
             bootButton.setText("Opening guest display...");
@@ -529,16 +556,23 @@ public final class MainActivity extends Activity {
             appendLog("ERROR: guest display did not become ready in time.");
             return;
         }
+        startQemuSession();
+    }
+
+    private void startQemuSession() {
         worker.execute(() -> {
             try {
                 QemuBootSession started = QemuBootSession.start(this, selectedFile, guestFile);
                 mainHandler.post(() -> {
                     session = started;
                     launchInProgress = false;
+                    bootStartedAt = System.currentTimeMillis();
                     lastQemuRunning = null;
                     bootButton.setEnabled(true);
                     bootButton.setText("Stop test VM");
-                    appendLog("QEMU thread started; guest display is active.");
+                    appendLog(coldRetryCount == 0
+                            ? "QEMU thread started; guest display is active."
+                            : "Cold retry started; waiting for an Android boot marker.");
                     mainHandler.post(consolePoller);
                 });
             } catch (Exception error) {
@@ -553,11 +587,37 @@ public final class MainActivity extends Activity {
         });
     }
 
+    private void retryStalledVm() {
+        QemuBootSession stalled = session;
+        if (stalled == null || launchInProgress || coldRetryCount != 0) return;
+        session = null;
+        coldRetryCount = 1;
+        launchInProgress = true;
+        mainHandler.removeCallbacks(consolePoller);
+        bootButton.setText("Cold retrying VM...");
+        bootButton.setEnabled(false);
+        appendLog("No Android boot marker; restarting QEMU once with a clean guest attempt.");
+        worker.execute(() -> {
+            stalled.stop();
+            mainHandler.post(() -> {
+                if (!org.libsdl.app.GsiSDLActivity.isDisplayReady()) {
+                    launchInProgress = false;
+                    bootButton.setText("Start VM");
+                    bootButton.setEnabled(true);
+                    appendLog("Cold retry cancelled because the guest display closed.");
+                    return;
+                }
+                startQemuSession();
+            });
+        });
+    }
+
     private void stopTestVm() {
         QemuBootSession stopping = session;
         session = null;
         lastQemuRunning = null;
         launchInProgress = false;
+        bootStartedAt = 0L;
         mainHandler.removeCallbacks(consolePoller);
         bootButton.setText("Start VM");
         bootButton.setEnabled(false);
