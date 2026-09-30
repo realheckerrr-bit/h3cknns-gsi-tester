@@ -16,7 +16,6 @@ def main() -> None:
     uint32_t service;
     uint64_t process_id;
     bool process_id_ready;
-    bool unsupported_opengles;
 } StandalonePipeState;
 
 static uint64_t standalone_next_process_id = 1;
@@ -45,16 +44,13 @@ static void standalone_guest_close(GoldfishHostPipe* host_pipe,
 static GoldfishPipePollFlags standalone_guest_poll(GoldfishHostPipe* host_pipe) {
     StandalonePipeState* state = standalone_state(host_pipe);
     GoldfishPipePollFlags flags = GOLDFISH_PIPE_POLL_OUT;
-    if (state != NULL && (state->process_id_ready || state->unsupported_opengles)) {
-        flags |= GOLDFISH_PIPE_POLL_IN;
-    }
+    if (state != NULL && state->process_id_ready) flags |= GOLDFISH_PIPE_POLL_IN;
     return flags;
 }
 static int standalone_guest_recv(GoldfishHostPipe* host_pipe,
                                  GoldfishPipeBuffer* buffers,
                                  int num_buffers) {
     StandalonePipeState* state = standalone_state(host_pipe);
-    if (state != NULL && state->unsupported_opengles) return GOLDFISH_PIPE_ERROR_IO;
     if (state == NULL || !state->process_id_ready) return GOLDFISH_PIPE_ERROR_AGAIN;
     size_t available = 0;
     for (int i = 0; i < num_buffers; ++i) available += buffers[i].size;
@@ -83,14 +79,7 @@ static int standalone_guest_send(GoldfishHostPipe** host_pipe,
         }
         fputc('\\n', stdout);
         total += (int)buffers[i].size;
-        if (state != NULL && state->service == 0 && buffers[i].size >= 14
-                && memcmp(data, "pipe:opengles.", 14) == 0) {
-            // There is no AEMU/gfxstream renderer in this standalone build.
-            // Return a pipe error on the first read so surfaceflinger can
-            // fail/fallback instead of sleeping forever in goldfish_pipe.
-            state->unsupported_opengles = true;
-            state->service = 2;
-        } else if (state != NULL && state->service == 0 && buffers[i].size >= 19
+        if (state != NULL && state->service == 0 && buffers[i].size >= 19
                 && memcmp(data, "pipe:GLProcessPipe", 19) == 0) {
             state->service = 1;
         } else if (state != NULL && state->service == 1 && buffers[i].size >= 4) {
