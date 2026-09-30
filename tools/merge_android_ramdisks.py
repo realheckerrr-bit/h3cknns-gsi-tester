@@ -25,7 +25,7 @@ def decompress(data: bytes, name: str) -> bytes:
     # have emitted more than one legacy LZ4 frame signature. Try the host
     # decoder for any non-CPIO payload before declaring the ramdisk invalid.
     try:
-        decoded = subprocess.run(["lz4", "-d", "-c"], input=data, stdout=subprocess.PIPE,
+        decoded = subprocess.run(["lz4", "-d", "-l", "-c"], input=data, stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE, check=True).stdout
         if decoded[:6] in (b"070701", b"070702"):
             return decoded
