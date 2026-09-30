@@ -166,7 +166,11 @@ jobs:
           set -uo pipefail
           vendor_img=$(find vendor -maxdepth 1 -type f \( -name vendor_a.img -o -name vendor.img \) -print -quit)
           romfile=$(find /usr/share/qemu /usr/share/seabios /usr/lib -type f -name efi-virtio.rom -print -quit 2>/dev/null || true)
-          [[ -n "$romfile" && -f "$romfile" ]]
+          if [[ -z "$romfile" || ! -f "$romfile" ]]; then
+            echo 'efi-virtio.rom was not installed on the runner.' >&2
+            find /usr/share /usr/lib -iname '*virtio*.rom' -print 2>/dev/null | head -40 >&2 || true
+            exit 1
+          fi
           qemu-system-aarch64 \
             -M virt,gic-version=2,mte=on,usb=off,dump-guest-core=off \
             -cpu max -m 2048 -smp 4 -rtc base=utc \
