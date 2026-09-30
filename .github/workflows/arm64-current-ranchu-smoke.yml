@@ -32,7 +32,7 @@ jobs:
           git -C qemu config submodule.dtc.url https://github.com/qemu/dtc.git
           git -C qemu config submodule.ui/keycodemapdb.url \
             https://gitlab.com/qemu-project/keycodemapdb.git
-          git -C qemu submodule update --init --depth 1 dtc ui/keycodemapdb
+          git -C qemu submodule update --init --depth 1 capstone dtc ui/keycodemapdb
 
       - name: Build current Ranchu QEMU for the ARM64 runner
         shell: bash
