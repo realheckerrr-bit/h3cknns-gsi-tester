@@ -36,7 +36,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             android-sdk-libsparse-utils cpio lz4 qemu-system-arm unzip xz-utils \
-            e2fsprogs
+            e2fsprogs erofs-utils
 
       - name: Install official Android virtio firmware
         shell: bash
@@ -220,6 +220,16 @@ jobs:
           stat -c 'system_ext_extracted=%s' "$system_ext_img"
           stat -c 'odm_extracted=%s' "$odm_img"
           file "$vendor_img" "$product_img" "$system_ext_img" "$odm_img" gsi/system.img
+          rm -rf vendor-tree
+          mkdir -p vendor-tree
+          fsck.erofs --extract=vendor-tree "$vendor_img"
+          echo 'Cuttlefish vendor init files containing apexd or reboot handling:'
+          while IFS= read -r rc; do
+            if grep -Eiq 'apexd|reboot_on_failure|init_dev_config' "$rc"; then
+              echo "--- $rc"
+              grep -Ein 'apexd|reboot_on_failure|init_dev_config' "$rc" || true
+            fi
+          done < <(find vendor-tree -type f \( -name '*.rc' -o -iname '*apexd*' \) -print | sort)
           if simg2img "$userdata_img" cf-image/userdata.raw.img 2>/dev/null; then
             cp cf-image/userdata.raw.img cf-image/userdata.img
           else
