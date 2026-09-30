@@ -166,7 +166,7 @@ jobs:
           rm -rf ramdisk-debug
           mkdir -p ramdisk-debug
           gzip -dc boot/ramdisk | (cd ramdisk-debug && cpio -idm --no-absolute-filenames >/dev/null 2>&1 || true)
-          find ramdisk-debug -type f -name 'init*.rc' -print -exec grep -n 'GSI tester\|setenforce' {} \; || true
+          find ramdisk-debug -type f -name 'init*.rc' -print -exec grep -n 'GSI tester\|setenforce\|reboot_on_failure' {} \; || true
           find ramdisk-debug -type f -iname 'fstab*' -print -exec sed -n '1,120p' {} \; || true
           file boot/kernel boot/ramdisk
           wc -c boot/kernel boot/ramdisk

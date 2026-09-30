@@ -81,7 +81,7 @@ public final class RanchuRamdiskPatcher {
 
     private static byte[] enablePermissiveCompatibility(byte[] content) {
         String text = new String(content, StandardCharsets.UTF_8);
-        String withoutRebootOnFailure = text.replaceAll("(?m)^\\s*reboot_on_failure\\s*\\r?$", "");
+        String withoutRebootOnFailure = text.replaceAll("(?m)^\\s*reboot_on_failure(?:\\s+.*)?\\r?$", "");
         if (withoutRebootOnFailure.contains("setenforce 0")) {
             return withoutRebootOnFailure.getBytes(StandardCharsets.UTF_8);
         }
