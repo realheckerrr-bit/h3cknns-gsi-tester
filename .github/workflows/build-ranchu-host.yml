@@ -44,7 +44,8 @@ jobs:
             --disable-gtk \
             --disable-vnc \
             --disable-curses \
-            --disable-slirp
+            --disable-slirp \
+            --enable-trace-backend=nop
           make -j2
           test -x aarch64-softmmu/qemu-system-aarch64
           aarch64-softmmu/qemu-system-aarch64 -machine help | grep -E '^ranchu '
