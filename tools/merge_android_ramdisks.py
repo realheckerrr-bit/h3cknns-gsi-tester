@@ -15,13 +15,22 @@ def align4(value: int) -> int:
 
 
 def decompress(data: bytes, name: str) -> bytes:
+    if data[:6] in (b"070701", b"070702"):
+        return data
     if data.startswith(b"\x1f\x8b"):
         return gzip.decompress(data)
     if data.startswith(b"\xfd7zXZ\x00"):
         return lzma.decompress(data)
-    if data[:4] == b"\x02!L\x18" or name.lower().endswith(".lz4"):
-        return subprocess.run(["lz4", "-d", "-c"], input=data, stdout=subprocess.PIPE,
-                              stderr=subprocess.PIPE, check=True).stdout
+    # Android boot images sometimes omit the .lz4 suffix and vendor tools
+    # have emitted more than one legacy LZ4 frame signature. Try the host
+    # decoder for any non-CPIO payload before declaring the ramdisk invalid.
+    try:
+        decoded = subprocess.run(["lz4", "-d", "-c"], input=data, stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE, check=True).stdout
+        if decoded[:6] in (b"070701", b"070702"):
+            return decoded
+    except (OSError, subprocess.CalledProcessError):
+        pass
     return data
 
 
