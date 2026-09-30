@@ -26,12 +26,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git clone --depth 1 --branch emu-35-3-release \
-            https://android.googlesource.com/platform/external/qemu \
+          git clone --depth 1 --branch ranchu \
+            https://qemu-android.googlesource.com/qemu-android \
             ranchu-qemu
           git -C ranchu-qemu config submodule.dtc.url https://github.com/qemu/dtc.git
-          git -C ranchu-qemu config submodule.ui/keycodemapdb.url https://gitlab.com/qemu-project/keycodemapdb.git
-          git -C ranchu-qemu submodule update --init --depth 1 dtc ui/keycodemapdb
+          git -C ranchu-qemu config submodule.pixman.url https://gitlab.freedesktop.org/pixman/pixman.git
+          git -C ranchu-qemu submodule update --init --depth 1 dtc pixman
           sed -i 's/sys.version_info < (2,6) or sys.version_info >= (3,)/sys.version_info < (2,6)/' ranchu-qemu/configure
           cd ranchu-qemu
           ./configure \
