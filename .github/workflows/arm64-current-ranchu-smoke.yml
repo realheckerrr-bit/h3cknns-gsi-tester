@@ -196,7 +196,7 @@ jobs:
           emulator_pid=$!
           booted=0
           for _ in $(seq 1 300); do
-            if grep -Eiq 'sys\.boot_completed|boot animation stopped|starting service .zygote|Android runtime started' serial.log 2>/dev/null; then
+            if grep -Eiq 'sys\.boot_completed|boot animation stopped|starting service .zygote|Android runtime started|class_start main.*succeeded' serial.log 2>/dev/null; then
               booted=1
               break
             fi
