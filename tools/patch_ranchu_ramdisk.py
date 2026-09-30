@@ -361,7 +361,7 @@ def main():
                 content, system_device, vendor_device, data_device,
                 extra_devices, cuttlefish)
             changed |= entry_changed
-        if cuttlefish and base.startswith("init") and base.endswith(".rc"):
+        if cuttlefish and base.endswith(".rc"):
             without_reboot_on_failure = b"\n".join(
                 line for line in content.split(b"\n")
                 if not line.strip().startswith(b"reboot_on_failure")

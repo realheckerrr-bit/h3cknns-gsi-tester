@@ -56,7 +56,7 @@ public final class RanchuRamdiskPatcher {
                 hasSystem |= result.hasSystem;
                 hasVendor |= result.hasVendor;
             }
-            if (allFstabEntries && base.startsWith("init") && base.endsWith(".rc")) {
+            if (allFstabEntries && base.endsWith(".rc")) {
                 entry = entry.withContent(enablePermissiveCompatibility(entry.content));
             }
             patched.add(entry);
