@@ -36,6 +36,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends cpio e2fsprogs ipxe-qemu libegl1 libgl1-mesa-dri libvirglrenderer1 lz4 qemu-system-arm qemu-system-common qemu-system-gui qemu-system-modules-opengl unzip x11-xserver-utils xvfb xz-utils
 
+      - name: Install official Android Emulator host
+        uses: android-actions/setup-android@v3
+        with:
+          packages: emulator platform-tools
+
       - name: Download official ARM64 Emulator guest pack
         shell: bash
         run: |
@@ -135,50 +140,49 @@ jobs:
           echo '--- vendor etc listing ---'
           debugfs -R 'ls -p /etc' guest/vendor.img 2>&1 | head -120 || true
 
-      - name: Run the app-equivalent Ranchu headless QEMU boot
+      - name: Run official Ranchu emulator with the patched GSI
         shell: bash
         run: |
           set -uo pipefail
-          Xvfb :99 -screen 0 1024x768x24 -ac > xvfb.log 2>&1 &
-          xvfb_pid=$!
-          export DISPLAY=:99
-          qemu-system-aarch64 \
-            -M virt,gic-version=3 \
-            -cpu max -m 4096 -smp 4 -rtc base=utc \
-            -kernel guest/kernel-ranchu -initrd guest/ramdisk.patched.img \
-            -append 'console=ttyAMA0,115200 androidboot.console=ttyAMA1 androidboot.hardware=ranchu androidboot.verifiedbootstate=orange androidboot.qemu=1 androidboot.qemu.vsync=60 androidboot.hardware.egl=angle androidboot.hardware.gralloc=minigbm androidboot.hardware.hwcomposer=ranchu androidboot.hardware.hwcomposer.display_finder_mode=drm androidboot.hardware.hwcomposer.display_framebuffer_format=rgba androidboot.hardware.vulkan=pastel androidboot.qemu.cpuvulkan.version=4202496 androidboot.opengles.version=196609 androidboot.debug.hwui.renderer=opengl androidboot.debug.renderengine.backend=skiagl androidboot.config.low_ram=0 androidboot.dalvik.vm.checkjni=1 androidboot.debug.stagefright.ccodec=4 androidboot.debug.sf.nobootanimation=1 qemu.logcat=start androidboot.selinux=permissive selinux=0 security=selinux enforcing=0 androidboot.dalvik.vm.heapsize=192m' \
-            -drive if=none,format=raw,id=userdata,file=$PWD/guest/userdata.img \
-            -device virtio-blk-device,drive=userdata \
-            -drive if=none,format=raw,id=system,file=$PWD/guest/system.img,readonly=on \
-            -device virtio-blk-device,drive=system \
-            -drive if=none,format=raw,id=vendor,file=$PWD/guest/vendor.raw.img,readonly=on \
-            -device virtio-blk-device,drive=vendor \
-            -device virtio-gpu-pci,id=gpu0,xres=1080,yres=1920 \
-            -display gtk -monitor none -serial file:$PWD/serial.log -no-reboot \
-            > qemu.stdout 2> qemu.stderr &
-          qemu_pid=$!
+          avd_root="$HOME/.android/avd"
+          avd_dir="$avd_root/ranchu-smoke.avd"
+          mkdir -p "$avd_dir"
+          printf 'avd.ini.encoding=UTF-8\npath=%s\npath.rel=avd/ranchu-smoke.avd\ntarget=android-35\n' "$avd_dir" > "$avd_root/ranchu-smoke.ini"
+          printf 'AvdId=ranchu-smoke\nabi.type=arm64-v8a\nhw.cpu.arch=arm64\nhw.cpu.ncore=4\nhw.ramSize=4096\nhw.lcd.width=1080\nhw.lcd.height=1920\nhw.lcd.density=420\nhw.device.name=pixel\nimage.sysdir.1=%s\ndisk.dataPartition.size=2G\n' "$PWD/guest" > "$avd_dir/config.ini"
+          cp guest/ramdisk.patched.img guest/ramdisk.img
+          cp guest/kernel-ranchu guest/kernel-ranchu-64 2>/dev/null || true
+          emulator @ranchu-smoke \
+            -sysdir "$PWD/guest" \
+            -kernel "$PWD/guest/kernel-ranchu" \
+            -ramdisk "$PWD/guest/ramdisk.patched.img" \
+            -system "$PWD/guest/system.img" \
+            -vendor "$PWD/guest/vendor.raw.img" \
+            -data "$PWD/guest/userdata.img" \
+            -no-window -no-audio -gpu swiftshader_indirect -no-boot-anim -no-snapshot -wipe-data -show-kernel -verbose \
+            > emulator.stdout 2> emulator.stderr &
+          emulator_pid=$!
           booted=0
           for _ in $(seq 1 240); do
-            if grep -Eiq "starting service 'zygote'|sys.boot_completed=1|AndroidRuntime" serial.log 2>/dev/null; then
+            if adb shell getprop sys.boot_completed 2>/dev/null | grep -qx '1'; then
               booted=1
               break
             fi
-            if ! kill -0 "$qemu_pid" 2>/dev/null; then
+            if ! kill -0 "$emulator_pid" 2>/dev/null; then
               break
             fi
             sleep 1
           done
-          if kill -0 "$qemu_pid" 2>/dev/null; then
-            kill "$qemu_pid" 2>/dev/null || true
-            wait "$qemu_pid" 2>/dev/null || true
+          if kill -0 "$emulator_pid" 2>/dev/null; then
+            kill "$emulator_pid" 2>/dev/null || true
+            wait "$emulator_pid" 2>/dev/null || true
           else
-            wait "$qemu_pid" 2>/dev/null || true
+            wait "$emulator_pid" 2>/dev/null || true
           fi
-          kill "$xvfb_pid" 2>/dev/null || true
-          cat serial.log 2>/dev/null || true
-          cat qemu.stderr 2>/dev/null || true
+          adb logcat -d 2>/dev/null | tail -300 || true
+          cat emulator.stdout 2>/dev/null || true
+          cat emulator.stderr 2>/dev/null || true
           if [[ "$booted" != 1 ]]; then
-            echo 'No Android boot marker was observed in the serial log.' >&2
+            echo 'No Android boot marker was observed from the official emulator.' >&2
             exit 1
           fi
 
@@ -188,7 +192,6 @@ jobs:
         with:
           name: android-emulator-gsi-boot-logs
           path: |
-            serial.log
-            qemu.stdout
-            qemu.stderr
+            emulator.stdout
+            emulator.stderr
           if-no-files-found: ignore
