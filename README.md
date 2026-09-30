@@ -6,7 +6,7 @@ h3cknn's GSI tester is a from-scratch Android test harness for importing and pre
 
 A GSI is the generic system partition, not a complete device. A real guest also needs a compatible kernel, generic ramdisk, vendor interface, device model, and VM engine. Android's Virtualization Framework is privileged and its ordinary app flow is not a drop-in API for booting arbitrary GSIs.
 
-The app packages a pinned ARM64 QEMU runtime and can make a real boot attempt on an ARM64 Android host. Ranchu/Cuttlefish launches open an SDL guest display and stream the guest serial log into the report. The guest assets still need a matching Android `virt` or emulator-style boot contract.
+The APK packages a pinned ARM64 QEMU runtime together with all of its native dependencies, so users do not install a second QEMU engine APK. It can make a real boot attempt on an ARM64 Android host. Ranchu/Cuttlefish launches open an SDL guest display and stream the guest serial log into the report. The guest assets still need a matching Android `virt` or emulator-style boot contract.
 
 ## Guest bundle input
 
@@ -51,7 +51,7 @@ GitHub Actions is configured in `.github/workflows/android.yml`.
 
 1. Open the repository's **Actions** tab.
 2. Run **Build h3cknn's GSI tester APK** or push to `main`.
-3. Download the `h3cknns-gsi-tester-debug-apk` artifact.
+3. Download the `h3cknns-gsi-tester-debug-apk` artifact. The QEMU engine is already inside this APK; the separate engine artifact is only for developers.
 
 For a real host-side boot check, run the separate **Android Emulator GSI boot smoke test** workflow. Its defaults fetch the official ARM64 Ranchu guest archive and an official ARM64 AOSP GSI, adapt the same Ranchu disk layout, and upload the serial log. You can override the GSI URL and checksum in the workflow source.
 

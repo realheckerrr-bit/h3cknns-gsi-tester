@@ -76,7 +76,7 @@ public final class GuestBundleAnalyzer {
             warnings.add("vendor will be extracted from the Cuttlefish super image at boot preparation time.");
         }
         if (vendor == null) errors.add("The bundle has no vendor.img or super.img; a GSI cannot provide the hardware interface.");
-        if (qemu == null) warnings.add("The bundle has no engine override; normal APK builds provide the QEMU runtime separately.");
+        if (qemu == null) warnings.add("The bundle has no engine override; this APK uses its bundled ARM64 QEMU runtime.");
         boolean candidate = errors.isEmpty();
         return new GuestBundleAnalysis(input.getName(), entries, kernel, ramdisk, vendor, userdata, cache, encryptionKey, qemu,
                 GsiAnalyzer.sha256(input), candidate, warnings, errors);

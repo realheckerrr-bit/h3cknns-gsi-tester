@@ -56,6 +56,8 @@ jobs:
           cp /tmp/aemu-source/host-common/include/host-common/goldfish_pipe.h \
             /tmp/aemu-source/host-common/include/host-common/android_pipe_base.h \
             "$jni/qemu/android/android-emu/host-common/"
+          python3 "$GITHUB_WORKSPACE/tools/patch_standalone_goldfish_pipe.py" \
+            "$jni/qemu/hw/misc/goldfish_pipe.c"
           curl --fail --location --retry 3 -o /tmp/glib.tar.xz \
             https://download.gnome.org/sources/glib/2.56/glib-2.56.1.tar.xz
           curl --fail --location --retry 3 -o /tmp/libffi.tar.gz \

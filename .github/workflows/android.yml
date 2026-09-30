@@ -57,6 +57,23 @@ jobs:
             "${api}/actions/artifacts/${artifact_id}/zip"
           unzip -j -o /tmp/ranchu-engine.zip '*.so' -d app/src/main/jniLibs/arm64-v8a
           test -s app/src/main/jniLibs/arm64-v8a/libqemu-system-aarch64.so
+          # These shared libraries are copied into the APK's arm64-v8a
+          # native-library directory below. The app must be self-contained;
+          # users must not install a second QEMU engine package.
+          for library in \
+            libqemu-system-aarch64.so \
+            libSDL2.so \
+            libcompat-SDL2-ext.so \
+            libcompat-limbo.so \
+            libcompat-musl.so \
+            libglib-2.0.so \
+            liblimbo.so \
+            libpixman-1.so; do
+            test -s "app/src/main/jniLibs/arm64-v8a/$library" || {
+              echo "Missing engine dependency: $library" >&2
+              exit 1
+            }
+          done
 
       - name: Accept licenses and install SDK
         run: |
@@ -67,6 +84,20 @@ jobs:
         run: |
           gradle --no-daemon --stacktrace testDebugUnitTest
           gradle --no-daemon --stacktrace assembleDebug
+          apk=app/build/outputs/apk/debug/app-debug.apk
+          test -s "$apk"
+          unzip -l "$apk" | grep -F 'lib/arm64-v8a/libqemu-system-aarch64.so'
+          for library in \
+            libqemu-system-aarch64.so \
+            libSDL2.so \
+            libcompat-SDL2-ext.so \
+            libcompat-limbo.so \
+            libcompat-musl.so \
+            libglib-2.0.so \
+            liblimbo.so \
+            libpixman-1.so; do
+            unzip -l "$apk" | grep -F "lib/arm64-v8a/$library"
+          done
 
       - name: Upload unit-test reports
         if: always()

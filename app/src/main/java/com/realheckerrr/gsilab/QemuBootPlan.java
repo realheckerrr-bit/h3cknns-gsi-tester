@@ -25,8 +25,8 @@ public final class QemuBootPlan {
     public String render(GsiAnalysis gsi, GuestBundleAnalysis guest) {
         StringBuilder out = new StringBuilder();
         out.append("QEMU LAUNCH PLAN\n");
-        out.append("  engine: ").append(engine.getAbsolutePath()).append('\n');
-        out.append("  engine present: ").append(enginePresent ? "yes" : "no").append('\n');
+        out.append("  bundled engine: ").append(engine.getAbsolutePath()).append('\n');
+        out.append("  engine bundled in this APK: ").append(enginePresent ? "yes" : "no").append('\n');
         out.append("  system source: ").append(gsi == null ? "missing" : gsi.inputName).append('\n');
         out.append("  guest source: ").append(guest == null ? "missing" : guest.inputName).append('\n');
         out.append("\nThe final runner will extract only verified guest entries into app-private storage and invoke:\n");
@@ -37,8 +37,8 @@ public final class QemuBootPlan {
         out.append("    -drive file=<vendor.img or super/vendor_a>,format=raw,readonly=on\n");
         out.append("  Cuttlefish uses virtio-blk-pci-non-transitional; Ranchu uses virtio-mmio in userdata/system/vendor order.\n");
         out.append("    -drive file=<userdata.img>,format=raw -display sdl -serial <console.log>\n");
-        if (!enginePresent) out.append("\nSTATUS: not runnable; this APK has no bundled QEMU system engine.\n");
-        else out.append("\nSTATUS: engine detected; Ranchu/Cuttlefish launches use the SDL guest display.\n");
+        if (!enginePresent) out.append("\nSTATUS: not runnable; rebuild with the embedded QEMU engine.\n");
+        else out.append("\nSTATUS: self-contained engine detected; no separate QEMU APK is required.\n");
         return out.toString();
     }
 }

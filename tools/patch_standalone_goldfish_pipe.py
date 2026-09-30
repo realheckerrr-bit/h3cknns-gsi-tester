@@ -15,6 +15,11 @@ def main() -> None:
     helpers = """static GoldfishHostPipe* standalone_guest_open(GoldfishHwPipe* hw_pipe) {
     return (GoldfishHostPipe*)hw_pipe;
 }
+static GoldfishHostPipe* standalone_guest_open_with_flags(
+        GoldfishHwPipe* hw_pipe, uint32_t flags) {
+    (void)flags;
+    return standalone_guest_open(hw_pipe);
+}
 static void standalone_guest_close(GoldfishHostPipe* host_pipe,
                                    GoldfishPipeCloseReason reason) {
     (void)host_pipe; (void)reason;
@@ -77,7 +82,7 @@ static void null_dma_load_mappings(QEMUFile* file) { (void)file; }
     .guest_post_save = null_guest_pre_post_save_load,
 };"""
     new = """    .guest_open = standalone_guest_open,
-    .guest_open_with_flags = standalone_guest_open,
+    .guest_open_with_flags = standalone_guest_open_with_flags,
     .guest_close = standalone_guest_close,
     .guest_load = null_guest_load,
     .guest_pre_load = null_guest_pre_post_save_load,
