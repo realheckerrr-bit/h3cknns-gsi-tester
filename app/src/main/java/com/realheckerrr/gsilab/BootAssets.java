@@ -96,6 +96,9 @@ public final class BootAssets {
                 "vendor_a.img.gz", "vendor_a.img.xz", "vendor-qemu.img", "vendor-qemu.img.gz", "vendor-qemu.img.xz");
         File userdata = copyBundleEntry(guestBundle, output, "userdata.img", "userdata.img.gz", "userdata.img.xz",
                 "userdata-qemu.img", "userdata-qemu.img.gz", "userdata-qemu.img.xz");
+        if (userdata != null && isSparse(userdata)) {
+            userdata = materializeImage(userdata, new File(output, "userdata.raw.img"));
+        }
         File cache = copyBundleEntry(guestBundle, output, "cache.img", "cache.img.gz", "cache.img.xz");
         File encryptionKey = copyBundleEntry(guestBundle, output, "encryptionkey.img", "encryptionkey.img.gz", "encryptionkey.img.xz");
         File qemu = copyBundleEntry(guestBundle, output, "libqemu-system-aarch64.so", "qemu-system-aarch64");

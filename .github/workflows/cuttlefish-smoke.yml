@@ -171,14 +171,21 @@ jobs:
           else
             super_for_lpunpack="$super_img"
           fi
+          python3 tools/list_super_partitions.py "$super_for_lpunpack"
           python3 tools/extract_logical_partition.py \
             "$super_for_lpunpack" vendor vendor/vendor.img \
             || python3 tools/extract_logical_partition.py \
             "$super_for_lpunpack" vendor_a vendor/vendor.img
           vendor_img=$(find vendor -maxdepth 1 -type f -name vendor.img -print -quit)
           [[ -n "$vendor_img" ]]
-          stat -c 'userdata=%s vendor=%s' "$userdata_img" "$vendor_img"
-          cp "$userdata_img" cf-image/userdata.img
+          stat -c 'userdata_source=%s' "$userdata_img"
+          stat -c 'vendor_extracted=%s' "$vendor_img"
+          if simg2img "$userdata_img" cf-image/userdata.raw.img 2>/dev/null; then
+            cp cf-image/userdata.raw.img cf-image/userdata.img
+          else
+            cp "$userdata_img" cf-image/userdata.img
+          fi
+          stat -c 'userdata_qemu=%s' cf-image/userdata.img
           printf 'kernel=%s\nramdisk=%s\nvendor=%s\n' \
             boot/kernel boot/ramdisk "$vendor_img"
 
