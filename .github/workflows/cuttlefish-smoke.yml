@@ -163,6 +163,10 @@ jobs:
           [[ -f boot/kernel && -f boot/ramdisk ]]
           python3 tools/patch_ranchu_ramdisk.py boot/ramdisk boot/ramdisk.direct.img cuttlefish
           mv boot/ramdisk.direct.img boot/ramdisk
+          rm -rf ramdisk-debug
+          mkdir -p ramdisk-debug
+          gzip -dc boot/ramdisk | (cd ramdisk-debug && cpio -idm --no-absolute-filenames >/dev/null 2>&1 || true)
+          find ramdisk-debug -type f -iname 'fstab*' -print -exec sed -n '1,120p' {} \; || true
           file boot/kernel boot/ramdisk
           wc -c boot/kernel boot/ramdisk
 
