@@ -47,8 +47,7 @@ public final class BootAssets {
         if (!output.isDirectory() && !output.mkdirs()) throw new IOException("Cannot create VM working directory.");
         File systemSource = new File(output, "system.source.img");
         if (gsi.getName().toLowerCase(Locale.US).endsWith(".zip")) {
-            copyGsiEntry(gsi, systemSource, "system.img", "system.img.gz", "system.img.xz",
-                    "super.img", "super.img.gz", "super.img.xz");
+            copyGsiEntry(gsi, systemSource);
         } else {
             copyMaybeGzip(gsi, systemSource);
         }
@@ -137,8 +136,44 @@ public final class BootAssets {
         }
     }
 
-    private static void copyGsiEntry(File archive, File target, String... wantedBases) throws IOException {
-        copyEntry(archive, target, wantedBases);
+    private static void copyGsiEntry(File archive, File target) throws IOException {
+        try (ZipFile zip = new ZipFile(archive)) {
+            ZipEntry entry = findGsiEntry(zip);
+            if (entry == null) {
+                throw new IOException("GSI ZIP does not contain system.img, a system_* image, or super.img.");
+            }
+            String base = entry.getName().substring(entry.getName().lastIndexOf('/') + 1);
+            try (InputStream raw = zip.getInputStream(entry);
+                 InputStream input = maybeCompressed(raw, base);
+                 FileOutputStream out = new FileOutputStream(target)) {
+                copy(input, out);
+            }
+        }
+    }
+
+    /**
+     * GSI publishers do not all use the canonical system.img name.  Accept
+     * the standard slot/architecture variants, but keep super.img as a
+     * fallback so unrelated product/vendor images are never selected.
+     */
+    private static ZipEntry findGsiEntry(ZipFile zip) {
+        ZipEntry superImage = null;
+        ZipEntry variant = null;
+        Enumeration<? extends ZipEntry> entries = zip.entries();
+        while (entries.hasMoreElements()) {
+            ZipEntry entry = entries.nextElement();
+            if (entry.isDirectory()) continue;
+            String base = entry.getName().substring(entry.getName().lastIndexOf('/') + 1);
+            String normalized = stripCompressionSuffix(base).toLowerCase(Locale.US);
+            if ("system.img".equals(normalized)) return entry;
+            if ("super.img".equals(normalized) && superImage == null) superImage = entry;
+            if (variant == null && (normalized.equals("system_a.img")
+                    || normalized.equals("system_b.img")
+                    || (normalized.startsWith("system-") && normalized.endsWith(".img")))) {
+                variant = entry;
+            }
+        }
+        return variant != null ? variant : superImage;
     }
 
     private static ZipEntry findEntry(ZipFile zip, String... wantedNames) {

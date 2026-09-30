@@ -196,6 +196,29 @@ public final class ImageImportTest {
     }
 
     @Test
+    public void acceptsArchitectureAndSlotNamedCompressedGsiEntries() throws Exception {
+        byte[] ext4 = ext4Image(4096);
+        File gsi = tempFile("named-gsi.zip");
+        try (ZipOutputStream zip = new ZipOutputStream(new FileOutputStream(gsi))) {
+            put(zip, "system-arm64-ab.img.lz4", legacyLz4Bytes(ext4));
+        }
+        File guest = tempFile("named-gsi-guest.zip");
+        try (ZipOutputStream zip = new ZipOutputStream(new FileOutputStream(guest))) {
+            put(zip, "kernel-ranchu", new byte[]{1, 2, 3});
+            put(zip, "ramdisk.img", new byte[]{4, 5});
+            put(zip, "vendor.img", ext4);
+        }
+        File output = Files.createTempDirectory("named-gsi-vm-").toFile();
+
+        GsiAnalysis report = GsiAnalyzer.analyze(gsi);
+        BootAssets assets = BootAssets.prepare(gsi, guest, output);
+
+        assertTrue(report.bootCandidate);
+        assertTrue(assets.ranchu);
+        assertArrayEquals(ext4, Files.readAllBytes(assets.system.toPath()));
+    }
+
+    @Test
     public void extractsCuttlefishVendorFromSuperImage() throws Exception {
         byte[] vendor = ext4Image(4096);
         File superImage = tempFile("super.img");

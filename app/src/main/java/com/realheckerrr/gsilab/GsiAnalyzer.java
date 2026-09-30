@@ -37,6 +37,7 @@ public final class GsiAnalyzer {
         List<String> warnings = new ArrayList<>();
         List<String> errors = new ArrayList<>();
         ZipEntry system = null;
+        ZipEntry systemVariant = null;
         ZipEntry superImage = null;
         int entries = 0;
         try (ZipFile zip = new ZipFile(input)) {
@@ -51,9 +52,14 @@ public final class GsiAnalyzer {
                 if (imageBase.equals("system.img")) {
                     if (system == null || base.equalsIgnoreCase("system.img")) system = entry;
                 }
+                if (systemVariant == null && (imageBase.equals("system_a.img")
+                        || imageBase.equals("system_b.img")
+                        || (imageBase.startsWith("system-") && imageBase.endsWith(".img")))) {
+                    systemVariant = entry;
+                }
                 if (superImage == null && imageBase.equals("super.img")) superImage = entry;
             }
-            ZipEntry selected = system != null ? system : superImage;
+            ZipEntry selected = system != null ? system : (systemVariant != null ? systemVariant : superImage);
             if (selected == null) {
                 errors.add("ZIP does not contain system.img or super.img.");
                 return new GsiAnalysis(input.getName(), "ZIP", "missing", 0, "unknown", sha256(input), false, warnings, errors);
@@ -76,13 +82,14 @@ public final class GsiAnalyzer {
             if (scan.format.equals("unknown")) {
                 warnings.add("system.img is not identified as Android sparse, ext4, EROFS, or F2FS from its header.");
             }
-            if (system == null) {
+            if (system == null && systemVariant == null) {
                 warnings.add("ZIP contains a dynamic-partition super image; the system logical partition will be extracted during boot preparation.");
             } else {
-                warnings.add("ZIP contains " + entries + " entries; only system.img was analyzed.");
+                warnings.add("ZIP contains " + entries + " entries; only the selected system image was analyzed.");
             }
             boolean candidate = errors.isEmpty() && scan.bytes > 0 && !scan.format.equals("unknown");
-            String selectedName = system == null ? systemName + " (system logical partition)" : systemName;
+            String selectedName = system == null && systemVariant == null
+                    ? systemName + " (system logical partition)" : systemName;
             return new GsiAnalysis(input.getName(), "ZIP", selectedName, scan.bytes, scan.format,
                     scan.sha256, candidate, warnings, errors);
         }
