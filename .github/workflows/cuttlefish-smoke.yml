@@ -161,6 +161,8 @@ jobs:
             [[ -n "$ramdisk" ]] && cp "$ramdisk" boot/ramdisk
           fi
           [[ -f boot/kernel && -f boot/ramdisk ]]
+          python3 tools/patch_ranchu_ramdisk.py boot/ramdisk boot/ramdisk.direct.img cuttlefish
+          mv boot/ramdisk.direct.img boot/ramdisk
           file boot/kernel boot/ramdisk
           wc -c boot/kernel boot/ramdisk
 
@@ -175,6 +177,7 @@ jobs:
             "$super_for_lpunpack" vendor_a vendor/vendor.img
           vendor_img=$(find vendor -maxdepth 1 -type f -name vendor.img -print -quit)
           [[ -n "$vendor_img" ]]
+          stat -c 'userdata=%s vendor=%s' "$userdata_img" "$vendor_img"
           cp "$userdata_img" cf-image/userdata.img
           printf 'kernel=%s\nramdisk=%s\nvendor=%s\n' \
             boot/kernel boot/ramdisk "$vendor_img"

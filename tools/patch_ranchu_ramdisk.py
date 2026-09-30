@@ -243,6 +243,10 @@ def make_header(name, content):
 
 
 def patch_fstab(content):
+    return patch_fstab_for_devices(content, "/dev/block/vdb", "/dev/block/vda", "/dev/block/vdc")
+
+
+def patch_fstab_for_devices(content, system_device, vendor_device, data_device):
     text = content.decode("utf-8", "replace")
     result = []
     changed = False
@@ -262,22 +266,27 @@ def patch_fstab(content):
                           + ("\n" if line.endswith("\n") else ""))
             changed = True
             continue
-        if "first_stage_mount" not in stripped or "logical" not in stripped:
+        if mount_entry and mountpoint == "/data":
+            columns[0] = data_device
+            ending = "\n" if line.endswith("\n") else ""
+            result.append(" ".join(columns) + ending)
+            changed = True
+            continue
+        if "first_stage_mount" not in stripped:
             result.append(line)
             continue
-        if mountpoint in ("/system", "/vendor") and len(columns) > 2 and columns[2] == "erofs":
-            changed = True
-            result.append("#" + line[1:] if not line.startswith("#") else line)
-            continue
         if mountpoint == "/system":
-            columns[0] = "/dev/block/vdb"
+            columns[0] = system_device
         elif mountpoint == "/vendor":
-            columns[0] = "/dev/block/vda"
+            columns[0] = vendor_device
         else:
             changed = True
             continue
         for index, column in enumerate(columns):
-            columns[index] = ",".join(value for value in column.split(",") if value not in ("logical", "avb=vbmeta"))
+            columns[index] = ",".join(value for value in column.split(",")
+                                       if value != "logical"
+                                       and value != "slotselect"
+                                       and not value.startswith("avb="))
         ending = "\n" if line.endswith("\n") else ""
         result.append(" ".join(columns) + ending)
         changed = True
@@ -286,33 +295,41 @@ def patch_fstab(content):
 
 def main():
     source, target = sys.argv[1:3]
+    cuttlefish = len(sys.argv) > 3 and sys.argv[3] == "cuttlefish"
+    system_device = "/dev/block/vda" if cuttlefish else "/dev/block/vdb"
+    vendor_device = "/dev/block/vdc" if cuttlefish else "/dev/block/vda"
+    data_device = "/dev/block/vdb" if cuttlefish else "/dev/block/vdc"
     raw, compression = unpack(open(source, "rb").read())
     entries = parse_cpio(raw)
     changed = False
     patched = []
     for header, name, content in entries:
-        if name.rsplit("/", 1)[-1] in ("fstab.ranchu", "fstab.ranchu.initrd"):
-            content, entry_changed = patch_fstab(content)
+        base = name.rsplit("/", 1)[-1]
+        is_fstab = base.startswith("fstab") if cuttlefish else base in ("fstab.ranchu", "fstab.ranchu.initrd")
+        if is_fstab:
+            content, entry_changed = patch_fstab_for_devices(
+                content, system_device, vendor_device, data_device)
             changed |= entry_changed
         patched.append((header, name, content))
     if not changed:
         content = (
-            b"/dev/block/vdb /system ext4 ro wait,first_stage_mount\n"
-            b"/dev/block/vda /vendor ext4 ro wait,first_stage_mount\n"
+            (f"{system_device} /system ext4 ro wait,first_stage_mount\n"
+             f"{vendor_device} /vendor ext4 ro wait,first_stage_mount\n").encode("utf-8")
         )
         # The official Ranchu ramdisk may contain several concatenated CPIO
         # archives, so flatten all of the decoded frames into one archive.
         # This keeps every kernel module alongside the injected fstab.
         patched_entries = parse_cpio(raw)
-        patched_entries.append((make_header("fstab.ranchu", content), "fstab.ranchu", content))
+        fallback_name = "fstab.cf.arm64" if cuttlefish else "fstab.ranchu"
+        patched_entries.append((make_header(fallback_name, content), fallback_name, content))
         patched_raw = build_cpio(patched_entries)
         with open(target, "wb") as output:
             output.write(repack(patched_raw, compression))
-        print("inserted direct-disk Ranchu initramfs fstab")
+        print("inserted direct-disk initramfs fstab")
         return
     with open(target, "wb") as output:
         output.write(repack(build_cpio(patched), compression))
-    print("patched Ranchu initramfs fstab")
+    print("patched direct-disk initramfs fstab")
 
 
 if __name__ == "__main__":

@@ -25,6 +25,15 @@ public final class RanchuRamdiskPatcher {
     private RanchuRamdiskPatcher() {}
 
     public static File patch(File source, File target) throws IOException {
+        return patchDirect(source, target, "/dev/block/vdb", "/dev/block/vda", "/dev/block/vdc", false);
+    }
+
+    public static File patchCuttlefish(File source, File target) throws IOException {
+        return patchDirect(source, target, "/dev/block/vda", "/dev/block/vdc", "/dev/block/vdb", true);
+    }
+
+    private static File patchDirect(File source, File target, String systemDevice, String vendorDevice,
+                                    String dataDevice, boolean allFstabEntries) throws IOException {
         byte[] encoded = readAll(source);
         if (!looksLikeRamdisk(encoded)) return source;
         byte[] raw = unpack(encoded, source.getName());
@@ -34,8 +43,11 @@ public final class RanchuRamdiskPatcher {
         List<Entry> patched = new ArrayList<>();
         for (Entry entry : entries) {
             String base = entry.name.substring(entry.name.lastIndexOf('/') + 1);
-            if ("fstab.ranchu".equals(base) || "fstab.ranchu.initrd".equals(base)) {
-                PatchResult result = patchFstab(entry.content);
+            boolean isFstab = allFstabEntries
+                    ? base.startsWith("fstab")
+                    : ("fstab.ranchu".equals(base) || "fstab.ranchu.initrd".equals(base));
+            if (isFstab) {
+                PatchResult result = patchFstab(entry.content, systemDevice, vendorDevice, dataDevice);
                 entry = entry.withContent(result.content);
                 hasSystem |= result.hasSystem;
                 hasVendor |= result.hasVendor;
@@ -44,9 +56,10 @@ public final class RanchuRamdiskPatcher {
         }
         if (!hasSystem || !hasVendor) {
             StringBuilder fallback = new StringBuilder();
-            if (!hasSystem) fallback.append("/dev/block/vdb /system ext4 ro wait,first_stage_mount\n");
-            if (!hasVendor) fallback.append("/dev/block/vda /vendor ext4 ro wait,first_stage_mount\n");
-            patched.add(Entry.regular("fstab.ranchu", fallback.toString().getBytes(StandardCharsets.UTF_8)));
+            if (!hasSystem) fallback.append(systemDevice).append(" /system ext4 ro wait,first_stage_mount\n");
+            if (!hasVendor) fallback.append(vendorDevice).append(" /vendor ext4 ro wait,first_stage_mount\n");
+            patched.add(Entry.regular(allFstabEntries ? "fstab.cf.arm64" : "fstab.ranchu",
+                    fallback.toString().getBytes(StandardCharsets.UTF_8)));
         }
         File parent = target.getParentFile();
         if (parent != null && !parent.isDirectory() && !parent.mkdirs()) {
@@ -246,7 +259,8 @@ public final class RanchuRamdiskPatcher {
         return -1;
     }
 
-    private static PatchResult patchFstab(byte[] content) {
+    private static PatchResult patchFstab(byte[] content, String systemDevice, String vendorDevice,
+                                          String dataDevice) {
         String text = new String(content, StandardCharsets.UTF_8);
         StringBuilder result = new StringBuilder();
         boolean changed = false;
@@ -273,12 +287,19 @@ public final class RanchuRamdiskPatcher {
                 changed = true;
                 continue;
             }
+            if (mountEntry && "/data".equals(mountpoint)) {
+                columns[0] = dataDevice;
+                result.append(String.join(" ", columns));
+                if (line.endsWith("\n")) result.append('\n');
+                changed = true;
+                continue;
+            }
             if (!stripped.contains("first_stage_mount")) {
                 result.append(line);
                 continue;
             }
-            if ("/system".equals(mountpoint)) columns[0] = "/dev/block/vdb";
-            else if ("/vendor".equals(mountpoint)) columns[0] = "/dev/block/vda";
+            if ("/system".equals(mountpoint)) columns[0] = systemDevice;
+            else if ("/vendor".equals(mountpoint)) columns[0] = vendorDevice;
             else {
                 result.append('#').append(line.startsWith("#") ? line.substring(1) : line);
                 changed = true;
@@ -292,7 +313,7 @@ public final class RanchuRamdiskPatcher {
             for (int i = 0; i < columns.length; i++) {
                 StringBuilder flags = new StringBuilder();
                 for (String flag : columns[i].split(",")) {
-                    if ("logical".equals(flag) || "avb=vbmeta".equals(flag)) continue;
+                    if ("logical".equals(flag) || "slotselect".equals(flag) || flag.startsWith("avb=")) continue;
                     if (flags.length() > 0) flags.append(',');
                     flags.append(flag);
                 }

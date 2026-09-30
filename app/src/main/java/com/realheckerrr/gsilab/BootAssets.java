@@ -116,6 +116,9 @@ public final class BootAssets {
             RanchuVendorPatcher.patch(system, RanchuVendorPatcher.detectFilesystem(system));
             RanchuVendorPatcher.patch(vendor, RanchuVendorPatcher.detectFilesystem(vendor));
             ramdisk = RanchuRamdiskPatcher.patch(ramdisk, new File(output, "ramdisk.ranchu.img"));
+        } else if (cuttlefish) {
+            ramdisk = RanchuRamdiskPatcher.patchCuttlefish(ramdisk,
+                    new File(output, "ramdisk.cuttlefish.img"));
         }
         return new BootAssets(system, kernel, ramdisk, vendor, userdata, cache, encryptionKey, qemu, rom, cuttlefish, ranchu);
     }
