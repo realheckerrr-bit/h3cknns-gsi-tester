@@ -445,7 +445,7 @@ jobs:
               "sh scripts/create_config < config-host.mak > config-host.h && "
               "printf 'CONFIG_STREAM_RENDERER=y\\n' >> config-host.mak && "
               "sh scripts/create_config < config-host.mak > config-host.h && "
-              "$(CXX) $(CFLAGS) $(QEMU_CFLAGS) $(QEMU_CXXFLAGS) -std=c++17 "
+              "$(CXX) -target aarch64-none-linux-android21 $(CFLAGS) $(QEMU_CFLAGS) $(QEMU_CXXFLAGS) -std=c++17 "
               "-DANDROID -DCONFIG_ANDROID -DCONFIG_STREAM_RENDERER "
               "-I. -Iinclude -Iandroid/android-emu "
               "-I../glib -I../glib/glib -I../glib/gmodule -I../glib/io -I../glib/android "
