@@ -30,7 +30,22 @@ jobs:
       - name: Install Android SDK packages
         uses: android-actions/setup-android@v3
         with:
-          packages: platform-tools ndk;27.2.12479018 cmake;3.22.1
+          packages: platform-tools cmake;3.22.1
+
+      - name: Install Android NDK with retry
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_root="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          for attempt in 1 2 3; do
+            rm -rf "$sdk_root/ndk/27.2.12479018"
+            if yes | sdkmanager --install "ndk;27.2.12479018"; then
+              break
+            fi
+            if [[ "$attempt" == 3 ]]; then exit 1; fi
+            sleep 10
+          done
+          test -x "$sdk_root/ndk/27.2.12479018/ndk-build"
 
       - name: Fetch latest successful Ranchu QEMU engine
         shell: bash
