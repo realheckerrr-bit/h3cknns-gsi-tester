@@ -74,6 +74,7 @@ def find_partition(source, metadata, requested: str):
     table_base, partitions, extents = metadata
     partition_offset, partition_count, partition_size = partitions
     fallback = None
+    exact = None
     for index in range(partition_count):
         entry = read_at(source, table_base + partition_offset + index * partition_size, partition_size)
         name = entry[:36].split(b"\0", 1)[0].decode("utf-8", "replace")
@@ -81,12 +82,17 @@ def find_partition(source, metadata, requested: str):
         extent_count = u32(entry, 44)
         value = (first_extent, extent_count)
         if name == requested:
-            return value
+            exact = value
         if requested == "vendor" and name in ("vendor_a", "vendor_b"):
             fallback = value
         if requested == "system" and name in ("system_a", "system_b"):
             fallback = value
-    return fallback
+    # Some dynamic-partition images carry an empty unsuffixed compatibility
+    # entry alongside the populated slot partition. Prefer the slot entry
+    # when the exact entry has no extents.
+    if exact is not None and exact[1] != 0:
+        return exact
+    return fallback if fallback is not None else exact
 
 
 def extract(source_path: Path, requested: str, output_path: Path) -> None:
