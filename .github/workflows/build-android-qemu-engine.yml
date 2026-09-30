@@ -102,8 +102,44 @@ jobs:
           sed -i 's/int endofs = s + length;/const char *endofs = s + length;/' \
             "$jni/compat/limbo_compat.c"
           # Android does not expose the host openpty() API used by this
-          # optional QEMU utility, and the emulator does not need it.
+          # optional QEMU utility. Keep the symbol available through the
+          # compatibility library, but report PTY as unsupported.
           sed -i 's/ qemu-openpty\.o//' "$jni/qemu/util/Makefile.objs"
+          python3 - "$jni/compat/limbo_compat.c" <<'PY'
+          from pathlib import Path
+          path = Path(__import__('sys').argv[1])
+          text = path.read_text()
+          addition = """
+
+          int qemu_openpty_raw(int *aslave, char *pty_name) {
+              (void) aslave;
+              (void) pty_name;
+              return -1;
+          }
+          """
+          if "int qemu_openpty_raw(" not in text:
+              path.write_text(text + addition)
+          PY
+          # Android's allocator does not provide the optional QEMU malloc
+          # replacement hooks used for large host mappings.
+          sed -i '/MallocHook_SetMmapReplacement/d; /MallocHook_SetMunmapReplacement/d' \
+            "$jni/qemu/util/mmap-alloc.c"
+          python3 - "$jni/qemu/stubs/tpm.c" <<'PY'
+          from pathlib import Path
+          path = Path(__import__('sys').argv[1])
+          text = path.read_text()
+          if '#include "sysemu/tpm_backend.h"' not in text:
+              text = text.replace('#include "sysemu/tpm.h"', '#include "sysemu/tpm.h"\n#include "sysemu/tpm_backend.h"', 1)
+          addition = """
+
+          TPMInfo *tpm_backend_query_tpm(TPMBackend *backend) {
+              (void) backend;
+              return NULL;
+          }
+          """
+          if "tpm_backend_query_tpm(" not in text:
+              path.write_text(text + addition)
+          PY
           # NDK r27 removed the legacy GCC 4.9 toolchain directory. Limbo's
           # ARMv8 linker flags still reference it, but Clang already selects
           # the NDK LLVM toolchain above.
