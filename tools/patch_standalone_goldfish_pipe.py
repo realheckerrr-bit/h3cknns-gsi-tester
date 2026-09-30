@@ -75,12 +75,6 @@ static void null_dma_load_mappings(QEMUFile* file) { (void)file; }
     .guest_post_load = null_guest_pre_post_save_load,
     .guest_pre_save = null_guest_pre_post_save_load,
     .guest_post_save = null_guest_pre_post_save_load,
-    .dma_add_buffer = null_dma_add_buffer,
-    .dma_remove_buffer = null_dma_remove_buffer,
-    .dma_invalidate_host_mappings = null_dma_invalidate_host_mappings,
-    .dma_reset_host_mappings = null_dma_reset_host_mappings,
-    .dma_save_mappings = null_dma_save_mappings,
-    .dma_load_mappings = null_dma_load_mappings,
 };"""
     new = """    .guest_open = standalone_guest_open,
     .guest_open_with_flags = standalone_guest_open,
