@@ -1,0 +1,98 @@
+name: Probe Android Gfxstream backend
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake ninja-build pkg-config python3 zip
+
+      - name: Install Android NDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager_bin=$(find "$ANDROID_SDK_ROOT/cmdline-tools" -type f -name sdkmanager | sort | tail -1)
+          yes | "$sdkmanager_bin" --licenses >/dev/null 2>&1 || true
+          "$sdkmanager_bin" "ndk;27.2.12479018"
+
+      - name: Fetch matching AOSP graphics sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p aosp/hardware/google aosp/external
+          git clone --depth 1 --branch emu-35-3-release \
+            https://android.googlesource.com/platform/hardware/google/aemu aosp/hardware/google/aemu
+          git clone --depth 1 --branch emu-35-3-release \
+            https://android.googlesource.com/platform/hardware/google/gfxstream aosp/hardware/google/gfxstream
+          git clone --depth 1 --branch emu-35-3-release \
+            https://android.googlesource.com/platform/external/gfxstream-protocols aosp/external/gfxstream-protocols
+          git clone --depth 1 --branch emu-35-3-release \
+            https://android.googlesource.com/platform/external/angle aosp/external/angle
+          git clone --depth 1 --branch emu-35-3-release \
+            https://android.googlesource.com/platform/external/flatbuffers aosp/external/flatbuffers
+          git clone --depth 1 \
+            https://android.googlesource.com/platform/external/libdrm aosp/external/libdrm
+
+      - name: Select the Android native window backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          root = Path('aosp/hardware/google/gfxstream')
+          cmake = root / 'CMakeLists.txt'
+          text = cmake.read_text()
+          text = text.replace(
+              'if(UNIX AND NOT APPLE AND NOT QNX)',
+              'if(UNIX AND NOT APPLE AND NOT QNX AND NOT ANDROID)', 1)
+          text = text.replace(
+              'if (APPLE)\n    add_compile_definitions(VK_USE_PLATFORM_MACOS_MVK)',
+              'if (APPLE)\n    add_compile_definitions(VK_USE_PLATFORM_MACOS_MVK)', 1)
+          text = text.replace(
+              'add_compile_definitions(VK_USE_PLATFORM_METAL_EXT)\nelseif(QNX)',
+              'add_compile_definitions(VK_USE_PLATFORM_METAL_EXT)\nelseif(ANDROID)\n    add_compile_definitions(VK_USE_PLATFORM_ANDROID_KHR)\nelseif(QNX)', 1)
+          cmake.write_text(text)
+          host = root / 'host' / 'CMakeLists.txt'
+          text = host.read_text()
+          text = text.replace(
+              'elseif (QNX)\n    set(stream-server-core-platform-sources NativeSubWindow_qnx.cpp)\nelse()',
+              'elseif (QNX)\n    set(stream-server-core-platform-sources NativeSubWindow_qnx.cpp)\nelseif (ANDROID)\n    set(stream-server-core-platform-sources NativeSubWindow_android.cpp)\nelse()', 1)
+          host.write_text(text)
+          PY
+
+      - name: Configure and build libgfxstream_backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          ndk="$ANDROID_SDK_ROOT/ndk/27.2.12479018"
+          cmake -S aosp/hardware/google/gfxstream -B gfxstream-build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$ndk/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_PLATFORM=26 \
+            -DBUILD_STANDALONE=ON \
+            -DDEPENDENCY_RESOLUTION=AOSP \
+            -DENABLE_VKCEREAL_TESTS=OFF \
+            -DBUILD_GRAPHICS_DETECTOR=OFF \
+            -DUSE_ANGLE_SHADER_PARSER=OFF \
+            -DWITH_BENCHMARK=OFF
+          cmake --build gfxstream-build --target gfxstream_backend --parallel 2
+          find gfxstream-build -type f -name 'libgfxstream_backend.so' -print -exec file {} \;
+
+      - name: Upload probe library
+        uses: actions/upload-artifact@v4
+        with:
+          name: gfxstream-android-probe
+          path: '**/libgfxstream_backend.so'
