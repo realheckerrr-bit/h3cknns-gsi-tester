@@ -32,7 +32,10 @@ jobs:
           git -C ranchu-qemu config submodule.dtc.url https://github.com/qemu/dtc.git
           git -C ranchu-qemu config submodule.pixman.url https://gitlab.freedesktop.org/pixman/pixman.git
           git -C ranchu-qemu submodule update --init --depth 1 dtc pixman
-          sed -i 's/sys.version_info < (2,6) or sys.version_info >= (3,)/sys.version_info < (2,6)/' ranchu-qemu/configure
+          sed -i \
+            -e 's/sys.version_info < (2,4) or sys.version_info >= (3,)/sys.version_info < (2,4)/' \
+            -e 's/sys.version_info < (2,6) or sys.version_info >= (3,)/sys.version_info < (2,6)/' \
+            ranchu-qemu/configure
           cd ranchu-qemu
           ./configure \
             --target-list=aarch64-softmmu \
