@@ -260,6 +260,7 @@ public final class BootAssets {
     }
 
     private static boolean isSparse(File file) throws IOException {
+        if (file.length() < 4) return false;
         try (InputStream input = new FileInputStream(file)) {
             byte[] magic = readBytes(input, 4);
             return littleInt(magic, 0) == 0xED26FF3AL;
