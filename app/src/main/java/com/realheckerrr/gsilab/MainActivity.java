@@ -75,7 +75,7 @@ public final class MainActivity extends Activity {
                     + "\n\nQEMU CONSOLE\n" + session.readConsole());
             if (!running && !launchInProgress) {
                 org.libsdl.app.GsiSDLActivity.closeDisplay();
-                bootButton.setText("Test VM");
+                bootButton.setText("Start VM");
                 refreshBootButton();
             }
             mainHandler.postDelayed(this, 1000L);
@@ -154,7 +154,7 @@ public final class MainActivity extends Activity {
         backendNote.setPadding(0, dp(12), 0, dp(4));
         backendSection.addView(backendNote);
 
-        bootButton = button("Test VM");
+        bootButton = button("Start VM");
         bootButton.setEnabled(false);
         bootButton.setOnClickListener(view -> {
             if (session == null) {
@@ -271,11 +271,11 @@ public final class MainActivity extends Activity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == GUEST_DISPLAY) {
             // Returning from the guest display means the user closed the VM
-            // window. Clean up the native QEMU thread before re-enabling Test VM.
+            // window. Clean up the native QEMU thread before re-enabling Start VM.
             if (session != null) stopTestVm();
             else {
                 launchInProgress = false;
-                bootButton.setText("Test VM");
+                bootButton.setText("Start VM");
                 refreshBootButton();
             }
             return;
@@ -310,6 +310,7 @@ public final class MainActivity extends Activity {
                 mainHandler.post(() -> {
                     selectedText.setText("Selected: " + displayName + "\nStored privately in app storage");
                     analyzeButton.setEnabled(true);
+                    refreshBootButton();
                     appendLog("Import complete: " + formatBytes(destination.length()));
                 });
             } catch (Exception error) {
@@ -389,8 +390,17 @@ public final class MainActivity extends Activity {
     }
 
     private void probeRuntime() {
-        if (analysis == null || guestAnalysis == null) return;
+        if (analysis == null || guestAnalysis == null) {
+            appendLog("Start VM is waiting for both the GSI analysis and guest-bundle analysis.");
+            refreshBootButton();
+            return;
+        }
         if (launchInProgress) return;
+        if (!analysis.bootCandidate || !guestAnalysis.bootCandidate) {
+            appendLog("Cannot start VM: fix the compatibility errors shown in the preflight report first.");
+            refreshBootButton();
+            return;
+        }
         RuntimeProbe probe = RuntimeProbe.inspect(this);
         QemuBootPlan plan = QemuBootPlan.inspect(this);
         reportText.setText(analysis.render() + "\n" + guestAnalysis.render() + "\n"
@@ -409,7 +419,7 @@ public final class MainActivity extends Activity {
                 startActivityForResult(new Intent(this, org.libsdl.app.GsiSDLActivity.class), GUEST_DISPLAY);
             } catch (Exception error) {
                 launchInProgress = false;
-                bootButton.setText("Test VM");
+                bootButton.setText("Start VM");
                 bootButton.setEnabled(true);
                 appendLog("ERROR opening guest display: " + error.getMessage());
                 return;
@@ -431,7 +441,7 @@ public final class MainActivity extends Activity {
             }
             launchInProgress = false;
             org.libsdl.app.GsiSDLActivity.closeDisplay();
-            bootButton.setText("Test VM");
+            bootButton.setText("Start VM");
             bootButton.setEnabled(true);
             appendLog("ERROR: guest display did not become ready in time.");
             return;
@@ -452,7 +462,7 @@ public final class MainActivity extends Activity {
                 mainHandler.post(() -> {
                     launchInProgress = false;
                     org.libsdl.app.GsiSDLActivity.closeDisplay();
-                    bootButton.setText("Test VM");
+                    bootButton.setText("Start VM");
                     bootButton.setEnabled(true);
                     appendLog("ERROR starting QEMU: " + error.getMessage());
                 });
@@ -466,7 +476,7 @@ public final class MainActivity extends Activity {
         lastQemuRunning = null;
         launchInProgress = false;
         mainHandler.removeCallbacks(consolePoller);
-        bootButton.setText("Test VM");
+        bootButton.setText("Start VM");
         bootButton.setEnabled(false);
         if (stopping != null) {
             appendLog("Stopping QEMU...");
@@ -499,14 +509,17 @@ public final class MainActivity extends Activity {
     }
 
     private void refreshBootButton() {
-        boolean ready = analysis != null && analysis.bootCandidate
-                && guestAnalysis != null && guestAnalysis.bootCandidate;
+        boolean hasSelections = selectedFile != null && guestFile != null;
         if (session != null && session.isRunning()) {
             bootButton.setText("Stop test VM");
             bootButton.setEnabled(true);
         } else if (!launchInProgress) {
-            bootButton.setText("Test VM");
-            bootButton.setEnabled(ready);
+            bootButton.setText("Start VM");
+            // Keep the control actionable once both files have been selected.
+            // probeRuntime() gives the user the exact missing-analysis or
+            // compatibility error instead of leaving a mysteriously disabled
+            // button.
+            bootButton.setEnabled(hasSelections);
         }
     }
 
