@@ -29,6 +29,10 @@ public final class GsiSDLActivity extends SDLActivity {
         return active != null;
     }
 
+    public static boolean isDisplayReady() {
+        return active != null && mIsSurfaceReady && mHasFocus;
+    }
+
     public static void closeDisplay() {
         GsiSDLActivity display = active;
         if (display != null) display.runOnUiThread(display::finish);

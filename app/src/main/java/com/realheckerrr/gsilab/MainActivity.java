@@ -424,7 +424,7 @@ public final class MainActivity extends Activity {
 
     private void waitForGuestDisplay(long deadline) {
         if (!launchInProgress) return;
-        if (!org.libsdl.app.GsiSDLActivity.isDisplayOpen()) {
+        if (!org.libsdl.app.GsiSDLActivity.isDisplayReady()) {
             if (System.currentTimeMillis() < deadline) {
                 mainHandler.postDelayed(() -> waitForGuestDisplay(deadline), 100L);
                 return;
