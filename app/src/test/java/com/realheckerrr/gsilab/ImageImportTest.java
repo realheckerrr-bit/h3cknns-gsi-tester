@@ -292,6 +292,29 @@ public final class ImageImportTest {
     }
 
     @Test
+    public void extractsVendorBootV4RamdiskTableFragments() throws Exception {
+        byte[] kernel = new byte[]{9, 8, 7};
+        byte[] firstFragment = new byte[]{1, 2, 3};
+        byte[] secondFragment = new byte[]{4, 5};
+        File guest = tempFile("pixel-v4-guest.zip");
+        try (ZipOutputStream zip = new ZipOutputStream(new FileOutputStream(guest))) {
+            put(zip, "boot.img", bootV3(kernel));
+            put(zip, "vendor_boot.img", vendorBootV4(firstFragment, secondFragment));
+            put(zip, "vendor.img", ext4Image(4096));
+        }
+        File gsi = tempFile("pixel-v4-gsi.img");
+        Files.write(gsi.toPath(), ext4Image(4096));
+        File output = Files.createTempDirectory("pixel-v4-boot-vm-").toFile();
+
+        BootAssets assets = BootAssets.prepare(gsi, guest, output);
+
+        byte[] expected = new byte[firstFragment.length + secondFragment.length];
+        System.arraycopy(firstFragment, 0, expected, 0, firstFragment.length);
+        System.arraycopy(secondFragment, 0, expected, firstFragment.length, secondFragment.length);
+        assertArrayEquals(expected, Files.readAllBytes(assets.ramdisk.toPath()));
+    }
+
+    @Test
     public void rejectsGblStyleBootArchiveWithoutEmbeddedKernel() throws Exception {
         File guest = tempFile("gbl-guest.zip");
         try (ZipOutputStream zip = new ZipOutputStream(new FileOutputStream(guest))) {
@@ -377,6 +400,33 @@ public final class ImageImportTest {
         writeInt(image, 12, page);
         writeInt(image, 24, ramdisk.length);
         System.arraycopy(ramdisk, 0, image, page, ramdisk.length);
+        return image;
+    }
+
+    private static byte[] vendorBootV4(byte[] first, byte[] second) {
+        int page = 4096;
+        int headerSize = 2128;
+        int ramdiskSize = 128;
+        int tableEntrySize = 108;
+        int tableStart = page * 2;
+        byte[] image = new byte[tableStart + tableEntrySize * 2];
+        writeAscii(image, 0, "VNDRBOOT");
+        writeInt(image, 8, 4);
+        writeInt(image, 12, page);
+        writeInt(image, 24, ramdiskSize);
+        writeInt(image, 2096, headerSize);
+        writeInt(image, 2100, 0);
+        writeInt(image, 2112, tableEntrySize * 2);
+        writeInt(image, 2116, 2);
+        writeInt(image, 2120, tableEntrySize);
+        int firstOffset = 16;
+        int secondOffset = 64;
+        System.arraycopy(first, 0, image, page + firstOffset, first.length);
+        System.arraycopy(second, 0, image, page + secondOffset, second.length);
+        writeInt(image, tableStart, first.length);
+        writeInt(image, tableStart + 4, firstOffset);
+        writeInt(image, tableStart + tableEntrySize, second.length);
+        writeInt(image, tableStart + tableEntrySize + 4, secondOffset);
         return image;
     }
 

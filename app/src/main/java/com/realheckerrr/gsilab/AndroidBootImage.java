@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.util.ArrayList;
+import java.util.List;
 
 /** Extracts kernel and ramdisk payloads from common Android boot image headers. */
 final class AndroidBootImage {
@@ -30,12 +32,66 @@ final class AndroidBootImage {
             byte[] magic = new byte[VENDOR_BOOT_MAGIC.length];
             input.readFully(magic);
             if (!matches(magic, VENDOR_BOOT_MAGIC)) throw new IOException("Not an Android vendor_boot image.");
+            long headerVersion = uint32(input, 8);
             long pageSize = uint32(input, 12);
             long ramdiskSize = uint32(input, 24);
             if (pageSize == 0) pageSize = DEFAULT_PAGE_SIZE;
             if (ramdiskSize == 0) return null;
-            return copyRange(image, pageSize, ramdiskSize, output);
+            long headerSize = uint32(input, 2096);
+            if (headerSize == 0) headerSize = pageSize;
+            long sectionStart = align(headerSize, pageSize);
+            if (sectionStart + ramdiskSize > image.length()) {
+                throw new IOException("Vendor ramdisk section exceeds the file boundary.");
+            }
+            if (headerVersion >= 4) {
+                long dtbSize = uint32(input, 2100);
+                long tableSize = uint32(input, 2112);
+                long entryCount = uint32(input, 2116);
+                long entrySize = uint32(input, 2120);
+                long tableStart = align(sectionStart + ramdiskSize, pageSize);
+                tableStart = align(tableStart + dtbSize, pageSize);
+                if (entrySize >= 12 && entryCount > 0 && tableSize <= image.length() - tableStart) {
+                    List<long[]> fragments = new ArrayList<>();
+                    for (long index = 0; index < entryCount; index++) {
+                        long entry = tableStart + index * entrySize;
+                        if (entry + 12 > tableStart + tableSize) break;
+                        input.seek(entry);
+                        long fragmentSize = readUint32(input);
+                        long fragmentOffset = readUint32(input);
+                        if (fragmentSize == 0) continue;
+                        if (fragmentOffset > ramdiskSize || fragmentSize > ramdiskSize - fragmentOffset) {
+                            throw new IOException("Vendor ramdisk table entry exceeds the section.");
+                        }
+                        fragments.add(new long[]{sectionStart + fragmentOffset, fragmentSize});
+                    }
+                    if (!fragments.isEmpty()) return copyRanges(image, fragments, output);
+                }
+            }
+            return copyRange(image, sectionStart, ramdiskSize, output);
         }
+    }
+
+    private static File copyRanges(File image, List<long[]> ranges, File output) throws IOException {
+        File parent = output.getParentFile();
+        if (parent != null && !parent.isDirectory() && !parent.mkdirs()) {
+            throw new IOException("Cannot create boot image output directory.");
+        }
+        try (RandomAccessFile input = new RandomAccessFile(image, "r");
+             FileOutputStream stream = new FileOutputStream(output)) {
+            byte[] buffer = new byte[1024 * 1024];
+            for (long[] range : ranges) {
+                input.seek(range[0]);
+                long remaining = range[1];
+                while (remaining > 0) {
+                    int wanted = (int) Math.min(buffer.length, remaining);
+                    int read = input.read(buffer, 0, wanted);
+                    if (read < 0) throw new IOException("Unexpected end of vendor ramdisk.");
+                    stream.write(buffer, 0, read);
+                    remaining -= read;
+                }
+            }
+        }
+        return output;
     }
 
     private static Header readHeader(File image) throws IOException {
@@ -79,6 +135,10 @@ final class AndroidBootImage {
 
     private static long uint32(RandomAccessFile input, long offset) throws IOException {
         input.seek(offset);
+        return readUint32(input);
+    }
+
+    private static long readUint32(RandomAccessFile input) throws IOException {
         return (input.readUnsignedByte())
                 | ((long) input.readUnsignedByte() << 8)
                 | ((long) input.readUnsignedByte() << 16)

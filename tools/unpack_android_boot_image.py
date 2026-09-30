@@ -25,12 +25,38 @@ def main() -> None:
     if data[:8] == b"VNDRBOOT":
         page_size = uint32(data, 12) or 4096
         ramdisk_size = uint32(data, 24)
-        ramdisk_end = page_size + ramdisk_size
+        header_version = uint32(data, 8)
+        header_size = uint32(data, 2096) or (page_size)
+        section_start = align(header_size, page_size)
         if not ramdisk_size:
             return
-        if ramdisk_end > len(data):
+        section_end = section_start + ramdisk_size
+        if section_end > len(data):
             raise SystemExit("vendor boot ramdisk exceeds the file boundary")
-        (args.output / "ramdisk").write_bytes(data[page_size:ramdisk_end])
+        if header_version >= 4 and len(data) >= 2128:
+            dtb_size = uint32(data, 2100)
+            table_size = uint32(data, 2112)
+            entry_count = uint32(data, 2116)
+            entry_size = uint32(data, 2120)
+            table_start = align(section_end, page_size)
+            table_start = align(table_start + dtb_size, page_size)
+            fragments = []
+            if entry_size >= 12 and entry_count and table_start + table_size <= len(data):
+                for index in range(entry_count):
+                    entry = table_start + index * entry_size
+                    if entry + 12 > table_start + table_size:
+                        break
+                    fragment_size = uint32(data, entry)
+                    fragment_offset = uint32(data, entry + 4)
+                    fragment_end = section_start + fragment_offset + fragment_size
+                    if fragment_end > section_end:
+                        raise SystemExit("vendor ramdisk table entry exceeds the section")
+                    if fragment_size:
+                        fragments.append(data[section_start + fragment_offset:fragment_end])
+            if fragments:
+                (args.output / "ramdisk").write_bytes(b"".join(fragments))
+                return
+        (args.output / "ramdisk").write_bytes(data[section_start:section_end])
         return
     if data[:8] != b"ANDROID!":
         raise SystemExit("not an Android boot or vendor_boot image")
