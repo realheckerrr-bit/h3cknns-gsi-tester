@@ -124,21 +124,17 @@ jobs:
           # replacement hooks used for large host mappings.
           sed -i '/MallocHook_SetMmapReplacement/d; /MallocHook_SetMunmapReplacement/d' \
             "$jni/qemu/util/mmap-alloc.c"
-          python3 - "$jni/qemu/stubs/tpm.c" <<'PY'
+          python3 - "$jni/qemu/stubs/android-tpm-backend.c" <<'PY'
           from pathlib import Path
           path = Path(__import__('sys').argv[1])
-          text = path.read_text()
-          if '#include "sysemu/tpm_backend.h"' not in text:
-              text = text.replace('#include "sysemu/tpm.h"', '#include "sysemu/tpm.h"\n#include "sysemu/tpm_backend.h"', 1)
-          addition = """
+          path.write_text("""#include \"qemu/osdep.h\"
+          #include \"sysemu/tpm_backend.h\"
 
           TPMInfo *tpm_backend_query_tpm(TPMBackend *backend) {
               (void) backend;
               return NULL;
           }
-          """
-          if "tpm_backend_query_tpm(" not in text:
-              path.write_text(text + addition)
+          """)
           PY
           # NDK r27 removed the legacy GCC 4.9 toolchain directory. Limbo's
           # ARMv8 linker flags still reference it, but Clang already selects
@@ -321,6 +317,8 @@ jobs:
 
           qemustubobj=$(sort $(stub-obj-y))
           qemustubobj := $(patsubst ../pbkdf-stub.o,../crypto/pbkdf-stub.o,$(qemustubobj))
+          qemustubobj := $(filter-out ../stubs/tpm.o,$(qemustubobj))
+          qemustubobj += ../stubs/android-tpm-backend.o
           $(QEMU_UTIL_STUB): $(qemustubobj)
           \t$(AR) rcs $@ $(qemustubobj)
           """
