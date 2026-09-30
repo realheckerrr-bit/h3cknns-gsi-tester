@@ -3,7 +3,9 @@ package com.realheckerrr.gsilab;
 import android.content.Context;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -38,6 +40,9 @@ public final class QemuBootSession {
                                          boolean recoveryProfile) throws IOException {
         File work = new File(context.getFilesDir(), "vm-session");
         BootAssets assets = BootAssets.prepare(gsi, guestBundle, work);
+        File rom = assets.rom != null
+                ? assets.rom
+                : (assets.ranchu ? null : copyBundledRom(context, work));
         File engine = assets.qemu != null
                 ? assets.qemu
                 : new File(context.getApplicationInfo().nativeLibraryDir, "libqemu-system-aarch64.so");
@@ -71,7 +76,7 @@ public final class QemuBootSession {
         args.add("-initrd"); args.add(assets.ramdisk.getAbsolutePath());
         args.add("-append");
         args.add(assets.cuttlefish
-                ? "loop.max_part=7 init=/init console=ttyS0,115200 androidboot.console=ttyS1 "
+                ? "loop.max_part=7 init=/init console=ttyAMA0,115200 earlycon=pl011,mmio,0x09000000 androidboot.console=ttyAMA0 "
                 + "androidboot.hardware=vsoc androidboot.boot_devices=4010000000.pcie "
                 + "androidboot.slot_suffix=_a androidboot.verifiedbootstate=orange "
                 + "mac80211_hwsim.radios=0 androidboot.lcd_density=160 "
@@ -100,11 +105,15 @@ public final class QemuBootSession {
             addDrive(args, "vendor", assets.vendor, true, true);
         } else {
             // Transitional virtio-pci is supported by the Android Linux
-            // guest and does not make QEMU search for an EFI option ROM.
-            addDrive(args, "system", assets.system, true, false);
-            if (assets.userdata != null) addDrive(args, "userdata", assets.userdata, false, false);
-            if (assets.cache != null) addDrive(args, "cache", assets.cache, false, false);
-            addDrive(args, "vendor", assets.vendor, true, false);
+            // guest. The bundled firmware supplies its PCI option ROM.
+            if (rom != null) {
+                args.add("-L");
+                args.add(work.getAbsolutePath());
+            }
+            addDrive(args, "system", assets.system, true, false, rom);
+            if (assets.userdata != null) addDrive(args, "userdata", assets.userdata, false, false, rom);
+            if (assets.cache != null) addDrive(args, "cache", assets.cache, false, false, rom);
+            addDrive(args, "vendor", assets.vendor, true, false, rom);
         }
         if (assets.cuttlefish || assets.ranchu) {
             // Ranchu exposes virtio-mmio, while Cuttlefish's virt machine
@@ -127,6 +136,11 @@ public final class QemuBootSession {
     }
 
     private static void addDrive(List<String> args, String id, File image, boolean readOnly, boolean mmio) {
+        addDrive(args, id, image, readOnly, mmio, null);
+    }
+
+    private static void addDrive(List<String> args, String id, File image, boolean readOnly,
+                                 boolean mmio, File rom) {
         args.add("-drive");
         args.add("if=none,format=raw,id=" + id + ",file=" + image.getAbsolutePath()
                 + (readOnly ? ",readonly=on" : ""));
@@ -134,8 +148,31 @@ public final class QemuBootSession {
         if (mmio) {
             args.add("virtio-blk-device,drive=" + id);
         } else {
-            args.add("virtio-blk-pci,scsi=off,drive=" + id);
+            args.add("virtio-blk-pci,scsi=off"
+                    + (rom == null ? "" : ",romfile=" + rom.getName())
+                    + ",drive=" + id);
         }
+    }
+
+    private static File copyBundledRom(Context context, File work) throws IOException {
+        File target = new File(work, "efi-virtio.rom");
+        if (target.isFile() && target.length() > 0) return target;
+        File parent = target.getParentFile();
+        if (parent != null && !parent.isDirectory() && !parent.mkdirs()) {
+            throw new IOException("Cannot create QEMU firmware directory.");
+        }
+        try (InputStream input = context.getAssets().open("efi-virtio.rom");
+             FileOutputStream output = new FileOutputStream(target)) {
+            byte[] buffer = new byte[64 * 1024];
+            int read;
+            while ((read = input.read(buffer)) != -1) output.write(buffer, 0, read);
+        } catch (IOException error) {
+            if (target.isFile() && !target.delete()) {
+                throw error;
+            }
+            return null;
+        }
+        return target;
     }
 
     public String readConsole() {
