@@ -30,6 +30,8 @@ jobs:
           git clone --depth 1 --branch emu-35-3-release \
             https://android.googlesource.com/platform/external/qemu qemu
           git -C qemu config submodule.dtc.url https://github.com/qemu/dtc.git
+          git -C qemu config submodule.capstone.url \
+            https://github.com/capstone-engine/capstone.git
           git -C qemu config submodule.ui/keycodemapdb.url \
             https://gitlab.com/qemu-project/keycodemapdb.git
           git -C qemu submodule update --init --depth 1 capstone dtc ui/keycodemapdb
