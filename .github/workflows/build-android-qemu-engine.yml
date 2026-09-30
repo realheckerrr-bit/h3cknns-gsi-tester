@@ -419,6 +419,11 @@ jobs:
               "\t$(QEMU_UTIL_STUB) \\\n",
               1,
           )
+          updated = updated.replace(
+              "\t$(STL_LIB) \\\n",
+              "\t-lc++_shared \\\n\t$(STL_LIB) \\\n",
+              1,
+          )
           path.write_text(updated)
           PY
           python3 - "$jni/Makefile" <<'PY'
@@ -487,8 +492,10 @@ jobs:
         run: |
           set -euo pipefail
           jni="$PWD/limbo-source/limbo-android-lib/src/main/jni"
+          ndk="$ANDROID_SDK_ROOT/ndk/27.2.12479018"
           mkdir -p engine
           cp "$jni/../libs/arm64-v8a/"*.so engine/
+          cp "$ndk/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so" engine/
           cp "$GITHUB_WORKSPACE/gfxstream-build/libgfxstream_backend.so" engine/
           strip_bin="$ANDROID_SDK_ROOT/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
           for library in engine/*.so; do

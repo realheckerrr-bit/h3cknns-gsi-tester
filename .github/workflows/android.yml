@@ -69,6 +69,7 @@ jobs:
             libglib-2.0.so \
             liblimbo.so \
             libpixman-1.so \
+            libc++_shared.so \
             libgfxstream_backend.so; do
             test -s "app/src/main/jniLibs/arm64-v8a/$library" || {
               echo "Missing engine dependency: $library" >&2
@@ -97,6 +98,7 @@ jobs:
             libglib-2.0.so \
             liblimbo.so \
             libpixman-1.so \
+            libc++_shared.so \
             libgfxstream_backend.so; do
             unzip -l "$apk" | grep -F "lib/arm64-v8a/$library"
           done
