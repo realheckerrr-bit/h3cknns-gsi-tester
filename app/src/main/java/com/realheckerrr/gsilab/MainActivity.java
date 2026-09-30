@@ -37,6 +37,7 @@ public final class MainActivity extends Activity {
     private static final int EXPORT_REPORT = 1002;
     private static final int PICK_GUEST = 1003;
     private static final int GUEST_DISPLAY = 1004;
+    private static final long GUEST_DISPLAY_WAIT_MS = 12000L;
     private static final int BACKGROUND = Color.rgb(11, 15, 20);
     private static final int SURFACE = Color.rgb(21, 28, 36);
     private static final int SURFACE_VARIANT = Color.rgb(38, 51, 61);
@@ -73,6 +74,7 @@ public final class MainActivity extends Activity {
                     + "\n\nQEMU STATE\n  process: " + (running ? "running" : "exited")
                     + "\n\nQEMU CONSOLE\n" + session.readConsole());
             if (!running && !launchInProgress) {
+                org.libsdl.app.GsiSDLActivity.closeDisplay();
                 bootButton.setText("Test VM");
                 refreshBootButton();
             }
@@ -401,7 +403,7 @@ public final class MainActivity extends Activity {
         } else {
             launchInProgress = true;
             bootButton.setEnabled(false);
-            bootButton.setText("Opening guest display…");
+            bootButton.setText("Opening guest display...");
             appendLog("Preparing private VM files and opening the guest display...");
             try {
                 startActivityForResult(new Intent(this, org.libsdl.app.GsiSDLActivity.class), GUEST_DISPLAY);
@@ -412,32 +414,50 @@ public final class MainActivity extends Activity {
                 appendLog("ERROR opening guest display: " + error.getMessage());
                 return;
             }
-            // Give SDLActivity time to create its Android SurfaceView before QEMU
-            // initializes its SDL video backend on the worker thread.
-            mainHandler.postDelayed(() -> worker.execute(() -> {
-                if (!launchInProgress || !org.libsdl.app.GsiSDLActivity.isDisplayOpen()) return;
-                try {
-                    QemuBootSession started = QemuBootSession.start(this, selectedFile, guestFile);
-                    mainHandler.post(() -> {
-                        session = started;
-                        launchInProgress = false;
-                        lastQemuRunning = null;
-                        bootButton.setEnabled(true);
-                        bootButton.setText("Stop test VM");
-                        appendLog("QEMU thread started; guest display is active.");
-                        mainHandler.post(consolePoller);
-                    });
-                } catch (Exception error) {
-                    mainHandler.post(() -> {
-                        launchInProgress = false;
-                        org.libsdl.app.GsiSDLActivity.closeDisplay();
-                        bootButton.setText("Test VM");
-                        bootButton.setEnabled(true);
-                        appendLog("ERROR starting QEMU: " + error.getMessage());
-                    });
-                }
-            }), 500L);
+            // SDLActivity can need more than one frame to create its Android
+            // SurfaceView. Poll for readiness so the button cannot get stuck
+            // disabled when the display opens slowly on a real device.
+            mainHandler.postDelayed(() -> waitForGuestDisplay(
+                    System.currentTimeMillis() + GUEST_DISPLAY_WAIT_MS), 100L);
         }
+    }
+
+    private void waitForGuestDisplay(long deadline) {
+        if (!launchInProgress) return;
+        if (!org.libsdl.app.GsiSDLActivity.isDisplayOpen()) {
+            if (System.currentTimeMillis() < deadline) {
+                mainHandler.postDelayed(() -> waitForGuestDisplay(deadline), 100L);
+                return;
+            }
+            launchInProgress = false;
+            org.libsdl.app.GsiSDLActivity.closeDisplay();
+            bootButton.setText("Test VM");
+            bootButton.setEnabled(true);
+            appendLog("ERROR: guest display did not become ready in time.");
+            return;
+        }
+        worker.execute(() -> {
+            try {
+                QemuBootSession started = QemuBootSession.start(this, selectedFile, guestFile);
+                mainHandler.post(() -> {
+                    session = started;
+                    launchInProgress = false;
+                    lastQemuRunning = null;
+                    bootButton.setEnabled(true);
+                    bootButton.setText("Stop test VM");
+                    appendLog("QEMU thread started; guest display is active.");
+                    mainHandler.post(consolePoller);
+                });
+            } catch (Exception error) {
+                mainHandler.post(() -> {
+                    launchInProgress = false;
+                    org.libsdl.app.GsiSDLActivity.closeDisplay();
+                    bootButton.setText("Test VM");
+                    bootButton.setEnabled(true);
+                    appendLog("ERROR starting QEMU: " + error.getMessage());
+                });
+            }
+        });
     }
 
     private void stopTestVm() {
@@ -453,6 +473,7 @@ public final class MainActivity extends Activity {
             worker.execute(() -> {
                 stopping.stop();
                 mainHandler.post(() -> {
+                    org.libsdl.app.GsiSDLActivity.closeDisplay();
                     refreshBootButton();
                     appendLog("QEMU stopped.");
                 });
@@ -466,7 +487,7 @@ public final class MainActivity extends Activity {
         lastQemuRunning = null;
         launchInProgress = true;
         mainHandler.removeCallbacks(consolePoller);
-        bootButton.setText("Restarting VM…");
+        bootButton.setText("Restarting VM...");
         bootButton.setEnabled(false);
         worker.execute(() -> {
             finished.stop();
