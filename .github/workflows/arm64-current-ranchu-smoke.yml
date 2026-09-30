@@ -70,6 +70,7 @@ jobs:
             --disable-slirp \
             --disable-docs \
             --disable-user \
+            --audio-drv-list=sdl \
             --enable-trace-backends=nop
           make -f Makefile -j"$(nproc)"
           test -x aarch64-softmmu/qemu-system-aarch64
@@ -145,6 +146,7 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
+          export SDL_AUDIODRIVER=dummy
           qemu="$PWD/qemu/aarch64-softmmu/qemu-system-aarch64"
           xvfb-run -a -s '-screen 0 1080x1920x24' \
             "$qemu" \
@@ -163,6 +165,7 @@ jobs:
               -drive if=none,format=raw,id=vendor,file="$PWD/guest/vendor.raw.img",readonly=on \
               -device virtio-blk-device,drive=vendor \
               -display sdl \
+              -audiodev driver=none,id=audio0 \
               -monitor none \
               -serial file:serial.log \
               -no-reboot \
