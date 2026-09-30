@@ -36,6 +36,12 @@ jobs:
             https://gitlab.com/qemu-project/keycodemapdb.git
           git -C qemu submodule update --init --depth 1 capstone dtc ui/keycodemapdb
           printf '%s\n' "$(git -C qemu describe --always)" > qemu/VERSION
+          git clone --depth 1 \
+            https://android.googlesource.com/platform/hardware/google/aemu /tmp/aemu-source
+          mkdir -p qemu/android/android-emu/host-common
+          cp /tmp/aemu-source/host-common/include/host-common/goldfish_pipe.h \
+            /tmp/aemu-source/host-common/include/host-common/android_pipe_base.h \
+            qemu/android/android-emu/host-common/
 
       - name: Build current Ranchu QEMU for the ARM64 runner
         shell: bash
