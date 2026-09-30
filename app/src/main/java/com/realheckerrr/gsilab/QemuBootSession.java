@@ -3,10 +3,7 @@ package com.realheckerrr.gsilab;
 import android.content.Context;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -41,7 +38,6 @@ public final class QemuBootSession {
                                          boolean recoveryProfile) throws IOException {
         File work = new File(context.getFilesDir(), "vm-session");
         BootAssets assets = BootAssets.prepare(gsi, guestBundle, work);
-        File rom = assets.rom != null ? assets.rom : copyBundledRom(context, work);
         File engine = assets.qemu != null
                 ? assets.qemu
                 : new File(context.getApplicationInfo().nativeLibraryDir, "libqemu-system-aarch64.so");
@@ -53,14 +49,6 @@ public final class QemuBootSession {
         // SurfaceFlinger are active on ARM64 TCG hosts.
         args.add("-accel");
         args.add(assets.ranchu && recoveryProfile ? "tcg,thread=single" : "tcg,thread=multi");
-        if (!assets.ranchu && rom != null) {
-            // QEMU resolves a PCI virtio romfile through its firmware search
-            // path and treats an absolute value as a basename.  Point that
-            // search path at the private working directory and pass only the
-            // copied filename below.
-            args.add("-L");
-            args.add(work.getAbsolutePath());
-        }
         args.add("-M");
         args.add(assets.ranchu
                 ? "ranchu"
@@ -107,14 +95,16 @@ public final class QemuBootSession {
         if (assets.ranchu) {
             // virtio-mmio enumerates devices in reverse declaration order:
             // userdata -> system -> vendor gives vda=vendor, vdb=system, vdc=userdata.
-            if (assets.userdata != null) addDrive(args, "userdata", assets.userdata, false, false, rom, true);
-            addDrive(args, "system", assets.system, true, false, rom, true);
-            addDrive(args, "vendor", assets.vendor, true, false, rom, true);
+            if (assets.userdata != null) addDrive(args, "userdata", assets.userdata, false, true);
+            addDrive(args, "system", assets.system, true, true);
+            addDrive(args, "vendor", assets.vendor, true, true);
         } else {
-            addDrive(args, "system", assets.system, true, assets.cuttlefish, rom, false);
-            if (assets.userdata != null) addDrive(args, "userdata", assets.userdata, false, assets.cuttlefish, rom, false);
-            if (assets.cache != null) addDrive(args, "cache", assets.cache, false, assets.cuttlefish, rom, false);
-            addDrive(args, "vendor", assets.vendor, true, assets.cuttlefish, rom, false);
+            // Transitional virtio-pci is supported by the Android Linux
+            // guest and does not make QEMU search for an EFI option ROM.
+            addDrive(args, "system", assets.system, true, false);
+            if (assets.userdata != null) addDrive(args, "userdata", assets.userdata, false, false);
+            if (assets.cache != null) addDrive(args, "cache", assets.cache, false, false);
+            addDrive(args, "vendor", assets.vendor, true, false);
         }
         if (assets.cuttlefish || assets.ranchu) {
             // Ranchu exposes virtio-mmio, while Cuttlefish's virt machine
@@ -136,8 +126,7 @@ public final class QemuBootSession {
         return new QemuBootSession(work, log, handle);
     }
 
-    private static void addDrive(List<String> args, String id, File image, boolean readOnly,
-                                 boolean nonTransitional, File rom, boolean mmio) {
+    private static void addDrive(List<String> args, String id, File image, boolean readOnly, boolean mmio) {
         args.add("-drive");
         args.add("if=none,format=raw,id=" + id + ",file=" + image.getAbsolutePath()
                 + (readOnly ? ",readonly=on" : ""));
@@ -145,22 +134,7 @@ public final class QemuBootSession {
         if (mmio) {
             args.add("virtio-blk-device,drive=" + id);
         } else {
-            args.add((nonTransitional ? "virtio-blk-pci-non-transitional" : "virtio-blk-pci")
-                    + (rom == null ? "" : ",romfile=" + rom.getName())
-                    + ",scsi=off,drive=" + id);
-        }
-    }
-
-    private static File copyBundledRom(Context context, File work) {
-        File rom = new File(work, "efi-virtio.rom");
-        try (InputStream input = context.getAssets().open("efi-virtio.rom");
-             FileOutputStream output = new FileOutputStream(rom)) {
-            byte[] buffer = new byte[8192];
-            int read;
-            while ((read = input.read(buffer)) != -1) output.write(buffer, 0, read);
-            return rom.isFile() && rom.length() > 0 ? rom : null;
-        } catch (IOException ignored) {
-            return null;
+            args.add("virtio-blk-pci,scsi=off,drive=" + id);
         }
     }
 
