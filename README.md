@@ -1,6 +1,6 @@
 # h3cknn's GSI tester for Android
 
-h3cknn's GSI tester is a from-scratch Android test harness for importing and preflighting Generic System Images. It accepts a raw `system.img`, gzip/XZ-compressed images, or a ZIP containing `system.img`, `system.img.gz`, or `system.img.xz`, calculates hashes, recognizes Android sparse/raw-ext4 headers, and reports whether the input is a plausible GSI candidate.
+h3cknn's GSI tester is a from-scratch Android test harness for importing and preflighting Generic System Images. It accepts raw system images, gzip/XZ-compressed images, dynamic-partition `super.img` containers, or ZIPs containing those files, calculates hashes, recognizes Android sparse/raw-ext4/EROFS/F2FS headers, and reports whether the input is a plausible GSI candidate.
 
 ## Scope
 
@@ -44,6 +44,11 @@ The app also provides **Download official Ranchu guest** in the base-guest secti
 The **Android Emulator GSI boot smoke test** workflow exercises that official `kernel-ranchu` guest pack with an Android 15 ARM64 AOSP GSI and stores the serial log as an artifact. It is a useful compatibility check for the Ranchu profile; it does not require a Pixel factory image.
 
 Gzip assets are expanded into private app storage and imported files are never mounted or modified.
+
+If a GSI ZIP contains `super.img` instead of `system.img`, the app extracts the
+`system_a`/`system_b` logical partition into its private VM workspace before
+launch. This supports dynamic-partition GSI distributions without changing the
+user's source archive.
 
 The analyzer only inspects names, headers, and hashes. The VM backend is the only component that executes a boot attempt.
 

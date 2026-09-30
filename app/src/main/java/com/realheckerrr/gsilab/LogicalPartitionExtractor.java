@@ -92,6 +92,9 @@ public final class LogicalPartitionExtractor {
             if (requestedName.equals("vendor") && (name.equals("vendor_a") || name.equals("vendor_b"))) {
                 fallback = new Partition(name, firstExtent, extentCount);
             }
+            if (requestedName.equals("system") && (name.equals("system_a") || name.equals("system_b"))) {
+                fallback = new Partition(name, firstExtent, extentCount);
+            }
         }
         return fallback;
     }

@@ -47,11 +47,15 @@ public final class BootAssets {
         if (!output.isDirectory() && !output.mkdirs()) throw new IOException("Cannot create VM working directory.");
         File systemSource = new File(output, "system.source.img");
         if (gsi.getName().toLowerCase(Locale.US).endsWith(".zip")) {
-            copyEntry(gsi, systemSource, "system.img", "system.img.gz", "system.img.xz");
+            copyGsiEntry(gsi, systemSource, "system.img", "system.img.gz", "system.img.xz",
+                    "super.img", "super.img.gz", "super.img.xz");
         } else {
             copyMaybeGzip(gsi, systemSource);
         }
-        File system = materializeImage(systemSource, new File(output, "system.img"));
+        File materializedSystem = materializeImage(systemSource, new File(output, "system.materialized.img"));
+        File system = isDynamicPartitionSuper(materializedSystem)
+                ? LogicalPartitionExtractor.extract(materializedSystem, "system", new File(output, "system.from-super.img"))
+                : materializedSystem;
 
         File kernel = copyBundleEntry(guestBundle, output, "kernel", "kernel.gz", "kernel.xz", "kernel-ranchu",
                 "kernel-ranchu.gz", "kernel-ranchu.xz", "kernel-ranchu-64", "kernel-ranchu-64.gz",
@@ -130,6 +134,10 @@ public final class BootAssets {
         }
     }
 
+    private static void copyGsiEntry(File archive, File target, String... wantedBases) throws IOException {
+        copyEntry(archive, target, wantedBases);
+    }
+
     private static ZipEntry findEntry(ZipFile zip, String... wantedNames) {
         Enumeration<? extends ZipEntry> entries = zip.entries();
         while (entries.hasMoreElements()) {
@@ -196,6 +204,13 @@ public final class BootAssets {
         try (InputStream input = new FileInputStream(file)) {
             byte[] magic = readBytes(input, 4);
             return littleInt(magic, 0) == 0xED26FF3AL;
+        }
+    }
+
+    private static boolean isDynamicPartitionSuper(File file) throws IOException {
+        try (InputStream input = new FileInputStream(file)) {
+            byte[] magic = readBytes(input, 4);
+            return littleInt(magic, 0) == 0x616C4467L;
         }
     }
 

@@ -37,6 +37,7 @@ public final class GsiAnalyzer {
         List<String> warnings = new ArrayList<>();
         List<String> errors = new ArrayList<>();
         ZipEntry system = null;
+        ZipEntry superImage = null;
         int entries = 0;
         try (ZipFile zip = new ZipFile(input)) {
             Enumeration<? extends ZipEntry> all = zip.entries();
@@ -50,14 +51,20 @@ public final class GsiAnalyzer {
                         || name.equals("system.img.xz") || name.endsWith("/system.img.xz")) {
                     if (system == null || name.equals("system.img")) system = entry;
                 }
+                if (superImage == null && (name.equals("super.img") || name.endsWith("/super.img")
+                        || name.equals("super.img.gz") || name.endsWith("/super.img.gz")
+                        || name.equals("super.img.xz") || name.endsWith("/super.img.xz"))) {
+                    superImage = entry;
+                }
             }
-            if (system == null) {
-                errors.add("ZIP does not contain system.img.");
+            ZipEntry selected = system != null ? system : superImage;
+            if (selected == null) {
+                errors.add("ZIP does not contain system.img or super.img.");
                 return new GsiAnalysis(input.getName(), "ZIP", "missing", 0, "unknown", sha256(input), false, warnings, errors);
             }
             ImageScan scan;
-            String systemName = system.getName();
-            try (InputStream raw = zip.getInputStream(system);
+            String systemName = selected.getName();
+            try (InputStream raw = zip.getInputStream(selected);
                  InputStream stream = maybeCompressed(raw, systemName)) {
                 scan = scan(stream);
             }
@@ -70,9 +77,14 @@ public final class GsiAnalyzer {
             if (scan.format.equals("unknown")) {
                 warnings.add("system.img is not identified as Android sparse or raw ext4 from its header.");
             }
-            warnings.add("ZIP contains " + entries + " entries; only system.img was analyzed.");
+            if (system == null) {
+                warnings.add("ZIP contains a dynamic-partition super image; the system logical partition will be extracted during boot preparation.");
+            } else {
+                warnings.add("ZIP contains " + entries + " entries; only system.img was analyzed.");
+            }
             boolean candidate = errors.isEmpty() && scan.bytes > 0 && !scan.format.equals("unknown");
-            return new GsiAnalysis(input.getName(), "ZIP", system.getName(), scan.bytes, scan.format,
+            String selectedName = system == null ? systemName + " (system logical partition)" : systemName;
+            return new GsiAnalysis(input.getName(), "ZIP", selectedName, scan.bytes, scan.format,
                     scan.sha256, candidate, warnings, errors);
         }
     }
@@ -122,6 +134,15 @@ public final class GsiAnalyzer {
     private static String detectFormat(byte[] header, int length) {
         if (length >= 4 && littleEndianInt(header, 0) == SPARSE_MAGIC) {
             return "Android sparse image";
+        }
+        if (length >= 4 && littleEndianInt(header, 0) == 0x616C4467L) {
+            return "Android dynamic-partition super image";
+        }
+        if (length >= 1028 && littleEndianInt(header, 1024) == 0xE0F5E1E2L) {
+            return "raw EROFS image";
+        }
+        if (length >= 1028 && littleEndianInt(header, 1024) == 0xF2F52010L) {
+            return "raw F2FS image";
         }
         if (length >= 1082 && (header[1080] & 0xFF) == 0x53 && (header[1081] & 0xFF) == 0xEF) {
             return "raw ext4 image";

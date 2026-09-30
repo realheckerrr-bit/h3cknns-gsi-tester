@@ -67,6 +67,55 @@ public final class ImageImportTest {
     }
 
     @Test
+    public void analyzesErofsAndF2fsSystemImages() throws Exception {
+        File erofs = tempFile("system.erofs.img");
+        try (RandomAccessFile output = new RandomAccessFile(erofs, "rw")) {
+            output.setLength(4096);
+            output.seek(1024);
+            output.writeInt(Integer.reverseBytes(0xE0F5E1E2));
+        }
+        GsiAnalysis erofsResult = GsiAnalyzer.analyze(erofs);
+        assertEquals("raw EROFS image", erofsResult.imageFormat);
+        assertTrue(erofsResult.bootCandidate);
+
+        File f2fs = tempFile("system.f2fs.img");
+        try (RandomAccessFile output = new RandomAccessFile(f2fs, "rw")) {
+            output.setLength(4096);
+            output.seek(1024);
+            output.writeInt(Integer.reverseBytes(0xF2F52010));
+        }
+        GsiAnalysis f2fsResult = GsiAnalyzer.analyze(f2fs);
+        assertEquals("raw F2FS image", f2fsResult.imageFormat);
+        assertTrue(f2fsResult.bootCandidate);
+    }
+
+    @Test
+    public void extractsSystemLogicalPartitionFromGsiSuperZip() throws Exception {
+        byte[] system = ext4Image(4096);
+        File superImage = tempFile("gsi-super.img");
+        writeSuperImage(superImage, "system_a", system);
+        File gsi = tempFile("gsi-super.zip");
+        try (ZipOutputStream zip = new ZipOutputStream(new FileOutputStream(gsi))) {
+            put(zip, "super.img", Files.readAllBytes(superImage.toPath()));
+        }
+        GsiAnalysis report = GsiAnalyzer.analyze(gsi);
+        assertEquals("Android dynamic-partition super image", report.imageFormat);
+        assertTrue(report.systemEntry.contains("system logical partition"));
+        assertTrue(report.bootCandidate);
+
+        File guest = tempFile("super-gsi-guest.zip");
+        try (ZipOutputStream zip = new ZipOutputStream(new FileOutputStream(guest))) {
+            put(zip, "kernel-ranchu", new byte[]{1, 2, 3});
+            put(zip, "ramdisk.img", new byte[]{4, 5});
+            put(zip, "vendor.img", ext4Image(4096));
+        }
+        File output = Files.createTempDirectory("super-gsi-vm-").toFile();
+        BootAssets assets = BootAssets.prepare(gsi, guest, output);
+        assertTrue(assets.ranchu);
+        assertArrayEquals(system, Files.readAllBytes(assets.system.toPath()));
+    }
+
+    @Test
     public void acceptsOfficialStyleGuestArchiveAndExpandsGzipAssets() throws Exception {
         byte[] ext4 = ext4Image(4096);
         File guest = tempFile("guest.zip");
@@ -338,6 +387,10 @@ public final class ImageImportTest {
     }
 
     private static void writeSuperImage(File target, byte[] vendor) throws IOException {
+        writeSuperImage(target, "vendor_a", vendor);
+    }
+
+    private static void writeSuperImage(File target, String partitionName, byte[] partitionData) throws IOException {
         long metadataOffset = 8192L;
         int metadataHeaderSize = 128;
         int partitionsOffset = 0;
@@ -377,7 +430,7 @@ public final class ImageImportTest {
 
             long tableBase = metadataOffset + metadataHeaderSize;
             output.seek(tableBase);
-            writeAscii(output, "vendor_a", 36);
+            writeAscii(output, partitionName, 36);
             writeInt(output, 0);
             writeInt(output, 0);
             writeInt(output, 1);
@@ -394,7 +447,7 @@ public final class ImageImportTest {
             writeAscii(output, "super", 36);
             writeInt(output, 0);
             output.seek(vendorOffset);
-            output.write(vendor);
+            output.write(partitionData);
         }
     }
 
