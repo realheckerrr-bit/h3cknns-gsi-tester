@@ -152,6 +152,7 @@ jobs:
           set -uo pipefail
           qemu_bin=$(find "$ANDROID_HOME/emulator" -type f -name qemu-system-aarch64 -perm -111 | head -1 || true)
           test -n "$qemu_bin"
+          export LD_LIBRARY_PATH="$ANDROID_HOME/emulator/lib64:$ANDROID_HOME/emulator/lib64/qt/lib:${LD_LIBRARY_PATH:-}"
           "$qemu_bin" \
             -M ranchu \
             -cpu max \
