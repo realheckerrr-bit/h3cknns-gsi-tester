@@ -155,7 +155,6 @@ jobs:
           path = Path(sys.argv[1])
           text = path.read_text()
           text = text.replace('#include "android/utils/dll.h"', '#include <dlfcn.h>', 1)
-          text = text.replace('    char* error = NULL;\n', '', 1)
           text = text.replace(
               '    ADynamicLibrary* rendererSo = adynamicLibrary_open(RENDERER_LIB_NAME, &error);',
               '    void* rendererSo = dlopen(RENDERER_LIB_NAME ".so", RTLD_NOW | RTLD_LOCAL);', 1)
