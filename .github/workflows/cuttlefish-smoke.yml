@@ -201,7 +201,9 @@ jobs:
           else
             wait "$qemu_pid" 2>/dev/null || true
           fi
+          printf 'qemu=%s\nromfile=%s\n' "$(command -v qemu-system-aarch64 || true)" "$romfile"
           cat serial.log 2>/dev/null || true
+          cat qemu.stdout 2>/dev/null || true
           cat qemu.stderr 2>/dev/null || true
           if [[ "$booted" != 1 ]]; then
             echo 'No Android boot marker was observed in the serial log.' >&2
