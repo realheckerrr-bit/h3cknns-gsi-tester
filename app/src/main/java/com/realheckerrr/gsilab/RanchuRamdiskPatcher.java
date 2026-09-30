@@ -47,7 +47,8 @@ public final class RanchuRamdiskPatcher {
                     ? base.startsWith("fstab")
                     : ("fstab.ranchu".equals(base) || "fstab.ranchu.initrd".equals(base));
             if (isFstab) {
-                PatchResult result = patchFstab(entry.content, systemDevice, vendorDevice, dataDevice);
+                PatchResult result = patchFstab(entry.content, systemDevice, vendorDevice, dataDevice,
+                        allFstabEntries);
                 entry = entry.withContent(result.content);
                 hasSystem |= result.hasSystem;
                 hasVendor |= result.hasVendor;
@@ -260,7 +261,7 @@ public final class RanchuRamdiskPatcher {
     }
 
     private static PatchResult patchFstab(byte[] content, String systemDevice, String vendorDevice,
-                                          String dataDevice) {
+                                          String dataDevice, boolean allFstabEntries) {
         String text = new String(content, StandardCharsets.UTF_8);
         StringBuilder result = new StringBuilder();
         boolean changed = false;
@@ -287,6 +288,15 @@ public final class RanchuRamdiskPatcher {
                 changed = true;
                 continue;
             }
+            if (allFstabEntries
+                    && ("/system".equals(mountpoint) || "/vendor".equals(mountpoint)
+                    || "/data".equals(mountpoint))
+                    && columns.length > 2
+                    && ("erofs".equals(columns[2]) || "f2fs".equals(columns[2]))) {
+                result.append('#').append(line.startsWith("#") ? line.substring(1) : line);
+                changed = true;
+                continue;
+            }
             if (mountEntry && "/data".equals(mountpoint)) {
                 columns[0] = dataDevice;
                 result.append(String.join(" ", columns));
@@ -310,9 +320,6 @@ public final class RanchuRamdiskPatcher {
                 result.append('#').append(line.startsWith("#") ? line.substring(1) : line);
                 changed = true;
                 continue;
-            }
-            if (columns.length > 2 && ("erofs".equals(columns[2]) || "f2fs".equals(columns[2]))) {
-                columns[2] = "ext4";
             }
             if ("/system".equals(mountpoint)) hasSystem = true;
             else hasVendor = true;

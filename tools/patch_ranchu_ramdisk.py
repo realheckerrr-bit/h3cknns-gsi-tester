@@ -266,6 +266,11 @@ def patch_fstab_for_devices(content, system_device, vendor_device, data_device):
                           + ("\n" if line.endswith("\n") else ""))
             changed = True
             continue
+        if (mountpoint in ("/system", "/vendor", "/data")
+                and len(columns) > 2 and columns[2] in ("erofs", "f2fs")):
+            result.append("#" + line[1:] if not line.startswith("#") else line)
+            changed = True
+            continue
         if mount_entry and mountpoint == "/data":
             columns[0] = data_device
             ending = "\n" if line.endswith("\n") else ""
@@ -286,8 +291,6 @@ def patch_fstab_for_devices(content, system_device, vendor_device, data_device):
         else:
             changed = True
             continue
-        if len(columns) > 2 and columns[2] in ("erofs", "f2fs"):
-            columns[2] = "ext4"
         for index, column in enumerate(columns):
             columns[index] = ",".join(value for value in column.split(",")
                                        if value != "logical"
