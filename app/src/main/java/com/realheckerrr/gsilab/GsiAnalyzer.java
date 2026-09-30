@@ -123,7 +123,10 @@ public final class GsiAnalyzer {
     private static ImageScan scan(InputStream source) throws IOException {
         MessageDigest digest = sha256Digest();
         BufferedInputStream input = new BufferedInputStream(source);
-        byte[] header = new byte[4096];
+        // Real super images place their geometry at byte 4096, so the
+        // preflight window must include that offset as well as filesystem
+        // signatures near the beginning of the image.
+        byte[] header = new byte[8192];
         int headerBytes = 0;
         int read;
         while (headerBytes < header.length && (read = input.read(header, headerBytes, header.length - headerBytes)) != -1) {
@@ -144,7 +147,8 @@ public final class GsiAnalyzer {
         if (length >= 4 && littleEndianInt(header, 0) == SPARSE_MAGIC) {
             return "Android sparse image";
         }
-        if (length >= 4 && littleEndianInt(header, 0) == 0x616C4467L) {
+        if ((length >= 4 && littleEndianInt(header, 0) == 0x616C4467L)
+                || (length >= 4100 && littleEndianInt(header, 4096) == 0x616C4467L)) {
             return "Android dynamic-partition super image";
         }
         if (length >= 1028 && littleEndianInt(header, 1024) == 0xE0F5E1E2L) {

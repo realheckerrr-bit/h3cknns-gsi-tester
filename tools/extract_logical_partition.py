@@ -33,10 +33,20 @@ def read_at(source, offset: int, size: int) -> bytes:
     return value
 
 
-def load_metadata(source, slot: int):
+def read_geometry(source):
+    try:
+        geometry = read_at(source, 4096, 52)
+        if u32(geometry, 0) == GEOMETRY_MAGIC:
+            return geometry
+    except ValueError:
+        pass
     geometry = read_at(source, 0, 52)
     if u32(geometry, 0) != GEOMETRY_MAGIC:
         raise ValueError("invalid super-image geometry magic")
+    return geometry
+
+
+def load_metadata(source, geometry, slot: int):
     metadata_max_size = u32(geometry, 40)
     slot_count = u32(geometry, 44)
     if not metadata_max_size or slot < 0 or slot >= slot_count:
@@ -82,10 +92,10 @@ def extract(source_path: Path, requested: str, output_path: Path) -> None:
     with source_path.open("rb") as source:
         metadata = None
         partition = None
-        geometry = read_at(source, 0, 52)
-        slots = u32(geometry, 44) if u32(geometry, 0) == GEOMETRY_MAGIC else 0
+        geometry = read_geometry(source)
+        slots = u32(geometry, 44)
         for slot in range(slots):
-            candidate = load_metadata(source, slot)
+            candidate = load_metadata(source, geometry, slot)
             partition = find_partition(source, candidate, requested)
             if partition is not None:
                 metadata = candidate

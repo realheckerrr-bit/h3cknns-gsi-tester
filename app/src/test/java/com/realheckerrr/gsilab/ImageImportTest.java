@@ -506,7 +506,7 @@ public final class ImageImportTest {
         long vendorOffset = 128L * 512L;
         try (RandomAccessFile output = new RandomAccessFile(target, "rw")) {
             output.setLength(131072L);
-            output.seek(0);
+            output.seek(4096L);
             writeInt(output, 0x616C4467L);
             writeInt(output, 52);
             output.seek(40);

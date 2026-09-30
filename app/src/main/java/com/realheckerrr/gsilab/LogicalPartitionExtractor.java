@@ -20,7 +20,16 @@ public final class LogicalPartitionExtractor {
     public static File extract(File superImage, String requestedName, File output) throws IOException {
         if (superImage == null || !superImage.isFile()) throw new IOException("The super image is not readable.");
         try (RandomAccessFile input = new RandomAccessFile(superImage, "r")) {
-            Geometry geometry = readGeometry(input, 0L);
+            // Android reserves the first 4 KiB of a real super partition and
+            // stores the primary geometry immediately after it. Keep the
+            // offset-zero fallback for older/synthetic images encountered in
+            // the wild and by existing tooling.
+            Geometry geometry;
+            try {
+                geometry = readGeometry(input, RESERVED_BYTES);
+            } catch (IOException primaryGeometryError) {
+                geometry = readGeometry(input, 0L);
+            }
             long metadataBase = RESERVED_BYTES + GEOMETRY_SIZE;
             Metadata metadata = readMetadata(input, metadataBase, geometry.metadataMaxSize, geometry.slotCount, 0);
             Partition partition = findPartition(metadata, requestedName);

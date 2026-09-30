@@ -249,9 +249,19 @@ public final class BootAssets {
     }
 
     private static boolean isDynamicPartitionSuper(File file) throws IOException {
-        try (InputStream input = new FileInputStream(file)) {
-            byte[] magic = readBytes(input, 4);
-            return littleInt(magic, 0) == 0x616C4467L;
+        try (RandomAccessFile input = new RandomAccessFile(file, "r")) {
+            byte[] magic = new byte[4];
+            if (file.length() >= 4) {
+                input.seek(0L);
+                input.readFully(magic);
+                if (littleInt(magic, 0) == 0x616C4467L) return true;
+            }
+            if (file.length() >= 4100) {
+                input.seek(4096L);
+                input.readFully(magic);
+                return littleInt(magic, 0) == 0x616C4467L;
+            }
+            return false;
         }
     }
 
