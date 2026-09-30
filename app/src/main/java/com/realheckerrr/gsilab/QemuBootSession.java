@@ -17,6 +17,9 @@ public final class QemuBootSession {
     private final File workDirectory;
     private final File consoleLog;
     private final long nativeHandle;
+    private long markerScanOffset;
+    private String markerScanCarry = "";
+    private boolean androidBootMarkerSeen;
 
     private QemuBootSession(File workDirectory, File consoleLog, long nativeHandle) {
         this.workDirectory = workDirectory;
@@ -155,6 +158,54 @@ public final class QemuBootSession {
         } catch (Exception error) {
             return "(console read failed: " + error.getMessage() + ")";
         }
+    }
+
+    /**
+     * Scans newly written serial output for an Android boot marker.  The
+     * visible console is intentionally capped, so markers must not disappear
+     * just because later boot logs pushed them out of the UI tail.
+     */
+    public boolean hasAndroidBootMarker() {
+        if (androidBootMarkerSeen) return true;
+        try {
+            if (!consoleLog.isFile()) return false;
+            long length = consoleLog.length();
+            if (length < markerScanOffset) {
+                markerScanOffset = 0L;
+                markerScanCarry = "";
+            }
+            if (length == markerScanOffset) return false;
+            byte[] bytes = new byte[8192];
+            try (RandomAccessFile input = new RandomAccessFile(consoleLog, "r")) {
+                input.seek(markerScanOffset);
+                int read;
+                while ((read = input.read(bytes)) != -1) {
+                    String text = markerScanCarry
+                            + new String(bytes, 0, read, StandardCharsets.UTF_8);
+                    if (containsAndroidBootMarker(text)) {
+                        androidBootMarkerSeen = true;
+                        markerScanOffset = length;
+                        markerScanCarry = "";
+                        return true;
+                    }
+                    markerScanCarry = text.substring(Math.max(0, text.length() - 128));
+                    markerScanOffset += read;
+                }
+            }
+        } catch (Exception ignored) {
+            // The serial file may be in the middle of a native write; retry
+            // on the next UI poll instead of treating that as a boot failure.
+        }
+        return false;
+    }
+
+    private static boolean containsAndroidBootMarker(String console) {
+        String lower = console.toLowerCase(java.util.Locale.US);
+        return lower.contains("sys.boot_completed")
+                || lower.contains("boot animation stopped")
+                || lower.contains("starting service .zygote")
+                || lower.contains("android runtime started")
+                || (lower.contains("class_start main") && lower.contains("succeeded"));
     }
 
     public boolean isRunning() {

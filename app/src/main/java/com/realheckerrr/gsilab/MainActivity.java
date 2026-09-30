@@ -84,7 +84,9 @@ public final class MainActivity extends Activity {
                 lastQemuRunning = running;
             }
             String console = session.readConsole();
-            if (hasAndroidBootMarker(console)) bootMarkerSeen = true;
+            if (session.hasAndroidBootMarker() || hasAndroidBootMarker(console)) {
+                bootMarkerSeen = true;
+            }
             reportText.setText(analysis.render() + "\n" + guestAnalysis.render()
                     + "\n\nQEMU STATE\n  process: " + (running ? "running" : "exited")
                     + "\n  android marker: " + (bootMarkerSeen ? "observed" : "waiting")
