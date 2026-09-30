@@ -83,6 +83,16 @@ jobs:
           mkdir -p cf-image/host
           tar -xzf cf-image/cvd-host_package.tar.gz -C cf-image/host
 
+          # Ubuntu's QEMU package does not ship the UEFI virtio ROM that the
+          # Android virtio-blk-pci-non-transitional device needs.  Fetch the
+          # same official Android QEMU ROM bundled by the APK so this smoke
+          # test exercises the same PCI device contract.
+          curl --fail --location --retry 3 --retry-delay 3 \
+            -o cf-image/efi-virtio.rom.b64 \
+            'https://android.googlesource.com/platform/external/qemu/+/emu-35-3-release/pc-bios/efi-virtio.rom?format=TEXT'
+          base64 --decode cf-image/efi-virtio.rom.b64 > cf-image/efi-virtio.rom
+          test "$(stat -c '%s' cf-image/efi-virtio.rom)" -gt 0
+
       - name: Download and verify official ARM64 GSI
         shell: bash
         env:
@@ -165,10 +175,9 @@ jobs:
         run: |
           set -uo pipefail
           vendor_img=$(find vendor -maxdepth 1 -type f \( -name vendor_a.img -o -name vendor.img \) -print -quit)
-          romfile=$(find /usr/share/qemu /usr/share/seabios /usr/lib -type f -name efi-virtio.rom -print -quit 2>/dev/null || true)
-          if [[ -z "$romfile" || ! -f "$romfile" ]]; then
-            echo 'efi-virtio.rom was not installed on the runner.' >&2
-            find /usr/share /usr/lib -iname '*virtio*.rom' -print 2>/dev/null | head -40 >&2 || true
+          romfile="$PWD/cf-image/efi-virtio.rom"
+          if [[ ! -f "$romfile" ]]; then
+            echo "Missing official virtio ROM: $romfile" >&2
             exit 1
           fi
           qemu-system-aarch64 \

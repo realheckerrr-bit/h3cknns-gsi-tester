@@ -499,8 +499,23 @@ public final class MainActivity extends Activity {
     }
 
     private void probeRuntime() {
-        if (analysis == null || guestAnalysis == null) {
-            appendLog("Start VM is waiting for both the GSI analysis and guest-bundle analysis.");
+        if (selectedFile == null) {
+            appendLog("Select a GSI image or ZIP first.");
+            refreshBootButton();
+            return;
+        }
+        if (analysis == null) {
+            appendLog("The GSI has not been analyzed yet; analyzing it now.");
+            analyzeInput();
+            return;
+        }
+        if (guestFile == null) {
+            appendLog("No guest bundle is selected; downloading the official ARM64 Ranchu guest now.");
+            downloadDefaultGuest();
+            return;
+        }
+        if (guestAnalysis == null) {
+            appendLog("The guest bundle has not finished analyzing yet.");
             refreshBootButton();
             return;
         }
@@ -657,17 +672,18 @@ public final class MainActivity extends Activity {
     }
 
     private void refreshBootButton() {
-        boolean hasSelections = selectedFile != null && guestFile != null;
         if (session != null && session.isRunning()) {
             bootButton.setText("Stop test VM");
             bootButton.setEnabled(true);
         } else if (!launchInProgress) {
-            bootButton.setText("Start VM");
-            // Keep the control actionable once both files have been selected.
-            // probeRuntime() gives the user the exact missing-analysis or
-            // compatibility error instead of leaving a mysteriously disabled
-            // button.
-            bootButton.setEnabled(hasSelections);
+            boolean hasGsi = selectedFile != null;
+            bootButton.setText(hasGsi && guestFile == null
+                    ? "Download guest & continue" : "Start VM");
+            // Keep the control actionable after the GSI is selected.  The
+            // click handler now performs any missing analysis or starts the
+            // official guest download instead of leaving a dead-looking
+            // button until every preparation step is completed.
+            bootButton.setEnabled(hasGsi);
         }
     }
 
