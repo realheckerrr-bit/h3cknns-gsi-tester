@@ -165,7 +165,6 @@ jobs:
               -drive if=none,format=raw,id=vendor,file="$PWD/guest/vendor.raw.img",readonly=on \
               -device virtio-blk-device,drive=vendor \
               -display sdl \
-              -audiodev driver=none,id=audio0 \
               -monitor none \
               -serial file:serial.log \
               -no-reboot \
