@@ -38,8 +38,12 @@ jobs:
 
       - name: Install official Android Emulator host
         uses: android-actions/setup-android@v3
-        with:
-          packages: emulator platform-tools
+
+      - name: Install emulator package
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager "emulator" "platform-tools"
 
       - name: Download official ARM64 Emulator guest pack
         shell: bash
@@ -151,7 +155,9 @@ jobs:
           printf 'AvdId=ranchu-smoke\nabi.type=arm64-v8a\nhw.cpu.arch=arm64\nhw.cpu.ncore=4\nhw.ramSize=4096\nhw.lcd.width=1080\nhw.lcd.height=1920\nhw.lcd.density=420\nhw.device.name=pixel\nimage.sysdir.1=%s\ndisk.dataPartition.size=2G\n' "$PWD/guest" > "$avd_dir/config.ini"
           cp guest/ramdisk.patched.img guest/ramdisk.img
           cp guest/kernel-ranchu guest/kernel-ranchu-64 2>/dev/null || true
-          emulator @ranchu-smoke \
+          emulator_bin="$ANDROID_HOME/emulator/emulator"
+          test -x "$emulator_bin"
+          "$emulator_bin" @ranchu-smoke \
             -sysdir "$PWD/guest" \
             -kernel "$PWD/guest/kernel-ranchu" \
             -ramdisk "$PWD/guest/ramdisk.patched.img" \
@@ -163,7 +169,7 @@ jobs:
           emulator_pid=$!
           booted=0
           for _ in $(seq 1 240); do
-            if adb shell getprop sys.boot_completed 2>/dev/null | grep -qx '1'; then
+            if timeout 5 adb shell getprop sys.boot_completed 2>/dev/null | grep -qx '1'; then
               booted=1
               break
             fi
