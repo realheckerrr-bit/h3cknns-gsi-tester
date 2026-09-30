@@ -42,6 +42,11 @@ jobs:
         run: |
           set -euo pipefail
           cd qemu
+          # The standalone QEMU build does not link the Android feature-control
+          # library used by the emulator frontend.
+          sed -i \
+            's/if (!default_net && !feature_is_enabled(kFeature_WiFiPacketStream)) {/if (!default_net) {/' \
+            vl.c
           sed -i \
             -e 's/sys.version_info < (2,4) or sys.version_info >= (3,)/sys.version_info < (2,4)/' \
             -e 's/sys.version_info < (2,6) or sys.version_info >= (3,)/sys.version_info < (2,6)/' \
