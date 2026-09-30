@@ -28,6 +28,10 @@ guest.zip
 Pixel-style guest archives may provide `boot.img`, `vendor_boot.img`, or
 `init_boot.img` instead of separate kernel/ramdisk files; the app extracts the
 payloads during private boot preparation. This improves inspection and
+
+Cuttlefish image-only archives may leave the kernel in the matching
+`cvd-host_package`; combine that standalone ARM64 `kernel` with the image
+archive when making a guest ZIP for the app.
 experimentation, but Pixel kernel/vendor files remain device-specific and are
 not treated as a universal Cuttlefish replacement.
 

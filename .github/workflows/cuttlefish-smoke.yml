@@ -63,6 +63,26 @@ jobs:
             -o cf-image/cuttlefish.zip "$artifact_url"
           unzip -q cf-image/cuttlefish.zip -d cf-image/root
 
+          host_viewer_url="https://ci.android.com/builds/submitted/${BUILD_ID}/${TARGET}/latest/cvd-host_package.tar.gz"
+          curl --fail --location --retry 3 --retry-delay 3 \
+            -o cf-image/host-viewer.html "$host_viewer_url"
+          host_artifact_url=$(python3 - cf-image/host-viewer.html <<'PY'
+          import json
+          import re
+          import sys
+
+          html = open(sys.argv[1], encoding="utf-8").read()
+          match = re.search(r'"artifactUrl":"([^"]+)"', html)
+          if not match:
+              raise SystemExit("ci.android.com did not expose the Cuttlefish host package URL")
+          print(json.loads('"' + match.group(1) + '"'))
+          PY
+          )
+          curl --fail --location --retry 3 --retry-delay 3 \
+            -o cf-image/cvd-host_package.tar.gz "$host_artifact_url"
+          mkdir -p cf-image/host
+          tar -xzf cf-image/cvd-host_package.tar.gz -C cf-image/host
+
       - name: Download and verify official ARM64 GSI
         shell: bash
         env:
@@ -97,18 +117,31 @@ jobs:
           userdata_img=$(find "$image_dir" -type f -name userdata.img -print -quit)
           [[ -n "$boot_img" && -n "$super_img" && -n "$userdata_img" ]]
 
-          mkdir -p boot vendor
+          mkdir -p boot boot-init boot-vendor vendor
           echo 'Cuttlefish boot-related files:'
           find "$image_dir" -type f | grep -Ei '/(kernel|ramdisk|boot|init_boot|vendor_boot)' | head -80 || true
-          direct_kernel=$(find "$image_dir" -type f \( -name kernel -o -name kernel-ranchu -o -name kernel_16k -o -name 'kernel-*' \) ! -name '*cmdline*' -print -quit)
+          direct_kernel=$(find "$image_dir" cf-image/host -type f \( -name kernel -o -name kernel-ranchu -o -name kernel_16k -o -name 'kernel-*' \) ! -name '*cmdline*' -print -quit)
           direct_ramdisk=$(find "$image_dir" -type f \( -name ramdisk.img -o -name ramdisk -o -name 'ramdisk-*' \) -print -quit)
-          if [[ -n "$direct_kernel" && -n "$direct_ramdisk" ]]; then
+          if [[ -n "$direct_kernel" ]]; then
             cp "$direct_kernel" boot/kernel
-            cp "$direct_ramdisk" boot/ramdisk
-          else
-            python3 tools/unpack_android_boot_image.py "$boot_img" boot
           fi
-          ramdisk=$(find boot -maxdepth 1 -type f -name 'ramdisk*' -print -quit)
+          python3 tools/unpack_android_boot_image.py "$boot_img" boot || true
+          init_boot_img=$(find "$image_dir" -type f -name init_boot.img -print -quit)
+          vendor_boot_img=$(find "$image_dir" -type f -name vendor_boot.img -print -quit)
+          if [[ -n "$init_boot_img" ]]; then
+            python3 tools/unpack_android_boot_image.py "$init_boot_img" boot-init || true
+          fi
+          if [[ -n "$vendor_boot_img" ]]; then
+            python3 tools/unpack_android_boot_image.py "$vendor_boot_img" boot-vendor || true
+          fi
+          if [[ ! -f boot/kernel ]]; then
+            direct_kernel=$(find cf-image/host "$image_dir" -type f \( -name kernel -o -name kernel-ranchu -o -name kernel_16k -o -name 'kernel-*' \) ! -name '*cmdline*' -print -quit)
+            [[ -n "$direct_kernel" ]] && cp "$direct_kernel" boot/kernel
+          fi
+          if [[ ! -f boot/ramdisk && -n "$direct_ramdisk" ]]; then
+            cp "$direct_ramdisk" boot/ramdisk
+          fi
+          ramdisk=$(find boot boot-init boot-vendor -maxdepth 1 -type f -name ramdisk -print -quit)
           [[ -f boot/kernel && -n "$ramdisk" ]]
           [[ "$ramdisk" == 'boot/ramdisk' ]] || cp "$ramdisk" boot/ramdisk
 

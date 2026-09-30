@@ -68,7 +68,7 @@ public final class GuestBundleAnalyzer {
                 kernel = bootImage + " (embedded kernel)";
                 warnings.add("kernel will be extracted from boot.img during boot preparation.");
             } else {
-                warnings.add("boot.img has no embedded kernel; this GBL-style bundle needs a direct ARM64 kernel or matching bootloader.");
+                warnings.add("boot.img has no embedded kernel; this image-only Cuttlefish bundle needs a direct ARM64 kernel from its matching cvd-host_package.");
             }
         }
         if (ramdisk == null && (bootImage != null || initBootImage != null || vendorBootImage != null)) {
