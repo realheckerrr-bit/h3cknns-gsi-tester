@@ -35,7 +35,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            android-sdk-libsparse-utils cpio lz4 qemu-system-arm unzip xz-utils
+            android-sdk-libsparse-utils cpio lz4 qemu-system-arm unzip xz-utils \
             e2fsprogs
 
       - name: Install official Android virtio firmware
