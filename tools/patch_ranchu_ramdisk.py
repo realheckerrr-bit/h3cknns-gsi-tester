@@ -361,7 +361,7 @@ def main():
                 content, system_device, vendor_device, data_device,
                 extra_devices, cuttlefish)
             changed |= entry_changed
-        if cuttlefish and base == "init.rc":
+        if cuttlefish and base.startswith("init") and base.endswith(".rc"):
             marker = b"setenforce 0"
             if marker not in content:
                 content += (b"\n\n# GSI tester permissive compatibility mode\n"
