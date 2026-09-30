@@ -149,6 +149,25 @@ jobs:
           wrapper_source="$qemu/android-qemu2-glue/emulation/virtio-gpu-gfxstream-renderer.cpp"
           wrapper_object="$qemu/android-qemu2-glue/virtio-gpu-gfxstream-renderer.o"
           test -s "$wrapper_source"
+          python3 - "$wrapper_source" <<'PY'
+          from pathlib import Path
+          import sys
+          path = Path(sys.argv[1])
+          text = path.read_text()
+          text = text.replace('#include "android/utils/dll.h"', '#include <dlfcn.h>', 1)
+          text = text.replace('    char* error = NULL;\n', '', 1)
+          text = text.replace(
+              '    ADynamicLibrary* rendererSo = adynamicLibrary_open(RENDERER_LIB_NAME, &error);',
+              '    void* rendererSo = dlopen(RENDERER_LIB_NAME ".so", RTLD_NOW | RTLD_LOCAL);', 1)
+          text = text.replace(
+              '    symbol = adynamicLibrary_findSymbol(rendererSo, #api, &error);',
+              '    symbol = dlsym(rendererSo, #api);', 1)
+          text = text.replace('        free(error);\n', '', 1)
+          text = text.replace(
+              'BAD_EXIT:\n    adynamicLibrary_close(rendererSo);\n    return ret;',
+              'BAD_EXIT:\n    return ret;', 1)
+          path.write_text(text)
+          PY
           export PATH="$ndk:$PATH"
           # SDL 2.0.8 declares the GLES shader-source callback with the
           # pre-NDK-r27 const signature.
@@ -452,6 +471,7 @@ jobs:
           PY
           make -C "$jni" limbo \
             NDK_ROOT="$ndk" \
+            CXX="$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++" \
             GFXSTREAM_ROOT="$gfxstream_root" \
             QEMU_CFLAGS="-I$gfxstream_root/include" \
             BUILD_HOST=arm64-v8a APP_ABI=arm64-v8a \
