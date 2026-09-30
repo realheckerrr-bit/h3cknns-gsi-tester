@@ -53,7 +53,7 @@ jobs:
             --disable-slirp \
             --disable-user \
             --enable-trace-backends=nop
-          make -j"$(nproc)"
+          make -f Makefile -j"$(nproc)"
           test -x aarch64-softmmu/qemu-system-aarch64
           aarch64-softmmu/qemu-system-aarch64 -machine help | grep -E '^ranchu '
 
