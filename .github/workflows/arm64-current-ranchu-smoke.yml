@@ -173,6 +173,7 @@ jobs:
           qemu="$PWD/qemu/aarch64-softmmu/qemu-system-aarch64"
           xvfb-run -a -s '-screen 0 1080x1920x24' \
             "$qemu" \
+              -accel tcg,thread=multi \
               -M ranchu \
               -cpu cortex-a57 \
               -m 4096 \

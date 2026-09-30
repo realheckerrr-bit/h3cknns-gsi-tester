@@ -35,6 +35,9 @@ public final class QemuBootSession {
         File log = new File(work, "console.log");
         if (log.exists() && !log.delete()) throw new IOException("Cannot reset console log.");
         List<String> args = new ArrayList<>();
+        // Keep the guest vCPU and device threads schedulable while SDL and
+        // SurfaceFlinger are active on ARM64 TCG hosts.
+        args.add("-accel"); args.add("tcg,thread=multi");
         args.add("-M");
         args.add(assets.ranchu
                 ? "ranchu"
