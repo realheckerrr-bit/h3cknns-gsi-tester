@@ -294,6 +294,12 @@ public final class RanchuRamdiskPatcher {
                 changed = true;
                 continue;
             }
+            if (allFstabEntries && device.startsWith("/dev/block/by-name/")
+                    && !"/system".equals(mountpoint) && !"/vendor".equals(mountpoint)) {
+                result.append('#').append(line.startsWith("#") ? line.substring(1) : line);
+                changed = true;
+                continue;
+            }
             if (!stripped.contains("first_stage_mount")) {
                 result.append(line);
                 continue;
@@ -313,7 +319,8 @@ public final class RanchuRamdiskPatcher {
             for (int i = 0; i < columns.length; i++) {
                 StringBuilder flags = new StringBuilder();
                 for (String flag : columns[i].split(",")) {
-                    if ("logical".equals(flag) || "slotselect".equals(flag) || flag.startsWith("avb=")) continue;
+                    if ("logical".equals(flag) || "slotselect".equals(flag)
+                            || flag.startsWith("avb=") || flag.startsWith("avb_keys=")) continue;
                     if (flags.length() > 0) flags.append(',');
                     flags.append(flag);
                 }

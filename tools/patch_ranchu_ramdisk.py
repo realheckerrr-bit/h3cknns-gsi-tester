@@ -272,6 +272,10 @@ def patch_fstab_for_devices(content, system_device, vendor_device, data_device):
             result.append(" ".join(columns) + ending)
             changed = True
             continue
+        if cuttlefish_device_line(device, mountpoint, stripped):
+            result.append("#" + line[1:] if not line.startswith("#") else line)
+            changed = True
+            continue
         if "first_stage_mount" not in stripped:
             result.append(line)
             continue
@@ -286,11 +290,18 @@ def patch_fstab_for_devices(content, system_device, vendor_device, data_device):
             columns[index] = ",".join(value for value in column.split(",")
                                        if value != "logical"
                                        and value != "slotselect"
-                                       and not value.startswith("avb="))
+                                       and not value.startswith("avb=")
+                                       and not value.startswith("avb_keys="))
         ending = "\n" if line.endswith("\n") else ""
         result.append(" ".join(columns) + ending)
         changed = True
     return "".join(result).encode("utf-8"), changed
+
+
+def cuttlefish_device_line(device, mountpoint, stripped):
+    return (device.startswith("/dev/block/by-name/")
+            and mountpoint not in ("/system", "/vendor", "/data")
+            and "first_stage_mount" not in stripped)
 
 
 def main():
