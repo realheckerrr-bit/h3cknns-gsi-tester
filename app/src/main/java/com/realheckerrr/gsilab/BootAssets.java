@@ -124,7 +124,7 @@ public final class BootAssets {
     private static void copyEntry(File archive, File target, String... wantedBases) throws IOException {
         try (ZipFile zip = new ZipFile(archive)) {
             ZipEntry entry = findEntry(zip, wantedBases);
-            if (entry == null) throw new IOException("GSI ZIP does not contain system.img, system.img.gz, or system.img.xz.");
+            if (entry == null) throw new IOException("GSI ZIP does not contain system.img or a supported compressed system image.");
             String base = entry.getName().substring(entry.getName().lastIndexOf('/') + 1);
             try (InputStream raw = zip.getInputStream(entry);
                  InputStream input = maybeCompressed(raw, base);
@@ -144,7 +144,10 @@ public final class BootAssets {
             ZipEntry entry = entries.nextElement();
             if (entry.isDirectory()) continue;
             String base = entry.getName().substring(entry.getName().lastIndexOf('/') + 1);
-            for (String wanted : wantedNames) if (base.equalsIgnoreCase(wanted)) return entry;
+            String normalizedBase = stripCompressionSuffix(base);
+            for (String wanted : wantedNames) {
+                if (normalizedBase.equalsIgnoreCase(stripCompressionSuffix(wanted))) return entry;
+            }
         }
         return null;
     }
@@ -232,6 +235,7 @@ public final class BootAssets {
         String lower = name.toLowerCase(Locale.US);
         if (lower.endsWith(".gz")) return new GZIPInputStream(input);
         if (lower.endsWith(".xz")) return new org.tukaani.xz.XZInputStream(input);
+        if (lower.endsWith(".lz4")) return new LegacyLz4InputStream(input);
         return input;
     }
 
@@ -293,6 +297,7 @@ public final class BootAssets {
         String lower = name.toLowerCase(Locale.US);
         if (lower.endsWith(".gz")) return name.substring(0, name.length() - 3);
         if (lower.endsWith(".xz")) return name.substring(0, name.length() - 3);
+        if (lower.endsWith(".lz4")) return name.substring(0, name.length() - 4);
         return name;
     }
 }

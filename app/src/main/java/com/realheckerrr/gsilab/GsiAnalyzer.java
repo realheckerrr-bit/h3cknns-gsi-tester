@@ -46,16 +46,12 @@ public final class GsiAnalyzer {
                 entries++;
                 if (entry.isDirectory()) continue;
                 String name = entry.getName().replace('\\', '/');
-                if (name.equals("system.img") || name.endsWith("/system.img")
-                        || name.equals("system.img.gz") || name.endsWith("/system.img.gz")
-                        || name.equals("system.img.xz") || name.endsWith("/system.img.xz")) {
-                    if (system == null || name.equals("system.img")) system = entry;
+                String base = name.substring(name.lastIndexOf('/') + 1);
+                String imageBase = stripCompressionSuffix(base).toLowerCase(Locale.US);
+                if (imageBase.equals("system.img")) {
+                    if (system == null || base.equalsIgnoreCase("system.img")) system = entry;
                 }
-                if (superImage == null && (name.equals("super.img") || name.endsWith("/super.img")
-                        || name.equals("super.img.gz") || name.endsWith("/super.img.gz")
-                        || name.equals("super.img.xz") || name.endsWith("/super.img.xz"))) {
-                    superImage = entry;
-                }
+                if (superImage == null && imageBase.equals("super.img")) superImage = entry;
             }
             ZipEntry selected = system != null ? system : superImage;
             if (selected == null) {
@@ -74,8 +70,11 @@ public final class GsiAnalyzer {
             if (systemName.toLowerCase(Locale.US).endsWith(".xz")) {
                 warnings.add("system.img.xz was decompressed before header analysis.");
             }
+            if (systemName.toLowerCase(Locale.US).endsWith(".lz4")) {
+                warnings.add("system.img.lz4 was decompressed before header analysis.");
+            }
             if (scan.format.equals("unknown")) {
-                warnings.add("system.img is not identified as Android sparse or raw ext4 from its header.");
+                warnings.add("system.img is not identified as Android sparse, ext4, EROFS, or F2FS from its header.");
             }
             if (system == null) {
                 warnings.add("ZIP contains a dynamic-partition super image; the system logical partition will be extracted during boot preparation.");
@@ -103,8 +102,11 @@ public final class GsiAnalyzer {
         if (input.getName().toLowerCase(Locale.US).endsWith(".xz")) {
             warnings.add("XZ input was decompressed before header analysis.");
         }
+        if (input.getName().toLowerCase(Locale.US).endsWith(".lz4")) {
+            warnings.add("LZ4 input was decompressed before header analysis.");
+        }
         if (scan.format.equals("unknown")) {
-            warnings.add("Image header is not recognized as Android sparse or raw ext4.");
+            warnings.add("Image header is not recognized as Android sparse, ext4, EROFS, or F2FS.");
         }
         boolean candidate = scan.bytes > 0 && !scan.format.equals("unknown");
         return new GsiAnalysis(input.getName(), container, input.getName(), scan.bytes, scan.format,
@@ -161,7 +163,15 @@ public final class GsiAnalyzer {
         String lower = name.toLowerCase(Locale.US);
         if (lower.endsWith(".gz")) return new GZIPInputStream(input);
         if (lower.endsWith(".xz")) return new XZInputStream(input);
+        if (lower.endsWith(".lz4")) return new LegacyLz4InputStream(input);
         return input;
+    }
+
+    private static String stripCompressionSuffix(String name) {
+        String lower = name.toLowerCase(Locale.US);
+        if (lower.endsWith(".gz") || lower.endsWith(".xz")) return name.substring(0, name.length() - 3);
+        if (lower.endsWith(".lz4")) return name.substring(0, name.length() - 4);
+        return name;
     }
 
     private static long littleEndianInt(byte[] bytes, int offset) {

@@ -67,6 +67,24 @@ public final class ImageImportTest {
     }
 
     @Test
+    public void analyzesLegacyLz4SystemEntryInsideZip() throws Exception {
+        byte[] ext4 = ext4Image(4096);
+        File archive = tempFile("gsi-lz4.zip");
+        try (ZipOutputStream zip = new ZipOutputStream(new FileOutputStream(archive))) {
+            zip.putNextEntry(new ZipEntry("images/system.img.lz4"));
+            zip.write(legacyLz4Bytes(ext4));
+            zip.closeEntry();
+        }
+
+        GsiAnalysis result = GsiAnalyzer.analyze(archive);
+
+        assertEquals("system.img.lz4", result.systemEntry);
+        assertEquals("raw ext4 image", result.imageFormat);
+        assertTrue(result.bootCandidate);
+        assertTrue(result.warnings.stream().anyMatch(value -> value.contains("LZ4")));
+    }
+
+    @Test
     public void analyzesErofsAndF2fsSystemImages() throws Exception {
         File erofs = tempFile("system.erofs.img");
         try (RandomAccessFile output = new RandomAccessFile(erofs, "rw")) {
@@ -151,6 +169,30 @@ public final class ImageImportTest {
         assertEquals("libqemu-system-aarch64.so", assets.qemu.getName());
         assertEquals("cache.img", report.cache);
         assertEquals("encryptionkey.img", report.encryptionKey);
+    }
+
+    @Test
+    public void expandsLegacyLz4GuestAssets() throws Exception {
+        byte[] ext4 = ext4Image(4096);
+        File guest = tempFile("guest-lz4.zip");
+        try (ZipOutputStream zip = new ZipOutputStream(new FileOutputStream(guest))) {
+            put(zip, "kernel-ranchu.lz4", legacyLz4Bytes(new byte[]{1, 2, 3}));
+            put(zip, "ramdisk.img.lz4", legacyLz4Bytes(new byte[]{4, 5}));
+            put(zip, "vendor.img.lz4", legacyLz4Bytes(ext4));
+        }
+        File gsi = tempFile("gsi-for-lz4.img");
+        Files.write(gsi.toPath(), ext4);
+        File output = Files.createTempDirectory("lz4-vm-").toFile();
+
+        GuestBundleAnalysis report = GuestBundleAnalyzer.analyze(guest);
+        BootAssets assets = BootAssets.prepare(gsi, guest, output);
+
+        assertTrue(report.bootCandidate);
+        assertEquals("kernel-ranchu.lz4", report.kernel);
+        assertEquals("vendor.img.lz4", report.vendor);
+        assertArrayEquals(new byte[]{1, 2, 3}, Files.readAllBytes(assets.kernel.toPath()));
+        assertArrayEquals(new byte[]{4, 5}, Files.readAllBytes(assets.ramdisk.toPath()));
+        assertArrayEquals(ext4, Files.readAllBytes(assets.vendor.toPath()));
     }
 
     @Test
@@ -319,6 +361,22 @@ public final class ImageImportTest {
             gzip.write(bytes);
         }
         return output.toByteArray();
+    }
+
+    private static byte[] legacyLz4Bytes(byte[] bytes) throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        writeLittleInt(output, 0x184C2102);
+        writeLittleInt(output, Integer.MIN_VALUE | bytes.length);
+        output.write(bytes);
+        writeLittleInt(output, 0);
+        return output.toByteArray();
+    }
+
+    private static void writeLittleInt(ByteArrayOutputStream output, int value) {
+        output.write(value & 0xFF);
+        output.write((value >>> 8) & 0xFF);
+        output.write((value >>> 16) & 0xFF);
+        output.write((value >>> 24) & 0xFF);
     }
 
     private static void appendCpio(ByteArrayOutputStream output, String name, int mode,

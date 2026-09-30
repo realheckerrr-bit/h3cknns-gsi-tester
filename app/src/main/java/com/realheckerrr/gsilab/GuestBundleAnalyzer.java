@@ -44,24 +44,20 @@ public final class GuestBundleAnalyzer {
                 entries++;
                 if (entry.isDirectory()) continue;
                 String name = entry.getName().replace('\\', '/');
-                String base = name.substring(name.lastIndexOf('/') + 1).toLowerCase(Locale.US);
-                if (kernel == null && (base.equals("kernel") || base.equals("kernel.gz") || base.equals("kernel.xz")
-                        || base.equals("kernel-ranchu") || base.equals("kernel-ranchu.gz") || base.equals("kernel-ranchu.xz")
-                        || base.equals("kernel-ranchu-64") || base.equals("kernel-ranchu-64.gz") || base.equals("kernel-ranchu-64.xz")
-                        || base.equals("kernel_16k") || base.equals("kernel_16k.gz") || base.equals("kernel_16k.xz"))) kernel = name;
-                if (ramdisk == null && (base.equals("ramdisk.img") || base.equals("ramdisk.img.gz") || base.equals("ramdisk.img.xz")
-                        || base.equals("ramdisk_16k.img") || base.equals("ramdisk_16k.img.gz") || base.equals("ramdisk_16k.img.xz"))) ramdisk = name;
-                if (vendor == null && (base.equals("vendor.img") || base.equals("vendor.img.gz") || base.equals("vendor.img.xz")
-                        || base.equals("vendor_a.img") || base.equals("vendor_a.img.gz") || base.equals("vendor_a.img.xz"))) vendor = name;
-                if (userdata == null && (base.equals("userdata.img") || base.equals("userdata.img.gz") || base.equals("userdata.img.xz")
-                        || base.equals("userdata-qemu.img") || base.equals("userdata-qemu.img.gz") || base.equals("userdata-qemu.img.xz"))) userdata = name;
-                if (cache == null && (base.equals("cache.img") || base.equals("cache.img.gz") || base.equals("cache.img.xz"))) cache = name;
-                if (encryptionKey == null && (base.equals("encryptionkey.img") || base.equals("encryptionkey.img.gz") || base.equals("encryptionkey.img.xz"))) encryptionKey = name;
+                String rawBase = name.substring(name.lastIndexOf('/') + 1);
+                String base = stripCompressionSuffix(rawBase).toLowerCase(Locale.US);
+                if (kernel == null && (base.equals("kernel") || base.equals("kernel-ranchu")
+                        || base.equals("kernel-ranchu-64") || base.equals("kernel_16k"))) kernel = name;
+                if (ramdisk == null && (base.equals("ramdisk.img") || base.equals("ramdisk_16k.img"))) ramdisk = name;
+                if (vendor == null && (base.equals("vendor.img") || base.equals("vendor_a.img"))) vendor = name;
+                if (userdata == null && (base.equals("userdata.img") || base.equals("userdata-qemu.img"))) userdata = name;
+                if (cache == null && base.equals("cache.img")) cache = name;
+                if (encryptionKey == null && base.equals("encryptionkey.img")) encryptionKey = name;
                 if (qemu == null && (base.equals("qemu-system-aarch64") || base.equals("libqemu-system-aarch64.so"))) qemu = name;
-                if (superImage == null && (base.equals("super.img") || base.equals("super.img.gz") || base.equals("super.img.xz"))) superImage = name;
-                if (bootImage == null && (base.equals("boot.img") || base.equals("boot.img.gz") || base.equals("boot.img.xz"))) bootImage = name;
-                if (initBootImage == null && (base.equals("init_boot.img") || base.equals("init_boot.img.gz") || base.equals("init_boot.img.xz"))) initBootImage = name;
-                if (vendorBootImage == null && (base.equals("vendor_boot.img") || base.equals("vendor_boot.img.gz") || base.equals("vendor_boot.img.xz"))) vendorBootImage = name;
+                if (superImage == null && base.equals("super.img")) superImage = name;
+                if (bootImage == null && base.equals("boot.img")) bootImage = name;
+                if (initBootImage == null && base.equals("init_boot.img")) initBootImage = name;
+                if (vendorBootImage == null && base.equals("vendor_boot.img")) vendorBootImage = name;
             }
             if (kernel == null && bootImage != null) bootImageHasKernel = hasKernelPayload(zip, bootImage);
         }
@@ -115,7 +111,15 @@ public final class GuestBundleAnalyzer {
         String lower = name.toLowerCase(Locale.US);
         if (lower.endsWith(".gz")) return new GZIPInputStream(input);
         if (lower.endsWith(".xz")) return new XZInputStream(input);
+        if (lower.endsWith(".lz4")) return new LegacyLz4InputStream(input);
         return input;
+    }
+
+    private static String stripCompressionSuffix(String name) {
+        String lower = name.toLowerCase(Locale.US);
+        if (lower.endsWith(".gz") || lower.endsWith(".xz")) return name.substring(0, name.length() - 3);
+        if (lower.endsWith(".lz4")) return name.substring(0, name.length() - 4);
+        return name;
     }
 
     private static long littleInt(byte[] bytes, int offset) {
