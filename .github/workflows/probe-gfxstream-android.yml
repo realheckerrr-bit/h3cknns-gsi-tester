@@ -88,6 +88,12 @@ jobs:
               '        mAddr = aligned_alloc(alignment, size);',
               '        mAddr = nullptr;\n        if (posix_memalign(&mAddr, alignment, size) != 0) mAddr = nullptr;', 1)
           alloc.write_text(text)
+          backend = root / 'host' / 'CMakeLists.txt'
+          text = backend.read_text()
+          marker = 'target_link_libraries(\n    gfxstream_backend\n    PUBLIC\n'
+          if 'target_link_libraries(gfxstream_backend PUBLIC android)' not in text:
+              text += '\nif(ANDROID)\n    target_link_libraries(gfxstream_backend PUBLIC android)\nendif()\n'
+          backend.write_text(text)
           PY
 
       - name: Configure and build libgfxstream_backend
