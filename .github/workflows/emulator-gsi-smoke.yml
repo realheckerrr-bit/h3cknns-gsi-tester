@@ -34,18 +34,73 @@ jobs:
       - name: Install ARM QEMU and archive tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends cpio e2fsprogs ipxe-qemu libegl1 libgl1-mesa-dri libvirglrenderer1 lz4 qemu-system-arm qemu-system-common qemu-system-gui qemu-system-modules-opengl unzip x11-xserver-utils xvfb xz-utils
+          sudo apt-get install -y --no-install-recommends \
+            autoconf automake bc bison build-essential cpio e2fsprogs flex \
+            gettext libfdt-dev libglib2.0-dev libpixman-1-dev libslirp-dev \
+            gdb libtool lz4 libsdl2-dev ninja-build pkg-config python3 \
+            rsync socat unzip x11-xserver-utils xvfb xz-utils
 
-      - name: Install official Android Emulator host
-        uses: android-actions/setup-android@v3
-        with:
-          packages: platform-tools
-
-      - name: Install emulator package
+      - name: Fetch current Android Ranchu QEMU source
         shell: bash
         run: |
-          yes | sdkmanager --licenses >/dev/null 2>&1 || true
-          sdkmanager "emulator" "platform-tools"
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if git -c http.version=HTTP/1.1 clone --depth 1 --branch emu-35-3-release \
+              https://android.googlesource.com/platform/external/qemu qemu; then
+              break
+            fi
+            rm -rf qemu
+            if [[ "$attempt" == 3 ]]; then exit 1; fi
+            sleep 8
+          done
+          git -C qemu config submodule.dtc.url https://github.com/qemu/dtc.git
+          git -C qemu config submodule.capstone.url https://github.com/capstone-engine/capstone.git
+          git -C qemu config submodule.ui/keycodemapdb.url https://gitlab.com/qemu-project/keycodemapdb.git
+          git -C qemu submodule update --init --depth 1 capstone dtc ui/keycodemapdb
+          printf '%s\n' "$(git -C qemu describe --always)" > qemu/VERSION
+          for attempt in 1 2 3; do
+            if git -c http.version=HTTP/1.1 clone --depth 1 \
+              https://android.googlesource.com/platform/hardware/google/aemu /tmp/aemu-source; then
+              break
+            fi
+            rm -rf /tmp/aemu-source
+            if [[ "$attempt" == 3 ]]; then exit 1; fi
+            sleep 8
+          done
+          mkdir -p qemu/android/android-emu/host-common
+          cp /tmp/aemu-source/host-common/include/host-common/goldfish_pipe.h \
+            /tmp/aemu-source/host-common/include/host-common/android_pipe_base.h \
+            qemu/android/android-emu/host-common/
+          python3 tools/patch_standalone_goldfish_pipe.py qemu/hw/misc/goldfish_pipe.c
+
+      - name: Build current standalone Ranchu QEMU
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd qemu
+          sed -i 's/if (!default_net && !feature_is_enabled(kFeature_WiFiPacketStream)) {/if (!default_net) {/' vl.c
+          sed -i '/MallocHook_SetMmapReplacement/d; /MallocHook_SetMunmapReplacement/d' util/mmap-alloc.c
+          sed -i \
+            -e 's/sys.version_info < (2,4) or sys.version_info >= (3,)/sys.version_info < (2,4)/' \
+            -e 's/sys.version_info < (2,6) or sys.version_info >= (3,)/sys.version_info < (2,6)/' \
+            configure
+          ./configure \
+            --target-list=aarch64-softmmu \
+            --disable-werror \
+            --enable-sdl \
+            --disable-gtk \
+            --disable-vnc \
+            --disable-curses \
+            --disable-slirp \
+            --disable-docs \
+            --disable-user \
+            --audio-drv-list=sdl \
+            --enable-trace-backends=nop
+          make -f Makefile -j"$(nproc)"
+          test -x aarch64-softmmu/qemu-system-aarch64
+          machines=$(aarch64-softmmu/qemu-system-aarch64 -machine help 2>&1 || true)
+          printf '%s\n' "$machines"
+          grep -E '^ranchu ' <<< "$machines"
 
       - name: Download official ARM64 Emulator guest pack
         shell: bash
@@ -63,6 +118,12 @@ jobs:
             unzip -p guest/emulator.zip "$entry" > "guest/$asset"
             test -s "guest/$asset"
           done
+          if gzip -t guest/kernel-ranchu 2>/dev/null; then
+            gzip -dc guest/kernel-ranchu > guest/kernel-ranchu.raw
+          else
+            cp guest/kernel-ranchu guest/kernel-ranchu.raw
+          fi
+          test -s guest/kernel-ranchu.raw
           vendor_gz_entry=$(printf '%s\n' "$entries" | grep -E '(^|/)vendor\.img\.gz$' | head -1 || true)
           vendor_raw_entry=$(printf '%s\n' "$entries" | grep -E '(^|/)vendor\.img$' | head -1 || true)
           if [[ -n "$vendor_gz_entry" ]]; then
@@ -150,9 +211,8 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
-          qemu_bin=$(find "$ANDROID_HOME/emulator" -type f -name qemu-system-aarch64 -perm -111 | head -1 || true)
-          test -n "$qemu_bin"
-          export LD_LIBRARY_PATH="$ANDROID_HOME/emulator/lib64:$ANDROID_HOME/emulator/lib64/qt/lib:${LD_LIBRARY_PATH:-}"
+          qemu_bin="$PWD/qemu/aarch64-softmmu/qemu-system-aarch64"
+          test -x "$qemu_bin"
           booted=0
           emulator_pid=0
           stop_emulator() {
@@ -180,7 +240,7 @@ jobs:
             -m 4096 \
             -smp 2 \
             -rtc base=utc \
-            -kernel "$PWD/guest/kernel-ranchu" \
+            -kernel "$PWD/guest/kernel-ranchu.raw" \
             -initrd "$PWD/guest/ramdisk.patched.img" \
             -append 'console=ttyAMA0,115200 androidboot.console=ttyAMA1 androidboot.hardware=ranchu androidboot.verifiedbootstate=orange androidboot.qemu=1 androidboot.qemu.vsync=60 androidboot.hardware.egl=swiftshader androidboot.hardware.gralloc=minigbm androidboot.hardware.hwcomposer=ranchu androidboot.hardware.hwcomposer.display_finder_mode=drm androidboot.hardware.hwcomposer.display_framebuffer_format=rgba androidboot.hardware.vulkan=pastel androidboot.qemu.cpuvulkan.version=4202496 androidboot.opengles.version=196609 androidboot.debug.hwui.renderer=opengl androidboot.debug.renderengine.backend=skiagl androidboot.config.low_ram=0 androidboot.dalvik.vm.checkjni=1 androidboot.debug.stagefright.ccodec=4 androidboot.debug.sf.nobootanimation=1 qemu.logcat=start androidboot.selinux=permissive selinux=0 security=selinux enforcing=0 androidboot.dalvik.vm.heapsize=192m' \
             -drive if=none,format=raw,id=userdata,file="$PWD/guest/userdata.img" \
