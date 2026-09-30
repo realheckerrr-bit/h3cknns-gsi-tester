@@ -362,6 +362,13 @@ def main():
                 extra_devices, cuttlefish)
             changed |= entry_changed
         if cuttlefish and base.startswith("init") and base.endswith(".rc"):
+            without_reboot_on_failure = b"\n".join(
+                line for line in content.split(b"\n")
+                if line.strip() != b"reboot_on_failure"
+            )
+            if without_reboot_on_failure != content:
+                content = without_reboot_on_failure
+                changed = True
             marker = b"setenforce 0"
             if marker not in content:
                 content += (b"\n\n# GSI tester permissive compatibility mode\n"

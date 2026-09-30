@@ -81,7 +81,11 @@ public final class RanchuRamdiskPatcher {
 
     private static byte[] enablePermissiveCompatibility(byte[] content) {
         String text = new String(content, StandardCharsets.UTF_8);
-        if (text.contains("setenforce 0")) return content;
+        String withoutRebootOnFailure = text.replaceAll("(?m)^\\s*reboot_on_failure\\s*\\r?$", "");
+        if (withoutRebootOnFailure.contains("setenforce 0")) {
+            return withoutRebootOnFailure.getBytes(StandardCharsets.UTF_8);
+        }
+        text = withoutRebootOnFailure;
         String suffix = "\n\n# GSI tester permissive compatibility mode\n"
                 + "on early-init\n    mount tmpfs tmpfs /vendor/apex mode=0755\n"
                 + "on post-fs-data\n    mount tmpfs tmpfs /vendor/apex mode=0755\n"
