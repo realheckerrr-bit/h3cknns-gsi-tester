@@ -59,6 +59,7 @@ jobs:
             --disable-vnc \
             --disable-curses \
             --disable-slirp \
+            --disable-docs \
             --disable-user \
             --enable-trace-backends=nop
           make -f Makefile -j"$(nproc)"
