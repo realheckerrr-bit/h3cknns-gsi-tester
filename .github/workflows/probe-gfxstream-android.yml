@@ -70,6 +70,15 @@ jobs:
               'elseif (QNX)\n    set(stream-server-core-platform-sources NativeSubWindow_qnx.cpp)\nelse()',
               'elseif (QNX)\n    set(stream-server-core-platform-sources NativeSubWindow_qnx.cpp)\nelseif (ANDROID)\n    set(stream-server-core-platform-sources NativeSubWindow_android.cpp)\nelse()', 1)
           host.write_text(text)
+          egl = root / 'host' / 'gl' / 'glestranslator' / 'EGL' / 'CMakeLists.txt'
+          text = egl.read_text()
+          text = text.replace(
+              'elseif (QNX)\n    add_library(\n        EGL_translator_static\n        ${egl-translator-common-sources}\n        ${egl-translator-qnx-sources})',
+              'elseif (ANDROID)\n    add_library(\n        EGL_translator_static\n        ${egl-translator-common-sources}\n        ${egl-translator-qnx-sources})\nelseif (QNX)\n    add_library(\n        EGL_translator_static\n        ${egl-translator-common-sources}\n        ${egl-translator-qnx-sources})', 1)
+          text = text.replace(
+              'elseif (QNX)\n    target_link_libraries(EGL_translator_static PUBLIC "-lscreen -lregex -lEGL -lGLESv2")\nelse()',
+              'elseif (ANDROID)\n    target_link_libraries(EGL_translator_static PUBLIC "-ldl -llog")\nelseif (QNX)\n    target_link_libraries(EGL_translator_static PUBLIC "-lscreen -lregex -lEGL -lGLESv2")\nelse()', 1)
+          egl.write_text(text)
           PY
 
       - name: Configure and build libgfxstream_backend
