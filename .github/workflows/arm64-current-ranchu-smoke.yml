@@ -176,7 +176,7 @@ jobs:
               -M ranchu \
               -cpu cortex-a57 \
               -m 4096 \
-              -smp 1 \
+              -smp 2 \
               -rtc base=utc \
               -kernel "$PWD/guest/kernel-ranchu.raw" \
               -initrd "$PWD/guest/ramdisk.patched.img" \
