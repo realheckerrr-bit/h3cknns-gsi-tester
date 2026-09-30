@@ -23,8 +23,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            autoconf automake bc bison build-essential flex gettext gtk-doc-tools \
+            autoconf automake bc bison build-essential cmake flex gettext gtk-doc-tools \
             libtool make patch pkg-config python3 rsync xz-utils zip
+          sudo apt-get install -y --no-install-recommends ninja-build
 
       - name: Install Android NDK
         shell: bash
@@ -50,7 +51,7 @@ jobs:
           git -C "$jni/qemu" config submodule.ui/keycodemapdb.url \
             https://gitlab.com/qemu-project/keycodemapdb.git
           git -C "$jni/qemu" submodule update --init --depth 1 dtc ui/keycodemapdb
-          git clone --depth 1 \
+          git clone --depth 1 --branch "$QEMU_REF" \
             https://android.googlesource.com/platform/hardware/google/aemu /tmp/aemu-source
           mkdir -p "$jni/qemu/android/android-emu/host-common"
           cp /tmp/aemu-source/host-common/include/host-common/goldfish_pipe.h \
@@ -58,6 +59,28 @@ jobs:
             "$jni/qemu/android/android-emu/host-common/"
           python3 "$GITHUB_WORKSPACE/tools/patch_standalone_goldfish_pipe.py" \
             "$jni/qemu/hw/misc/goldfish_pipe.c"
+          mkdir -p "$GITHUB_WORKSPACE/aosp/hardware/google" \
+            "$GITHUB_WORKSPACE/aosp/external" "$GITHUB_WORKSPACE/aosp/system"
+          git clone --depth 1 --branch "$QEMU_REF" \
+            https://android.googlesource.com/platform/hardware/google/gfxstream \
+            "$GITHUB_WORKSPACE/aosp/hardware/google/gfxstream"
+          git clone --depth 1 --branch "$QEMU_REF" \
+            https://android.googlesource.com/platform/external/gfxstream-protocols \
+            "$GITHUB_WORKSPACE/aosp/external/gfxstream-protocols"
+          git clone --depth 1 --branch "$QEMU_REF" \
+            https://android.googlesource.com/platform/external/angle \
+            "$GITHUB_WORKSPACE/aosp/external/angle"
+          git clone --depth 1 --branch "$QEMU_REF" \
+            https://android.googlesource.com/platform/external/flatbuffers \
+            "$GITHUB_WORKSPACE/aosp/external/flatbuffers"
+          git clone --depth 1 \
+            https://android.googlesource.com/platform/external/libdrm \
+            "$GITHUB_WORKSPACE/aosp/external/libdrm"
+          git clone --depth 1 \
+            https://android.googlesource.com/platform/system/core \
+            "$GITHUB_WORKSPACE/aosp/system/core"
+          python3 "$GITHUB_WORKSPACE/tools/patch_gfxstream_android.py" \
+            "$GITHUB_WORKSPACE/aosp/hardware/google/gfxstream"
           curl --fail --location --retry 3 -o /tmp/glib.tar.xz \
             https://download.gnome.org/sources/glib/2.56/glib-2.56.1.tar.xz
           curl --fail --location --retry 3 -o /tmp/libffi.tar.gz \
@@ -89,12 +112,40 @@ jobs:
           path.write_text(text)
           PY
 
+      - name: Build Android Gfxstream backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          ndk="$ANDROID_SDK_ROOT/ndk/27.2.12479018"
+          cmake -S "$GITHUB_WORKSPACE/aosp/hardware/google/gfxstream" \
+            -B "$GITHUB_WORKSPACE/gfxstream-build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$ndk/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_PLATFORM=26 \
+            -DBUILD_STANDALONE=ON \
+            -DDEPENDENCY_RESOLUTION=AOSP \
+            -DENABLE_VKCEREAL_TESTS=OFF \
+            -DBUILD_GRAPHICS_DETECTOR=OFF \
+            -DUSE_ANGLE_SHADER_PARSER=OFF \
+            -DWITH_BENCHMARK=OFF \
+            -DCMAKE_CXX_FLAGS="-I$GITHUB_WORKSPACE/aosp/system/core/libcutils/include" \
+            -DCMAKE_C_FLAGS="-I$GITHUB_WORKSPACE/aosp/system/core/libcutils/include"
+          cmake --build "$GITHUB_WORKSPACE/gfxstream-build" \
+            --target gfxstream_backend --parallel 2
+          test -s "$GITHUB_WORKSPACE/gfxstream-build/libgfxstream_backend.so"
+
       - name: Build Android QEMU engine
         shell: bash
         run: |
           set -euo pipefail
           ndk="$ANDROID_SDK_ROOT/ndk/27.2.12479018"
           jni="$PWD/limbo-source/limbo-android-lib/src/main/jni"
+          gfxstream_root="$GITHUB_WORKSPACE/aosp/hardware/google/gfxstream"
+          qemu="$jni/qemu"
+          wrapper_source="$qemu/android-qemu2-glue/emulation/virtio-gpu-gfxstream-renderer.cpp"
+          wrapper_object="$qemu/android-qemu2-glue/virtio-gpu-gfxstream-renderer.o"
+          test -s "$wrapper_source"
           export PATH="$ndk:$PATH"
           # SDL 2.0.8 declares the GLES shader-source callback with the
           # pre-NDK-r27 const signature.
@@ -360,8 +411,46 @@ jobs:
               raise SystemExit('Limbo QEMU build rule was not found')
           path.write_text(text.replace(old, new, 1))
           PY
+          python3 - "$jni/Makefile" <<'PY'
+          from pathlib import Path
+          path = Path(__import__('sys').argv[1])
+          text = path.read_text()
+          old = (
+              "cd $(LIMBO_JNI_ROOT)/qemu && ./config.status && "
+              "sh scripts/create_config < config-host.mak > config-host.h &&"
+          )
+          new = (
+              "cd $(LIMBO_JNI_ROOT)/qemu && ./config.status && "
+              "sh scripts/create_config < config-host.mak > config-host.h && "
+              "printf 'CONFIG_STREAM_RENDERER=y\\n' >> config-host.mak && "
+              "sh scripts/create_config < config-host.mak > config-host.h && "
+              "$(CXX) $(CFLAGS) $(QEMU_CFLAGS) $(QEMU_CXXFLAGS) -std=c++17 "
+              "-DANDROID -DCONFIG_ANDROID -DCONFIG_STREAM_RENDERER "
+              "-I. -Iinclude -Iandroid/android-emu "
+              "-I$(GFXSTREAM_ROOT)/include -I$(GFXSTREAM_ROOT)/host/include "
+              "-c android-qemu2-glue/emulation/virtio-gpu-gfxstream-renderer.cpp "
+              "-o android-qemu2-glue/virtio-gpu-gfxstream-renderer.o &&"
+          )
+          if old not in text:
+              raise SystemExit('QEMU configure command was not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+          python3 - "$jni/android-qemu-build.mak" <<'PY'
+          from pathlib import Path
+          path = Path(__import__('sys').argv[1])
+          text = path.read_text()
+          marker = "qemu-static: $(all-obj-y) $(COMMON_LDADDS)"
+          addition = "all-obj-y += ../android-qemu2-glue/virtio-gpu-gfxstream-renderer.o\n\n"
+          if "virtio-gpu-gfxstream-renderer.o" not in text:
+              if marker not in text:
+                  raise SystemExit('QEMU Android link target was not found')
+              text = text.replace(marker, addition + marker, 1)
+          path.write_text(text)
+          PY
           make -C "$jni" limbo \
             NDK_ROOT="$ndk" \
+            GFXSTREAM_ROOT="$gfxstream_root" \
+            QEMU_CFLAGS="-I$gfxstream_root/include" \
             BUILD_HOST=arm64-v8a APP_ABI=arm64-v8a \
             BUILD_GUEST=aarch64-softmmu \
             USE_QEMU_VERSION=5.1.0 \
@@ -378,6 +467,7 @@ jobs:
           jni="$PWD/limbo-source/limbo-android-lib/src/main/jni"
           mkdir -p engine
           cp "$jni/../libs/arm64-v8a/"*.so engine/
+          cp "$GITHUB_WORKSPACE/gfxstream-build/libgfxstream_backend.so" engine/
           strip_bin="$ANDROID_SDK_ROOT/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
           for library in engine/*.so; do
             "$strip_bin" "$library" || true
