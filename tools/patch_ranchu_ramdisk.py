@@ -286,6 +286,8 @@ def patch_fstab_for_devices(content, system_device, vendor_device, data_device):
         else:
             changed = True
             continue
+        if len(columns) > 2 and columns[2] in ("erofs", "f2fs"):
+            columns[2] = "ext4"
         for index, column in enumerate(columns):
             columns[index] = ",".join(value for value in column.split(",")
                                        if value != "logical"

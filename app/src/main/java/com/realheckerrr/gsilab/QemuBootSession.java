@@ -78,6 +78,7 @@ public final class QemuBootSession {
         args.add(assets.cuttlefish
                 ? "loop.max_part=7 init=/init console=ttyAMA0,115200 earlycon=pl011,mmio,0x09000000 androidboot.console=ttyAMA0 "
                 + "androidboot.hardware=vsoc androidboot.boot_devices=4010000000.pcie "
+                + "androidboot.fstab_suffix=cf.ext4.cts androidboot.force_normal_boot=1 "
                 + "androidboot.slot_suffix=_a androidboot.verifiedbootstate=orange "
                 + "mac80211_hwsim.radios=0 androidboot.lcd_density=160 "
                 + "androidboot.setupwizard_mode=DISABLED security=selinux enforcing=0 "
