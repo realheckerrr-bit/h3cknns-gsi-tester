@@ -6,6 +6,7 @@ import gzip
 import lzma
 import struct
 import subprocess
+import sys
 from collections import OrderedDict
 from pathlib import Path
 
@@ -177,7 +178,11 @@ def main() -> None:
 
     merged = OrderedDict()
     for source in (args.generic, args.vendor):
-        entries = parse(decompress(source.read_bytes(), source.name))
+        encoded = source.read_bytes()
+        expanded = decompress(encoded, source.name)
+        print(f"{source}: encoded={len(encoded)} expanded={len(expanded)} "
+              f"magic={expanded[:16].hex()}", file=sys.stderr)
+        entries = parse(expanded)
         for entry in entries:
             merged[entry[2]] = entry
     args.output.parent.mkdir(parents=True, exist_ok=True)
