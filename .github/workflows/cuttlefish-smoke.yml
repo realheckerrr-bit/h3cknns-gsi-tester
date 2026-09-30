@@ -150,9 +150,11 @@ jobs:
           else
             super_for_lpunpack="$super_img"
           fi
-          lpunpack -p vendor_a "$super_for_lpunpack" vendor \
-            || lpunpack -p vendor "$super_for_lpunpack" vendor
-          vendor_img=$(find vendor -maxdepth 1 -type f \( -name vendor_a.img -o -name vendor.img \) -print -quit)
+          python3 tools/extract_logical_partition.py \
+            "$super_for_lpunpack" vendor vendor/vendor.img \
+            || python3 tools/extract_logical_partition.py \
+            "$super_for_lpunpack" vendor_a vendor/vendor.img
+          vendor_img=$(find vendor -maxdepth 1 -type f -name vendor.img -print -quit)
           [[ -n "$vendor_img" ]]
           cp "$userdata_img" cf-image/userdata.img
           printf 'kernel=%s\nramdisk=%s\nvendor=%s\n' \
