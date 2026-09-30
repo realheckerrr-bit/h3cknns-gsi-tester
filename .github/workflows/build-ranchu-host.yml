@@ -42,6 +42,8 @@ jobs:
 
           Path(sys.argv[1]).write_text("from collections import OrderedDict\n")
           PY
+          sed -i 's/android_console_redir_remove/android_console_redir_del/g' \
+            ranchu-qemu/android-console.c
           python3 -m lib2to3 -w -n \
             ranchu-qemu/scripts/qapi.py \
             ranchu-qemu/scripts/qapi-commands.py \
