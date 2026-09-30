@@ -509,7 +509,7 @@ public final class ImageImportTest {
             output.seek(4096L);
             writeInt(output, 0x616C4467L);
             writeInt(output, 52);
-            output.seek(40);
+            output.seek(4096L + 40);
             writeInt(output, 4096);
             writeInt(output, 1);
             writeInt(output, 4096);
