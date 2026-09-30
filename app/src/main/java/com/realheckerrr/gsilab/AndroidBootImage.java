@@ -145,6 +145,10 @@ final class AndroidBootImage {
                 | ((long) input.readUnsignedByte() << 24);
     }
 
+    private static long align(long value, long alignment) {
+        return ((value + alignment - 1) / alignment) * alignment;
+    }
+
     private static boolean matches(byte[] actual, byte[] expected) {
         if (actual.length != expected.length) return false;
         for (int i = 0; i < actual.length; i++) if (actual[i] != expected[i]) return false;
@@ -170,8 +174,5 @@ final class AndroidBootImage {
             return align(kernelOffset() + kernelSize, pageSize);
         }
 
-        private static long align(long value, long alignment) {
-            return ((value + alignment - 1) / alignment) * alignment;
-        }
     }
 }
