@@ -62,6 +62,9 @@ jobs:
           mkdir -p "$GITHUB_WORKSPACE/aosp/hardware/google" \
             "$GITHUB_WORKSPACE/aosp/external" "$GITHUB_WORKSPACE/aosp/system"
           git clone --depth 1 --branch "$QEMU_REF" \
+            https://android.googlesource.com/platform/hardware/google/aemu \
+            "$GITHUB_WORKSPACE/aosp/hardware/google/aemu"
+          git clone --depth 1 --branch "$QEMU_REF" \
             https://android.googlesource.com/platform/hardware/google/gfxstream \
             "$GITHUB_WORKSPACE/aosp/hardware/google/gfxstream"
           git clone --depth 1 --branch "$QEMU_REF" \
