@@ -83,6 +83,7 @@ public final class RanchuRamdiskPatcher {
         String text = new String(content, StandardCharsets.UTF_8);
         if (text.contains("setenforce 0")) return content;
         String suffix = "\n\n# GSI tester permissive compatibility mode\n"
+                + "on early-init\n    mount tmpfs tmpfs /vendor/apex mode=0755\n"
                 + "on post-fs-data\n    mount tmpfs tmpfs /vendor/apex mode=0755\n"
                 + "on post-fs\n    setenforce 0\n"
                 + "on post-fs-data\n    setenforce 0\n"

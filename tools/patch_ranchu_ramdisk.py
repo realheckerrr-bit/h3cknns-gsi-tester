@@ -365,6 +365,7 @@ def main():
             marker = b"setenforce 0"
             if marker not in content:
                 content += (b"\n\n# GSI tester permissive compatibility mode\n"
+                            b"on early-init\n    mount tmpfs tmpfs /vendor/apex mode=0755\n"
                             b"on post-fs-data\n    mount tmpfs tmpfs /vendor/apex mode=0755\n"
                             b"on post-fs\n    setenforce 0\n"
                             b"on post-fs-data\n    setenforce 0\n"
