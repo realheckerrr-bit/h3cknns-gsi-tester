@@ -2,6 +2,9 @@ name: ARM64 current Ranchu GSI boot smoke test
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 permissions:
   contents: read
