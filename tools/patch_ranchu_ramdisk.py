@@ -300,8 +300,7 @@ def patch_fstab_for_devices(content, system_device, vendor_device, data_device):
 
 def cuttlefish_device_line(device, mountpoint, stripped):
     return (device.startswith("/dev/block/by-name/")
-            and mountpoint not in ("/system", "/vendor", "/data")
-            and "first_stage_mount" not in stripped)
+            and mountpoint not in ("/system", "/vendor", "/data"))
 
 
 def main():
