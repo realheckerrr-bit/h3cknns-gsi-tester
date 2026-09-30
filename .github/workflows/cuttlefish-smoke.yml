@@ -128,7 +128,7 @@ jobs:
           userdata_img=$(find "$image_dir" -type f -name userdata.img -print -quit)
           [[ -n "$boot_img" && -n "$super_img" && -n "$userdata_img" ]]
 
-          mkdir -p boot boot-init boot-vendor vendor
+          mkdir -p boot boot-init boot-vendor vendor product system-ext odm
           echo 'Cuttlefish boot-related files:'
           find "$image_dir" -type f | grep -Ei '/(kernel|ramdisk|boot|init_boot|vendor_boot)' | head -80 || true
           direct_kernel=$(find "$image_dir" cf-image/host -type f \( -name kernel -o -name kernel-ranchu -o -name kernel_16k -o -name 'kernel-*' \) ! -name '*cmdline*' -print -quit)
@@ -180,11 +180,30 @@ jobs:
             "$super_for_lpunpack" vendor vendor/vendor.img \
             || python3 tools/extract_logical_partition.py \
             "$super_for_lpunpack" vendor_a vendor/vendor.img
+          python3 tools/extract_logical_partition.py \
+            "$super_for_lpunpack" product product/product.img \
+            || python3 tools/extract_logical_partition.py \
+            "$super_for_lpunpack" product_a product/product.img
+          python3 tools/extract_logical_partition.py \
+            "$super_for_lpunpack" system_ext system-ext/system_ext.img \
+            || python3 tools/extract_logical_partition.py \
+            "$super_for_lpunpack" system_ext_a system-ext/system_ext.img
+          python3 tools/extract_logical_partition.py \
+            "$super_for_lpunpack" odm odm/odm.img \
+            || python3 tools/extract_logical_partition.py \
+            "$super_for_lpunpack" odm_a odm/odm.img
           vendor_img=$(find vendor -maxdepth 1 -type f -name vendor.img -print -quit)
+          product_img=$(find product -maxdepth 1 -type f -name product.img -print -quit)
+          system_ext_img=$(find system-ext -maxdepth 1 -type f -name system_ext.img -print -quit)
+          odm_img=$(find odm -maxdepth 1 -type f -name odm.img -print -quit)
           [[ -n "$vendor_img" ]]
+          [[ -n "$product_img" && -n "$system_ext_img" && -n "$odm_img" ]]
           stat -c 'userdata_source=%s' "$userdata_img"
           stat -c 'vendor_extracted=%s' "$vendor_img"
-          file "$vendor_img" gsi/system.img
+          stat -c 'product_extracted=%s' "$product_img"
+          stat -c 'system_ext_extracted=%s' "$system_ext_img"
+          stat -c 'odm_extracted=%s' "$odm_img"
+          file "$vendor_img" "$product_img" "$system_ext_img" "$odm_img" gsi/system.img
           if simg2img "$userdata_img" cf-image/userdata.raw.img 2>/dev/null; then
             cp cf-image/userdata.raw.img cf-image/userdata.img
           else
@@ -210,6 +229,12 @@ jobs:
             -device virtio-blk-pci,romfile=efi-virtio.rom,scsi=off,drive=userdata \
             -drive if=none,format=raw,id=vendor,file=$PWD/$vendor_img,readonly=on \
             -device virtio-blk-pci,romfile=efi-virtio.rom,scsi=off,drive=vendor \
+            -drive if=none,format=raw,id=product,file=$PWD/$product_img,readonly=on \
+            -device virtio-blk-pci,romfile=efi-virtio.rom,scsi=off,drive=product \
+            -drive if=none,format=raw,id=system_ext,file=$PWD/$system_ext_img,readonly=on \
+            -device virtio-blk-pci,romfile=efi-virtio.rom,scsi=off,drive=system_ext \
+            -drive if=none,format=raw,id=odm,file=$PWD/$odm_img,readonly=on \
+            -device virtio-blk-pci,romfile=efi-virtio.rom,scsi=off,drive=odm \
             -device virtio-gpu-pci,id=gpu0 \
             -object rng-random,id=objrng0,filename=/dev/urandom \
             -device virtio-rng-pci,rng=objrng0,max-bytes=1024,period=2000 \

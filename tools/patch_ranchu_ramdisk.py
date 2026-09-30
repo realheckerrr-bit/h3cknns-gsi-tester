@@ -244,13 +244,16 @@ def make_header(name, content):
 
 def patch_fstab(content):
     return patch_fstab_for_devices(
-        content, "/dev/block/vdb", "/dev/block/vda", "/dev/block/vdc", False)
+        content, "/dev/block/vdb", "/dev/block/vda", "/dev/block/vdc",
+        {}, False)
 
 
-def patch_fstab_for_devices(content, system_device, vendor_device, data_device, cuttlefish):
+def patch_fstab_for_devices(content, system_device, vendor_device, data_device,
+                            extra_devices, cuttlefish):
     text = content.decode("utf-8", "replace")
     result = []
     changed = False
+    extra_seen = set()
     for line in text.splitlines(keepends=True):
         stripped = line.strip()
         if not stripped or stripped.startswith("#"):
@@ -279,6 +282,23 @@ def patch_fstab_for_devices(content, system_device, vendor_device, data_device, 
             result.append(" ".join(columns) + ending)
             changed = True
             continue
+        if cuttlefish and mountpoint in extra_devices:
+            if len(columns) > 2 and columns[2] != extra_devices[mountpoint][1]:
+                result.append("#" + line[1:] if not line.startswith("#") else line)
+                changed = True
+                continue
+            extra_seen.add(mountpoint)
+            columns[0] = extra_devices[mountpoint][0]
+            for index, column in enumerate(columns):
+                columns[index] = ",".join(value for value in column.split(",")
+                                           if value != "logical"
+                                           and value != "slotselect"
+                                           and not value.startswith("avb=")
+                                           and not value.startswith("avb_keys="))
+            ending = "\n" if line.endswith("\n") else ""
+            result.append(" ".join(columns) + ending)
+            changed = True
+            continue
         if cuttlefish_device_line(device, mountpoint, stripped):
             result.append("#" + line[1:] if not line.startswith("#") else line)
             changed = True
@@ -302,6 +322,12 @@ def patch_fstab_for_devices(content, system_device, vendor_device, data_device, 
         ending = "\n" if line.endswith("\n") else ""
         result.append(" ".join(columns) + ending)
         changed = True
+    if cuttlefish:
+        for mountpoint, (device, filesystem) in extra_devices.items():
+            if mountpoint not in extra_seen:
+                result.append(
+                    f"{device} {mountpoint} {filesystem} ro wait,first_stage_mount\n")
+                changed = True
     return "".join(result).encode("utf-8"), changed
 
 
@@ -316,6 +342,11 @@ def main():
     system_device = "/dev/block/vda" if cuttlefish else "/dev/block/vdb"
     vendor_device = "/dev/block/vdc" if cuttlefish else "/dev/block/vda"
     data_device = "/dev/block/vdb" if cuttlefish else "/dev/block/vdc"
+    extra_devices = ({
+        "/product": ("/dev/block/vdd", "ext4"),
+        "/system_ext": ("/dev/block/vde", "ext4"),
+        "/odm": ("/dev/block/vdf", "ext4"),
+    } if cuttlefish else {})
     raw, compression = unpack(open(source, "rb").read())
     entries = parse_cpio(raw)
     changed = False
@@ -325,7 +356,8 @@ def main():
         is_fstab = base.startswith("fstab") if cuttlefish else base in ("fstab.ranchu", "fstab.ranchu.initrd")
         if is_fstab:
             content, entry_changed = patch_fstab_for_devices(
-                content, system_device, vendor_device, data_device, cuttlefish)
+                content, system_device, vendor_device, data_device,
+                extra_devices, cuttlefish)
             changed |= entry_changed
         patched.append((header, name, content))
     if not changed:

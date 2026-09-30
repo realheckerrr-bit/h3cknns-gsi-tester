@@ -25,15 +25,18 @@ public final class RanchuRamdiskPatcher {
     private RanchuRamdiskPatcher() {}
 
     public static File patch(File source, File target) throws IOException {
-        return patchDirect(source, target, "/dev/block/vdb", "/dev/block/vda", "/dev/block/vdc", false);
+        return patchDirect(source, target, "/dev/block/vdb", "/dev/block/vda", "/dev/block/vdc",
+                null, null, null, false);
     }
 
     public static File patchCuttlefish(File source, File target) throws IOException {
-        return patchDirect(source, target, "/dev/block/vda", "/dev/block/vdc", "/dev/block/vdb", true);
+        return patchDirect(source, target, "/dev/block/vda", "/dev/block/vdc", "/dev/block/vdb",
+                "/dev/block/vdd", "/dev/block/vde", "/dev/block/vdf", true);
     }
 
     private static File patchDirect(File source, File target, String systemDevice, String vendorDevice,
-                                    String dataDevice, boolean allFstabEntries) throws IOException {
+                                    String dataDevice, String productDevice, String systemExtDevice,
+                                    String odmDevice, boolean allFstabEntries) throws IOException {
         byte[] encoded = readAll(source);
         if (!looksLikeRamdisk(encoded)) return source;
         byte[] raw = unpack(encoded, source.getName());
@@ -48,7 +51,7 @@ public final class RanchuRamdiskPatcher {
                     : ("fstab.ranchu".equals(base) || "fstab.ranchu.initrd".equals(base));
             if (isFstab) {
                 PatchResult result = patchFstab(entry.content, systemDevice, vendorDevice, dataDevice,
-                        allFstabEntries);
+                        productDevice, systemExtDevice, odmDevice, allFstabEntries);
                 entry = entry.withContent(result.content);
                 hasSystem |= result.hasSystem;
                 hasVendor |= result.hasVendor;
@@ -261,12 +264,16 @@ public final class RanchuRamdiskPatcher {
     }
 
     private static PatchResult patchFstab(byte[] content, String systemDevice, String vendorDevice,
-                                          String dataDevice, boolean allFstabEntries) {
+                                          String dataDevice, String productDevice, String systemExtDevice,
+                                          String odmDevice, boolean allFstabEntries) {
         String text = new String(content, StandardCharsets.UTF_8);
         StringBuilder result = new StringBuilder();
         boolean changed = false;
         boolean hasSystem = false;
         boolean hasVendor = false;
+        boolean hasProduct = false;
+        boolean hasSystemExt = false;
+        boolean hasOdm = false;
         String[] lines = text.split("(?<=\\n)", -1);
         for (String line : lines) {
             String stripped = line.trim();
@@ -292,6 +299,8 @@ public final class RanchuRamdiskPatcher {
             if ("/system".equals(mountpoint)) desiredFs = "ext4";
             else if ("/vendor".equals(mountpoint)) desiredFs = "erofs";
             else if ("/data".equals(mountpoint)) desiredFs = "ext4";
+            else if ("/product".equals(mountpoint) || "/system_ext".equals(mountpoint)
+                    || "/odm".equals(mountpoint)) desiredFs = "ext4";
             if (allFstabEntries && desiredFs != null
                     && columns.length > 2 && !desiredFs.equals(columns[2])) {
                 result.append('#').append(line.startsWith("#") ? line.substring(1) : line);
@@ -300,6 +309,30 @@ public final class RanchuRamdiskPatcher {
             }
             if (mountEntry && "/data".equals(mountpoint)) {
                 columns[0] = dataDevice;
+                result.append(String.join(" ", columns));
+                if (line.endsWith("\n")) result.append('\n');
+                changed = true;
+                continue;
+            }
+            if (allFstabEntries && "/product".equals(mountpoint)
+                    || allFstabEntries && "/system_ext".equals(mountpoint)
+                    || allFstabEntries && "/odm".equals(mountpoint)) {
+                if ("/product".equals(mountpoint)) columns[0] = productDevice;
+                else if ("/system_ext".equals(mountpoint)) columns[0] = systemExtDevice;
+                else columns[0] = odmDevice;
+                if ("/product".equals(mountpoint)) hasProduct = true;
+                else if ("/system_ext".equals(mountpoint)) hasSystemExt = true;
+                else hasOdm = true;
+                for (int i = 0; i < columns.length; i++) {
+                    StringBuilder flags = new StringBuilder();
+                    for (String flag : columns[i].split(",")) {
+                        if ("logical".equals(flag) || "slotselect".equals(flag)
+                                || flag.startsWith("avb=") || flag.startsWith("avb_keys=")) continue;
+                        if (flags.length() > 0) flags.append(',');
+                        flags.append(flag);
+                    }
+                    columns[i] = flags.toString();
+                }
                 result.append(String.join(" ", columns));
                 if (line.endsWith("\n")) result.append('\n');
                 changed = true;
@@ -337,6 +370,18 @@ public final class RanchuRamdiskPatcher {
             result.append(String.join(" ", columns));
             if (line.endsWith("\n")) result.append('\n');
             changed = true;
+        }
+        if (allFstabEntries) {
+            if (!hasProduct && productDevice != null) {
+                result.append(productDevice).append(" /product ext4 ro wait,first_stage_mount\n");
+            }
+            if (!hasSystemExt && systemExtDevice != null) {
+                result.append(systemExtDevice).append(" /system_ext ext4 ro wait,first_stage_mount\n");
+            }
+            if (!hasOdm && odmDevice != null) {
+                result.append(odmDevice).append(" /odm ext4 ro wait,first_stage_mount\n");
+            }
+            if (productDevice != null || systemExtDevice != null || odmDevice != null) changed = true;
         }
         return new PatchResult(result.toString().getBytes(StandardCharsets.UTF_8), changed, hasSystem, hasVendor);
     }
