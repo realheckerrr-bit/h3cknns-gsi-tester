@@ -293,6 +293,7 @@ def patch_fstab_for_devices(content, system_device, vendor_device, data_device,
                 columns[index] = ",".join(value for value in column.split(",")
                                            if value != "logical"
                                            and value != "slotselect"
+                                           and value != "avb"
                                            and not value.startswith("avb=")
                                            and not value.startswith("avb_keys="))
             ending = "\n" if line.endswith("\n") else ""
@@ -317,6 +318,7 @@ def patch_fstab_for_devices(content, system_device, vendor_device, data_device,
             columns[index] = ",".join(value for value in column.split(",")
                                        if value != "logical"
                                        and value != "slotselect"
+                                       and value != "avb"
                                        and not value.startswith("avb=")
                                        and not value.startswith("avb_keys="))
         ending = "\n" if line.endswith("\n") else ""

@@ -327,6 +327,7 @@ public final class RanchuRamdiskPatcher {
                     StringBuilder flags = new StringBuilder();
                     for (String flag : columns[i].split(",")) {
                         if ("logical".equals(flag) || "slotselect".equals(flag)
+                                || "avb".equals(flag)
                                 || flag.startsWith("avb=") || flag.startsWith("avb_keys=")) continue;
                         if (flags.length() > 0) flags.append(',');
                         flags.append(flag);
@@ -361,6 +362,7 @@ public final class RanchuRamdiskPatcher {
                 StringBuilder flags = new StringBuilder();
                 for (String flag : columns[i].split(",")) {
                     if ("logical".equals(flag) || "slotselect".equals(flag)
+                            || "avb".equals(flag)
                             || flag.startsWith("avb=") || flag.startsWith("avb_keys=")) continue;
                     if (flags.length() > 0) flags.append(',');
                     flags.append(flag);
