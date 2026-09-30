@@ -498,7 +498,7 @@ public final class ImageImportTest {
     }
 
     private static void writeSuperImage(File target, String partitionName, byte[] partitionData) throws IOException {
-        long metadataOffset = 8192L;
+        long metadataOffset = 12288L;
         int metadataHeaderSize = 128;
         int partitionsOffset = 0;
         int extentsOffset = 52;

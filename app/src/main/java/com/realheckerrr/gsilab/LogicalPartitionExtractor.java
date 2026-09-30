@@ -25,12 +25,14 @@ public final class LogicalPartitionExtractor {
             // offset-zero fallback for older/synthetic images encountered in
             // the wild and by existing tooling.
             Geometry geometry;
+            long metadataBase;
             try {
                 geometry = readGeometry(input, RESERVED_BYTES);
+                metadataBase = RESERVED_BYTES + (long) GEOMETRY_SIZE * 2;
             } catch (IOException primaryGeometryError) {
                 geometry = readGeometry(input, 0L);
+                metadataBase = RESERVED_BYTES + GEOMETRY_SIZE;
             }
-            long metadataBase = RESERVED_BYTES + GEOMETRY_SIZE;
             Metadata metadata = readMetadata(input, metadataBase, geometry.metadataMaxSize, geometry.slotCount, 0);
             Partition partition = findPartition(metadata, requestedName);
             if (partition == null && geometry.slotCount > 1) {

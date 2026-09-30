@@ -8,7 +8,8 @@ from pathlib import Path
 
 SECTOR_SIZE = 512
 GEOMETRY_SIZE = 4096
-METADATA_BASE = 4096 + GEOMETRY_SIZE
+REAL_METADATA_BASE = 4096 + (GEOMETRY_SIZE * 2)
+LEGACY_METADATA_BASE = 4096 + GEOMETRY_SIZE
 GEOMETRY_MAGIC = 0x616C4467
 METADATA_MAGIC = 0x414C5030
 LINEAR_EXTENT = 0
@@ -46,13 +47,13 @@ def read_geometry(source):
     return geometry
 
 
-def load_metadata(source, geometry, slot: int):
+def load_metadata(source, geometry, metadata_base: int, slot: int):
     metadata_max_size = u32(geometry, 40)
     slot_count = u32(geometry, 44)
     if not metadata_max_size or slot < 0 or slot >= slot_count:
         raise ValueError("invalid super-image metadata geometry")
 
-    metadata_offset = METADATA_BASE + slot * metadata_max_size
+    metadata_offset = metadata_base + slot * metadata_max_size
     header = read_at(source, metadata_offset, 256)
     if u32(header, 0) != METADATA_MAGIC:
         raise ValueError("invalid super-image metadata magic")
@@ -92,10 +93,19 @@ def extract(source_path: Path, requested: str, output_path: Path) -> None:
     with source_path.open("rb") as source:
         metadata = None
         partition = None
-        geometry = read_geometry(source)
+        geometry_offset = 4096
+        try:
+            geometry = read_at(source, geometry_offset, 52)
+            if u32(geometry, 0) != GEOMETRY_MAGIC:
+                raise ValueError("primary geometry is not present")
+            metadata_base = REAL_METADATA_BASE
+        except ValueError:
+            geometry_offset = 0
+            geometry = read_geometry(source)
+            metadata_base = LEGACY_METADATA_BASE
         slots = u32(geometry, 44)
         for slot in range(slots):
-            candidate = load_metadata(source, geometry, slot)
+            candidate = load_metadata(source, geometry, metadata_base, slot)
             partition = find_partition(source, candidate, requested)
             if partition is not None:
                 metadata = candidate
