@@ -6,6 +6,10 @@ import java.util.List;
 /** JNI boundary for the dynamically loaded Android QEMU system engine. */
 public final class QemuRunner {
     static {
+        // Load the packaged runtime and renderer before QEMU's dlopen bridge
+        // runs. This keeps the self-contained APK path reliable across
+        // Android linker namespaces and device vendors.
+        loadOptional("c++_shared");
         System.loadLibrary("gsi_runner");
         loadOptional("compat-musl");
         loadOptional("compat-limbo");
@@ -14,6 +18,7 @@ public final class QemuRunner {
         loadOptional("SDL2");
         loadOptional("compat-SDL2-addons");
         loadOptional("compat-SDL2-ext");
+        loadOptional("gfxstream_backend");
     }
 
     private QemuRunner() {}
