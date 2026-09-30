@@ -30,8 +30,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git clone --depth 1 --branch emu-35-3-release \
-            https://android.googlesource.com/platform/external/qemu qemu
+          for attempt in 1 2 3; do
+            if git -c http.version=HTTP/1.1 clone --depth 1 --branch emu-35-3-release \
+              https://android.googlesource.com/platform/external/qemu qemu; then
+              break
+            fi
+            rm -rf qemu
+            if [[ "$attempt" == 3 ]]; then exit 1; fi
+            sleep 8
+          done
           git -C qemu config submodule.dtc.url https://github.com/qemu/dtc.git
           git -C qemu config submodule.capstone.url \
             https://github.com/capstone-engine/capstone.git
@@ -39,8 +46,15 @@ jobs:
             https://gitlab.com/qemu-project/keycodemapdb.git
           git -C qemu submodule update --init --depth 1 capstone dtc ui/keycodemapdb
           printf '%s\n' "$(git -C qemu describe --always)" > qemu/VERSION
-          git clone --depth 1 \
-            https://android.googlesource.com/platform/hardware/google/aemu /tmp/aemu-source
+          for attempt in 1 2 3; do
+            if git -c http.version=HTTP/1.1 clone --depth 1 \
+              https://android.googlesource.com/platform/hardware/google/aemu /tmp/aemu-source; then
+              break
+            fi
+            rm -rf /tmp/aemu-source
+            if [[ "$attempt" == 3 ]]; then exit 1; fi
+            sleep 8
+          done
           mkdir -p qemu/android/android-emu/host-common
           cp /tmp/aemu-source/host-common/include/host-common/goldfish_pipe.h \
             /tmp/aemu-source/host-common/include/host-common/android_pipe_base.h \
