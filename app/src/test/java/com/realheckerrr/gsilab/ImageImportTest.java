@@ -81,7 +81,7 @@ public final class ImageImportTest {
         assertEquals("images/system.img.lz4", result.systemEntry);
         assertEquals("raw ext4 image", result.imageFormat);
         assertTrue(result.bootCandidate);
-        assertTrue(result.warnings.stream().anyMatch(value -> value.contains("LZ4")));
+        assertTrue(result.warnings.stream().anyMatch(value -> value.toLowerCase(Locale.US).contains("lz4")));
     }
 
     @Test
