@@ -144,6 +144,7 @@ jobs:
               raise SystemExit('init.rc has no perform_apex_config action')
           source = source.replace(
               marker,
+              '    setenforce 0\n'
               '    mount tmpfs tmpfs /vendor/apex mode=0755\n' + marker,
               1,
           )
