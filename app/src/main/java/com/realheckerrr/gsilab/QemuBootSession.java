@@ -53,6 +53,14 @@ public final class QemuBootSession {
         // SurfaceFlinger are active on ARM64 TCG hosts.
         args.add("-accel");
         args.add(assets.ranchu && recoveryProfile ? "tcg,thread=single" : "tcg,thread=multi");
+        if (!assets.ranchu && rom != null) {
+            // QEMU resolves a PCI virtio romfile through its firmware search
+            // path and treats an absolute value as a basename.  Point that
+            // search path at the private working directory and pass only the
+            // copied filename below.
+            args.add("-L");
+            args.add(work.getAbsolutePath());
+        }
         args.add("-M");
         args.add(assets.ranchu
                 ? "ranchu"
@@ -138,7 +146,7 @@ public final class QemuBootSession {
             args.add("virtio-blk-device,drive=" + id);
         } else {
             args.add((nonTransitional ? "virtio-blk-pci-non-transitional" : "virtio-blk-pci")
-                    + (rom == null ? "" : ",romfile=" + rom.getAbsolutePath())
+                    + (rom == null ? "" : ",romfile=" + rom.getName())
                     + ",scsi=off,drive=" + id);
         }
     }

@@ -180,17 +180,20 @@ jobs:
             echo "Missing official virtio ROM: $romfile" >&2
             exit 1
           fi
+          romdir=$(dirname "$romfile")
+          romname=$(basename "$romfile")
           qemu-system-aarch64 \
+            -L "$romdir" \
             -M virt,gic-version=2,mte=on,usb=off,dump-guest-core=off \
             -cpu max -m 2048 -smp 4 -rtc base=utc \
             -kernel boot/kernel -initrd boot/ramdisk \
             -append 'loop.max_part=7 init=/init console=ttyS0,115200 androidboot.console=ttyS1 androidboot.hardware=vsoc androidboot.boot_devices=4010000000.pcie androidboot.slot_suffix=_a androidboot.verifiedbootstate=orange mac80211_hwsim.radios=0 androidboot.lcd_density=160 androidboot.setupwizard_mode=DISABLED security=selinux enforcing=0 androidboot.selinux=permissive audit=1 buildvariant=userdebug' \
             -drive if=none,format=raw,id=system,file=$PWD/gsi/system.img,readonly=on \
-            -device virtio-blk-pci-non-transitional,romfile=$romfile,scsi=off,drive=system \
+            -device virtio-blk-pci-non-transitional,romfile=$romname,scsi=off,drive=system \
             -drive if=none,format=raw,id=userdata,file=$PWD/cf-image/userdata.img \
-            -device virtio-blk-pci-non-transitional,romfile=$romfile,scsi=off,drive=userdata \
+            -device virtio-blk-pci-non-transitional,romfile=$romname,scsi=off,drive=userdata \
             -drive if=none,format=raw,id=vendor,file=$PWD/$vendor_img,readonly=on \
-            -device virtio-blk-pci-non-transitional,romfile=$romfile,scsi=off,drive=vendor \
+            -device virtio-blk-pci-non-transitional,romfile=$romname,scsi=off,drive=vendor \
             -device virtio-gpu-pci,id=gpu0 \
             -object rng-random,id=objrng0,filename=/dev/urandom \
             -device virtio-rng-pci,rng=objrng0,max-bytes=1024,period=2000 \
