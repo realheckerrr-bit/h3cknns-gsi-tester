@@ -294,7 +294,7 @@ public final class RanchuRamdiskPatcher {
             pad4(output);
         }
         byte[] trailer = "TRAILER!!!\0".getBytes(StandardCharsets.UTF_8);
-        writeHeader(output, 0, trailer.length);
+        writeHeader(output, Entry.trailer(), 0, trailer.length, 0);
         output.write(trailer);
         pad4(output);
         return output.toByteArray();
@@ -388,6 +388,11 @@ public final class RanchuRamdiskPatcher {
         static Entry regular(String name, byte[] content) {
             return new Entry(name, "070701", 0, 0100644, 0, 0, 1, 0,
                     0, 0, 0, 0, content);
+        }
+
+        static Entry trailer() {
+            return new Entry("TRAILER!!!", "070701", 0, 0, 0, 0, 1, 0,
+                    0, 0, 0, 0, new byte[0]);
         }
 
         Entry withContent(byte[] replacement) {
