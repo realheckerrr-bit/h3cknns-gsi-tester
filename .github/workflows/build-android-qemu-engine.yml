@@ -468,11 +468,10 @@ jobs:
               text = text.replace(marker, addition + marker, 1)
           path.write_text(text)
           PY
-          make -C "$jni" limbo \
+            make -C "$jni" limbo \
             NDK_ROOT="$ndk" \
             CXX="$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++" \
             GFXSTREAM_ROOT="$gfxstream_root" \
-            QEMU_CFLAGS="-I$gfxstream_root/include -I$jni/glib -I$jni/glib/glib -I$jni/glib/gmodule -I$jni/glib/io -I$jni/glib/android -I$jni/qemu/aarch64-softmmu" \
             BUILD_HOST=arm64-v8a APP_ABI=arm64-v8a \
             BUILD_GUEST=aarch64-softmmu \
             USE_QEMU_VERSION=5.1.0 \
