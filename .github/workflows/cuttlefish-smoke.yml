@@ -155,6 +155,8 @@ jobs:
           ramdisk=$(find boot boot-init boot-vendor -maxdepth 1 -type f -name ramdisk -print -quit)
           [[ -f boot/kernel && -n "$ramdisk" ]]
           [[ "$ramdisk" == 'boot/ramdisk' ]] || cp "$ramdisk" boot/ramdisk
+          file boot/kernel boot/ramdisk
+          wc -c boot/kernel boot/ramdisk
 
           if simg2img "$super_img" cf-image/super.raw.img 2>/dev/null; then
             super_for_lpunpack=cf-image/super.raw.img
@@ -191,6 +193,7 @@ jobs:
             -object rng-random,id=objrng0,filename=/dev/urandom \
             -device virtio-rng-pci,rng=objrng0,max-bytes=1024,period=2000 \
             -display none -monitor none -serial file:$PWD/serial.log -no-reboot \
+            -d guest_errors,unimp -D "$PWD/qemu.debug" \
             > qemu.stdout 2> qemu.stderr &
           qemu_pid=$!
           booted=0
@@ -207,13 +210,16 @@ jobs:
           if kill -0 "$qemu_pid" 2>/dev/null; then
             kill "$qemu_pid" 2>/dev/null || true
             wait "$qemu_pid" 2>/dev/null || true
+            qemu_status=0
           else
-            wait "$qemu_pid" 2>/dev/null || true
+            wait "$qemu_pid" 2>/dev/null
+            qemu_status=$?
           fi
-          printf 'qemu=%s\n' "$(command -v qemu-system-aarch64 || true)"
+          printf 'qemu=%s\nqemu_status=%s\n' "$(command -v qemu-system-aarch64 || true)" "$qemu_status"
           cat serial.log 2>/dev/null || true
           cat qemu.stdout 2>/dev/null || true
           cat qemu.stderr 2>/dev/null || true
+          tail -200 qemu.debug 2>/dev/null || true
           if [[ "$booted" != 1 ]]; then
             echo 'No Android boot marker was observed in the serial log.' >&2
             exit 1
@@ -228,4 +234,5 @@ jobs:
             serial.log
             qemu.stdout
             qemu.stderr
+            qemu.debug
           if-no-files-found: ignore
