@@ -83,16 +83,6 @@ jobs:
           mkdir -p cf-image/host
           tar -xzf cf-image/cvd-host_package.tar.gz -C cf-image/host
 
-          # Ubuntu's QEMU package does not ship the UEFI virtio ROM that the
-          # Android virtio-blk-pci-non-transitional device needs.  Fetch the
-          # same official Android QEMU ROM bundled by the APK so this smoke
-          # test exercises the same PCI device contract.
-          curl --fail --location --retry 3 --retry-delay 3 \
-            -o cf-image/efi-virtio.rom.b64 \
-            'https://android.googlesource.com/platform/external/qemu/+/emu-35-3-release/pc-bios/efi-virtio.rom?format=TEXT'
-          base64 --decode cf-image/efi-virtio.rom.b64 > cf-image/efi-virtio.rom
-          test "$(stat -c '%s' cf-image/efi-virtio.rom)" -gt 0
-
       - name: Download and verify official ARM64 GSI
         shell: bash
         env:
@@ -175,25 +165,17 @@ jobs:
         run: |
           set -uo pipefail
           vendor_img=$(find vendor -maxdepth 1 -type f \( -name vendor_a.img -o -name vendor.img \) -print -quit)
-          romfile="$PWD/cf-image/efi-virtio.rom"
-          if [[ ! -f "$romfile" ]]; then
-            echo "Missing official virtio ROM: $romfile" >&2
-            exit 1
-          fi
-          romdir=$(dirname "$romfile")
-          romname=$(basename "$romfile")
           qemu-system-aarch64 \
-            -L "$romdir" \
             -M virt,gic-version=2,mte=on,usb=off,dump-guest-core=off \
             -cpu max -m 2048 -smp 4 -rtc base=utc \
             -kernel boot/kernel -initrd boot/ramdisk \
             -append 'loop.max_part=7 init=/init console=ttyS0,115200 androidboot.console=ttyS1 androidboot.hardware=vsoc androidboot.boot_devices=4010000000.pcie androidboot.slot_suffix=_a androidboot.verifiedbootstate=orange mac80211_hwsim.radios=0 androidboot.lcd_density=160 androidboot.setupwizard_mode=DISABLED security=selinux enforcing=0 androidboot.selinux=permissive audit=1 buildvariant=userdebug' \
             -drive if=none,format=raw,id=system,file=$PWD/gsi/system.img,readonly=on \
-            -device virtio-blk-pci-non-transitional,romfile=$romname,scsi=off,drive=system \
+            -device virtio-blk-pci-non-transitional,scsi=off,drive=system \
             -drive if=none,format=raw,id=userdata,file=$PWD/cf-image/userdata.img \
-            -device virtio-blk-pci-non-transitional,romfile=$romname,scsi=off,drive=userdata \
+            -device virtio-blk-pci-non-transitional,scsi=off,drive=userdata \
             -drive if=none,format=raw,id=vendor,file=$PWD/$vendor_img,readonly=on \
-            -device virtio-blk-pci-non-transitional,romfile=$romname,scsi=off,drive=vendor \
+            -device virtio-blk-pci-non-transitional,scsi=off,drive=vendor \
             -device virtio-gpu-pci,id=gpu0 \
             -object rng-random,id=objrng0,filename=/dev/urandom \
             -device virtio-rng-pci,rng=objrng0,max-bytes=1024,period=2000 \
@@ -217,7 +199,7 @@ jobs:
           else
             wait "$qemu_pid" 2>/dev/null || true
           fi
-          printf 'qemu=%s\nromfile=%s\n' "$(command -v qemu-system-aarch64 || true)" "$romfile"
+          printf 'qemu=%s\n' "$(command -v qemu-system-aarch64 || true)"
           cat serial.log 2>/dev/null || true
           cat qemu.stdout 2>/dev/null || true
           cat qemu.stderr 2>/dev/null || true
