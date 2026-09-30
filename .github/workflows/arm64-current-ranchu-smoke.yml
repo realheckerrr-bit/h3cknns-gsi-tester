@@ -20,7 +20,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             autoconf automake bc bison build-essential cpio e2fsprogs flex \
             gettext libfdt-dev libglib2.0-dev libpixman-1-dev libslirp-dev \
-            libtool lz4 libsdl2-dev ninja-build pkg-config python3 \
+            gdb libtool lz4 libsdl2-dev ninja-build pkg-config python3 \
             rsync unzip x11-xserver-utils xvfb xz-utils
 
       - name: Fetch current Android Ranchu QEMU source
@@ -149,7 +149,7 @@ jobs:
           export SDL_AUDIODRIVER=dummy
           qemu="$PWD/qemu/aarch64-softmmu/qemu-system-aarch64"
           xvfb-run -a -s '-screen 0 1080x1920x24' \
-            "$qemu" \
+            gdb -batch -ex 'set pagination off' -ex run -ex bt --args "$qemu" \
               -M ranchu \
               -cpu max \
               -m 4096 \
