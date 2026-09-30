@@ -82,6 +82,12 @@ jobs:
               'elseif (QNX)\n    target_link_libraries(EGL_translator_static PUBLIC "-lscreen -lregex -lEGL -lGLESv2")\nelse()',
               'elseif (ANDROID)\n    target_link_libraries(EGL_translator_static PUBLIC "-ldl -llog")\nelseif (QNX)\n    target_link_libraries(EGL_translator_static PUBLIC "-lscreen -lregex -lEGL -lGLESv2")\nelse()', 1)
           egl.write_text(text)
+          alloc = root / 'host' / 'vulkan' / 'VkDecoderInternalStructs.h'
+          text = alloc.read_text()
+          text = text.replace(
+              '        mAddr = aligned_alloc(alignment, size);',
+              '        mAddr = nullptr;\n        if (posix_memalign(&mAddr, alignment, size) != 0) mAddr = nullptr;', 1)
+          alloc.write_text(text)
           PY
 
       - name: Configure and build libgfxstream_backend
