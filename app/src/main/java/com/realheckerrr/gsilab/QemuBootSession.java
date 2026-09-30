@@ -50,10 +50,10 @@ public final class QemuBootSession {
         // return from SurfaceFlinger on some ARM64 hosts.
         args.add("-cpu"); args.add(assets.ranchu ? "cortex-a57" : "max");
         args.add("-m"); args.add("4096");
-        // This Ranchu board does not expose PSCI while running under TCG, so
-        // Android can only bring up its boot CPU. Keep the request explicit;
-        // multithreaded TCG still lets host-side SDL and device work progress.
-        args.add("-smp"); args.add(assets.ranchu ? "1" : "4");
+        // Keep the Ranchu request aligned with the Android Emulator guest pack;
+        // multithreaded TCG lets host-side SDL and device work progress even
+        // when this board's TCG PSCI path leaves one guest CPU online.
+        args.add("-smp"); args.add(assets.ranchu ? "2" : "4");
         args.add("-rtc"); args.add("base=utc");
         args.add("-kernel"); args.add(assets.kernel.getAbsolutePath());
         args.add("-initrd"); args.add(assets.ramdisk.getAbsolutePath());
