@@ -2,6 +2,7 @@ package com.realheckerrr.gsilab;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.io.ByteArrayOutputStream;
@@ -148,6 +149,22 @@ public final class ImageImportTest {
         assertTrue(report.kernel.contains("embedded kernel"));
         assertArrayEquals(kernel, Files.readAllBytes(assets.kernel.toPath()));
         assertArrayEquals(ramdisk, Files.readAllBytes(assets.ramdisk.toPath()));
+    }
+
+    @Test
+    public void rejectsGblStyleBootArchiveWithoutEmbeddedKernel() throws Exception {
+        File guest = tempFile("gbl-guest.zip");
+        try (ZipOutputStream zip = new ZipOutputStream(new FileOutputStream(guest))) {
+            put(zip, "boot.img", bootV3(new byte[0]));
+            put(zip, "init_boot.img", bootV3(new byte[]{1, 2, 3}));
+            put(zip, "vendor.img", ext4Image(4096));
+        }
+
+        GuestBundleAnalysis report = GuestBundleAnalyzer.analyze(guest);
+
+        assertFalse(report.bootCandidate);
+        assertTrue(report.warnings.stream().anyMatch(value -> value.contains("no embedded kernel")));
+        assertTrue(report.errors.stream().anyMatch(value -> value.contains("ARM64 kernel")));
     }
 
     @Test

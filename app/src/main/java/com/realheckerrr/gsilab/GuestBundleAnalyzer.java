@@ -2,12 +2,16 @@ package com.realheckerrr.gsilab;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Locale;
 import java.util.zip.ZipEntry;
+import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipFile;
+
+import org.tukaani.xz.XZInputStream;
 
 /** Validates a reproducible guest bundle without extracting or executing anything. */
 public final class GuestBundleAnalyzer {
@@ -32,6 +36,7 @@ public final class GuestBundleAnalyzer {
         int entries = 0;
         List<String> warnings = new ArrayList<>();
         List<String> errors = new ArrayList<>();
+        boolean bootImageHasKernel = false;
         try (ZipFile zip = new ZipFile(input)) {
             Enumeration<? extends ZipEntry> all = zip.entries();
             while (all.hasMoreElements()) {
@@ -58,10 +63,15 @@ public final class GuestBundleAnalyzer {
                 if (initBootImage == null && (base.equals("init_boot.img") || base.equals("init_boot.img.gz") || base.equals("init_boot.img.xz"))) initBootImage = name;
                 if (vendorBootImage == null && (base.equals("vendor_boot.img") || base.equals("vendor_boot.img.gz") || base.equals("vendor_boot.img.xz"))) vendorBootImage = name;
             }
+            if (kernel == null && bootImage != null) bootImageHasKernel = hasKernelPayload(zip, bootImage);
         }
         if (kernel == null && bootImage != null) {
-            kernel = bootImage + " (embedded kernel)";
-            warnings.add("kernel will be extracted from boot.img during boot preparation.");
+            if (bootImageHasKernel) {
+                kernel = bootImage + " (embedded kernel)";
+                warnings.add("kernel will be extracted from boot.img during boot preparation.");
+            } else {
+                warnings.add("boot.img has no embedded kernel; this GBL-style bundle needs a direct ARM64 kernel or matching bootloader.");
+            }
         }
         if (ramdisk == null && (bootImage != null || initBootImage != null || vendorBootImage != null)) {
             String source = vendorBootImage != null ? vendorBootImage
@@ -80,5 +90,36 @@ public final class GuestBundleAnalyzer {
         boolean candidate = errors.isEmpty();
         return new GuestBundleAnalysis(input.getName(), entries, kernel, ramdisk, vendor, userdata, cache, encryptionKey, qemu,
                 GsiAnalyzer.sha256(input), candidate, warnings, errors);
+    }
+
+    private static boolean hasKernelPayload(ZipFile zip, String name) throws IOException {
+        ZipEntry entry = zip.getEntry(name);
+        if (entry == null) return false;
+        try (InputStream raw = zip.getInputStream(entry);
+             InputStream input = maybeCompressed(raw, name)) {
+            byte[] header = new byte[64];
+            int offset = 0;
+            while (offset < header.length) {
+                int read = input.read(header, offset, header.length - offset);
+                if (read < 0) break;
+                offset += read;
+            }
+            if (offset < 12 || !"ANDROID!".equals(new String(header, 0, 8, java.nio.charset.StandardCharsets.US_ASCII))) {
+                return false;
+            }
+            return littleInt(header, 8) > 0;
+        }
+    }
+
+    private static InputStream maybeCompressed(InputStream input, String name) throws IOException {
+        String lower = name.toLowerCase(Locale.US);
+        if (lower.endsWith(".gz")) return new GZIPInputStream(input);
+        if (lower.endsWith(".xz")) return new XZInputStream(input);
+        return input;
+    }
+
+    private static long littleInt(byte[] bytes, int offset) {
+        return (bytes[offset] & 0xffL) | ((bytes[offset + 1] & 0xffL) << 8)
+                | ((bytes[offset + 2] & 0xffL) << 16) | ((bytes[offset + 3] & 0xffL) << 24);
     }
 }
