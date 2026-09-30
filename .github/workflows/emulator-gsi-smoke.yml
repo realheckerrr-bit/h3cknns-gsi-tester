@@ -153,29 +153,50 @@ jobs:
           qemu_bin=$(find "$ANDROID_HOME/emulator" -type f -name qemu-system-aarch64 -perm -111 | head -1 || true)
           test -n "$qemu_bin"
           export LD_LIBRARY_PATH="$ANDROID_HOME/emulator/lib64:$ANDROID_HOME/emulator/lib64/qt/lib:${LD_LIBRARY_PATH:-}"
-          "$qemu_bin" \
+          booted=0
+          emulator_pid=0
+          stop_emulator() {
+            if [[ "$emulator_pid" == 0 ]]; then return; fi
+            if kill -0 "$emulator_pid" 2>/dev/null; then
+              # Keep retries from inheriting a QEMU process that still owns userdata.img.
+              kill -TERM -- "-$emulator_pid" 2>/dev/null || true
+              kill -TERM "$emulator_pid" 2>/dev/null || true
+              for _ in $(seq 1 10); do
+                if ! kill -0 "$emulator_pid" 2>/dev/null; then break; fi
+                sleep 1
+              done
+              kill -KILL -- "-$emulator_pid" 2>/dev/null || true
+              kill -KILL "$emulator_pid" 2>/dev/null || true
+            fi
+            wait "$emulator_pid" 2>/dev/null || true
+            emulator_pid=0
+          }
+          for attempt in 1 2; do
+            rm -f serial.log qemu.stdout qemu.stderr
+            setsid --wait "$qemu_bin" \
+            -accel tcg,thread=multi \
             -machine ranchu \
-            -cpu max \
+            -cpu cortex-a57 \
             -m 4096 \
-            -smp 4 \
+            -smp 2 \
             -rtc base=utc \
             -kernel "$PWD/guest/kernel-ranchu" \
             -initrd "$PWD/guest/ramdisk.patched.img" \
-            -append 'console=ttyAMA0,115200 androidboot.console=ttyAMA1 androidboot.hardware=ranchu androidboot.verifiedbootstate=orange androidboot.qemu=1 androidboot.qemu.vsync=60 androidboot.hardware.egl=angle androidboot.hardware.gralloc=minigbm androidboot.hardware.hwcomposer=ranchu androidboot.hardware.hwcomposer.display_finder_mode=drm androidboot.hardware.hwcomposer.display_framebuffer_format=rgba androidboot.hardware.vulkan=pastel androidboot.qemu.cpuvulkan.version=4202496 androidboot.opengles.version=196609 androidboot.debug.hwui.renderer=opengl androidboot.debug.renderengine.backend=skiagl androidboot.config.low_ram=0 androidboot.dalvik.vm.checkjni=1 androidboot.debug.stagefright.ccodec=4 androidboot.debug.sf.nobootanimation=1 qemu.logcat=start androidboot.selinux=permissive selinux=0 security=selinux enforcing=0 androidboot.dalvik.vm.heapsize=192m' \
+            -append 'console=ttyAMA0,115200 androidboot.console=ttyAMA1 androidboot.hardware=ranchu androidboot.verifiedbootstate=orange androidboot.qemu=1 androidboot.qemu.vsync=60 androidboot.hardware.egl=swiftshader androidboot.hardware.gralloc=minigbm androidboot.hardware.hwcomposer=ranchu androidboot.hardware.hwcomposer.display_finder_mode=drm androidboot.hardware.hwcomposer.display_framebuffer_format=rgba androidboot.hardware.vulkan=pastel androidboot.qemu.cpuvulkan.version=4202496 androidboot.opengles.version=196609 androidboot.debug.hwui.renderer=opengl androidboot.debug.renderengine.backend=skiagl androidboot.config.low_ram=0 androidboot.dalvik.vm.checkjni=1 androidboot.debug.stagefright.ccodec=4 androidboot.debug.sf.nobootanimation=1 qemu.logcat=start androidboot.selinux=permissive selinux=0 security=selinux enforcing=0 androidboot.dalvik.vm.heapsize=192m' \
             -drive if=none,format=raw,id=userdata,file="$PWD/guest/userdata.img" \
             -device virtio-blk-device,drive=userdata \
             -drive if=none,format=raw,id=system,file="$PWD/guest/system.img",readonly=on \
             -device virtio-blk-device,drive=system \
             -drive if=none,format=raw,id=vendor,file="$PWD/guest/vendor.raw.img",readonly=on \
             -device virtio-blk-device,drive=vendor \
+            -device virtio-gpu-device,id=gpu0,xres=1080,yres=1920 \
             -display none \
             -monitor none \
             -serial file:serial.log \
             -no-reboot \
             > qemu.stdout 2> qemu.stderr &
-          emulator_pid=$!
-          booted=0
-          for _ in $(seq 1 240); do
+            emulator_pid=$!
+            for _ in $(seq 1 300); do
             if grep -Eiq 'sys\.boot_completed|boot animation stopped|starting service .zygote|Android runtime started|class_start main.*succeeded' serial.log 2>/dev/null; then
               booted=1
               break
@@ -184,13 +205,14 @@ jobs:
               break
             fi
             sleep 1
+            done
+            if [[ "$booted" == 1 ]]; then
+              break
+            fi
+            stop_emulator
+            echo "Ranchu attempt $attempt did not reach an Android marker; retrying cold." >&2
           done
-          if kill -0 "$emulator_pid" 2>/dev/null; then
-            kill "$emulator_pid" 2>/dev/null || true
-            wait "$emulator_pid" 2>/dev/null || true
-          else
-            wait "$emulator_pid" 2>/dev/null || true
-          fi
+          stop_emulator
           tail -300 serial.log 2>/dev/null || true
           cat qemu.stdout 2>/dev/null || true
           cat qemu.stderr 2>/dev/null || true
