@@ -36,6 +36,12 @@ jobs:
             -e 's/sys.version_info < (2,4) or sys.version_info >= (3,)/sys.version_info < (2,4)/' \
             -e 's/sys.version_info < (2,6) or sys.version_info >= (3,)/sys.version_info < (2,6)/' \
             ranchu-qemu/configure
+          python3 - "$PWD/ranchu-qemu/scripts/ordereddict.py" <<'PY'
+          from pathlib import Path
+          import sys
+
+          Path(sys.argv[1]).write_text("from collections import OrderedDict\n")
+          PY
           python3 -m lib2to3 -w -n \
             ranchu-qemu/scripts/qapi.py \
             ranchu-qemu/scripts/qapi-commands.py \
