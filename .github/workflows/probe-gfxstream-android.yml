@@ -32,6 +32,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p aosp/hardware/google aosp/external
+          mkdir -p aosp/system
           git clone --depth 1 --branch emu-35-3-release \
             https://android.googlesource.com/platform/hardware/google/aemu aosp/hardware/google/aemu
           git clone --depth 1 --branch emu-35-3-release \
@@ -44,6 +45,8 @@ jobs:
             https://android.googlesource.com/platform/external/flatbuffers aosp/external/flatbuffers
           git clone --depth 1 \
             https://android.googlesource.com/platform/external/libdrm aosp/external/libdrm
+          git clone --depth 1 \
+            https://android.googlesource.com/platform/system/core aosp/system/core
 
       - name: Select the Android native window backend
         shell: bash
@@ -93,6 +96,8 @@ jobs:
             -DANDROID_PLATFORM=26 \
             -DBUILD_STANDALONE=ON \
             -DDEPENDENCY_RESOLUTION=AOSP \
+            -DCMAKE_CXX_FLAGS="-I$PWD/aosp/system/core/libcutils/include" \
+            -DCMAKE_C_FLAGS="-I$PWD/aosp/system/core/libcutils/include" \
             -DENABLE_VKCEREAL_TESTS=OFF \
             -DBUILD_GRAPHICS_DETECTOR=OFF \
             -DUSE_ANGLE_SHADER_PARSER=OFF \
