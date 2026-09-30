@@ -24,7 +24,7 @@ jobs:
             autoconf automake bc bison build-essential cpio e2fsprogs flex \
             gettext libfdt-dev libglib2.0-dev libpixman-1-dev libslirp-dev \
             gdb libtool lz4 libsdl2-dev ninja-build pkg-config python3 \
-            rsync unzip x11-xserver-utils xvfb xz-utils
+            rsync socat unzip x11-xserver-utils xvfb xz-utils
 
       - name: Fetch current Android Ranchu QEMU source
         shell: bash
@@ -189,7 +189,7 @@ jobs:
               -device virtio-blk-device,drive=vendor \
               -device virtio-gpu-device,id=gpu0,xres=1080,yres=1920 \
               -display sdl \
-              -monitor none \
+              -monitor unix:monitor.sock,server,nowait \
               -serial file:serial.log \
               -no-reboot \
             > qemu.stdout 2> qemu.stderr &
@@ -205,6 +205,9 @@ jobs:
             fi
             sleep 1
           done
+          if [[ -S monitor.sock ]]; then
+            timeout 5s bash -c "printf 'screendump framebuffer.ppm\\n' | socat - UNIX-CONNECT:monitor.sock" || true
+          fi
           if kill -0 "$emulator_pid" 2>/dev/null; then
             kill "$emulator_pid" 2>/dev/null || true
             wait "$emulator_pid" 2>/dev/null || true
@@ -228,4 +231,5 @@ jobs:
             serial.log
             qemu.stdout
             qemu.stderr
+            framebuffer.ppm
           if-no-files-found: ignore
