@@ -36,6 +36,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             android-sdk-libsparse-utils cpio lz4 qemu-system-arm unzip xz-utils
+            e2fsprogs
 
       - name: Install official Android virtio firmware
         shell: bash
@@ -117,6 +118,20 @@ jobs:
             echo 'The GSI ZIP has no system.img, system.img.gz, or system.img.xz.' >&2
             exit 1
           fi
+          if simg2img gsi/system.img gsi/system.raw.img 2>/dev/null; then
+            mv gsi/system.raw.img gsi/system.img
+          fi
+          printf '%s\n' \
+            'service apexd-bootstrap /system/bin/apexd --bootstrap' \
+            'user root' \
+            'group system' \
+            'oneshot' \
+            'disabled' \
+            'capabilities SYS_ADMIN' > gsi/apexd.rc
+          debugfs -R 'stat /etc/init/apexd.rc' gsi/system.img
+          debugfs -w -R 'write gsi/apexd.rc /etc/init/apexd.rc' gsi/system.img
+          debugfs -R 'dump /etc/init/apexd.rc gsi/apexd.after.rc' gsi/system.img
+          grep -n 'apeXd-bootstrap\|apexd-bootstrap\|reboot_on_failure' gsi/apexd.after.rc || true
 
       - name: Extract Cuttlefish boot and vendor partitions
         shell: bash
