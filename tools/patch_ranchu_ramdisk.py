@@ -343,9 +343,9 @@ def main():
     vendor_device = "/dev/block/vdc" if cuttlefish else "/dev/block/vda"
     data_device = "/dev/block/vdb" if cuttlefish else "/dev/block/vdc"
     extra_devices = ({
-        "/product": ("/dev/block/vdd", "ext4"),
-        "/system_ext": ("/dev/block/vde", "ext4"),
-        "/odm": ("/dev/block/vdf", "ext4"),
+        "/product": ("/dev/block/vdd", "erofs"),
+        "/system_ext": ("/dev/block/vde", "erofs"),
+        "/odm": ("/dev/block/vdf", "erofs"),
     } if cuttlefish else {})
     raw, compression = unpack(open(source, "rb").read())
     entries = parse_cpio(raw)

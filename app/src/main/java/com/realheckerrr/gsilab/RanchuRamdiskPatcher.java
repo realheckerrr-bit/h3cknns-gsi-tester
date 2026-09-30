@@ -300,7 +300,7 @@ public final class RanchuRamdiskPatcher {
             else if ("/vendor".equals(mountpoint)) desiredFs = "erofs";
             else if ("/data".equals(mountpoint)) desiredFs = "ext4";
             else if ("/product".equals(mountpoint) || "/system_ext".equals(mountpoint)
-                    || "/odm".equals(mountpoint)) desiredFs = "ext4";
+                    || "/odm".equals(mountpoint)) desiredFs = "erofs";
             if (allFstabEntries && desiredFs != null
                     && columns.length > 2 && !desiredFs.equals(columns[2])) {
                 result.append('#').append(line.startsWith("#") ? line.substring(1) : line);
@@ -373,13 +373,13 @@ public final class RanchuRamdiskPatcher {
         }
         if (allFstabEntries) {
             if (!hasProduct && productDevice != null) {
-                result.append(productDevice).append(" /product ext4 ro wait,first_stage_mount\n");
+                result.append(productDevice).append(" /product erofs ro wait,first_stage_mount\n");
             }
             if (!hasSystemExt && systemExtDevice != null) {
-                result.append(systemExtDevice).append(" /system_ext ext4 ro wait,first_stage_mount\n");
+                result.append(systemExtDevice).append(" /system_ext erofs ro wait,first_stage_mount\n");
             }
             if (!hasOdm && odmDevice != null) {
-                result.append(odmDevice).append(" /odm ext4 ro wait,first_stage_mount\n");
+                result.append(odmDevice).append(" /odm erofs ro wait,first_stage_mount\n");
             }
             if (productDevice != null || systemExtDevice != null || odmDevice != null) changed = true;
         }
