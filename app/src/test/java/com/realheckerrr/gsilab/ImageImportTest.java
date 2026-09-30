@@ -9,7 +9,10 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.Locale;
+import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -158,6 +161,29 @@ public final class ImageImportTest {
         assertEquals("erofs", RanchuVendorPatcher.detectFilesystem(image));
     }
 
+    @Test
+    public void preservesRamdiskMetadataWhenPatchingFstab() throws Exception {
+        ByteArrayOutputStream cpio = new ByteArrayOutputStream();
+        appendCpio(cpio, "etc", 0040755, new byte[0], 1);
+        appendCpio(cpio, "bin/sh", 0120777, "toybox".getBytes(StandardCharsets.UTF_8), 2);
+        appendCpio(cpio, "fstab.ranchu", 0100644,
+                "/dev/block/by-name/system /system ext4 ro,first_stage_mount\n"
+                        .getBytes(StandardCharsets.UTF_8), 3);
+        appendCpio(cpio, "TRAILER!!!", 0, new byte[0], 0);
+
+        File source = tempFile("ramdisk.img");
+        File target = tempFile("ramdisk.patched.img");
+        Files.write(source.toPath(), cpio.toByteArray());
+        RanchuRamdiskPatcher.patch(source, target);
+        byte[] patched = gunzip(Files.readAllBytes(target.toPath()));
+
+        assertEquals(0040755, cpioMode(patched, "etc"));
+        assertEquals(0120777, cpioMode(patched, "bin/sh"));
+        assertArrayEquals("toybox".getBytes(StandardCharsets.UTF_8), cpioContent(patched, "bin/sh"));
+        assertTrue(new String(cpioContent(patched, "fstab.ranchu"), StandardCharsets.UTF_8)
+                .contains("/dev/block/vdb /system"));
+    }
+
     private static byte[] ext4Image(int size) {
         byte[] image = new byte[size];
         image[1080] = 0x53;
@@ -227,6 +253,71 @@ public final class ImageImportTest {
             gzip.write(bytes);
         }
         return output.toByteArray();
+    }
+
+    private static void appendCpio(ByteArrayOutputStream output, String name, int mode,
+                                   byte[] content, int inode) throws IOException {
+        byte[] nameBytes = name.getBytes(StandardCharsets.UTF_8);
+        byte[] nameWithNull = new byte[nameBytes.length + 1];
+        System.arraycopy(nameBytes, 0, nameWithNull, 0, nameBytes.length);
+        StringBuilder header = new StringBuilder("070701");
+        long[] fields = {inode, mode, 0, 0, 1, 0, content.length, 0, 0, 0, 0, nameWithNull.length, 0};
+        for (long field : fields) header.append(String.format(Locale.US, "%08x", field));
+        output.write(header.toString().getBytes(StandardCharsets.US_ASCII));
+        output.write(nameWithNull);
+        pad4(output);
+        output.write(content);
+        pad4(output);
+    }
+
+    private static int cpioMode(byte[] data, String wanted) {
+        int position = cpioPosition(data, wanted);
+        return position < 0 ? -1 : readHex(data, position + 14);
+    }
+
+    private static byte[] cpioContent(byte[] data, String wanted) {
+        int position = cpioPosition(data, wanted);
+        if (position < 0) throw new AssertionError("Missing CPIO entry: " + wanted);
+        int nameSize = readHex(data, position + 94);
+        int size = readHex(data, position + 54);
+        int start = align4(position + 110 + nameSize);
+        return java.util.Arrays.copyOfRange(data, start, start + size);
+    }
+
+    private static int cpioPosition(byte[] data, String wanted) {
+        for (int position = 0; position + 110 <= data.length; ) {
+            String magic = new String(data, position, 6, StandardCharsets.US_ASCII);
+            if (!("070701".equals(magic) || "070702".equals(magic))) return -1;
+            int nameSize = readHex(data, position + 94);
+            int size = readHex(data, position + 54);
+            String name = new String(data, position + 110, nameSize - 1, StandardCharsets.UTF_8);
+            if (wanted.equals(name)) return position;
+            int contentEnd = align4(position + 110 + nameSize) + size;
+            position = align4(contentEnd);
+        }
+        return -1;
+    }
+
+    private static int readHex(byte[] data, int offset) {
+        return Integer.parseUnsignedInt(new String(data, offset, 8, StandardCharsets.US_ASCII), 16);
+    }
+
+    private static int align4(int value) {
+        return (value + 3) & ~3;
+    }
+
+    private static void pad4(ByteArrayOutputStream output) {
+        while ((output.size() & 3) != 0) output.write(0);
+    }
+
+    private static byte[] gunzip(byte[] bytes) throws IOException {
+        try (GZIPInputStream input = new GZIPInputStream(new java.io.ByteArrayInputStream(bytes));
+             ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[4096];
+            int read;
+            while ((read = input.read(buffer)) != -1) output.write(buffer, 0, read);
+            return output.toByteArray();
+        }
     }
 
     private static void writeSuperImage(File target, byte[] vendor) throws IOException {

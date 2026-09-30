@@ -34,7 +34,7 @@ public final class RanchuRamdiskPatcher {
             String base = entry.name.substring(entry.name.lastIndexOf('/') + 1);
             if ("fstab.ranchu".equals(base) || "fstab.ranchu.initrd".equals(base)) {
                 PatchResult result = patchFstab(entry.content);
-                entry = new Entry(entry.name, result.content);
+                entry = entry.withContent(result.content);
                 hasSystem |= result.hasSystem;
                 hasVendor |= result.hasVendor;
             }
@@ -44,7 +44,7 @@ public final class RanchuRamdiskPatcher {
             StringBuilder fallback = new StringBuilder();
             if (!hasSystem) fallback.append("/dev/block/vdb /system ext4 ro wait,first_stage_mount\n");
             if (!hasVendor) fallback.append("/dev/block/vda /vendor ext4 ro wait,first_stage_mount\n");
-            patched.add(new Entry("fstab.ranchu", fallback.toString().getBytes(StandardCharsets.UTF_8)));
+            patched.add(Entry.regular("fstab.ranchu", fallback.toString().getBytes(StandardCharsets.UTF_8)));
         }
         File parent = target.getParentFile();
         if (parent != null && !parent.isDirectory() && !parent.mkdirs()) {
@@ -172,21 +172,38 @@ public final class RanchuRamdiskPatcher {
             while (position + 110 <= data.length) {
                 String magic = ascii(data, position, 6);
                 if (!("070701".equals(magic) || "070702".equals(magic))) break;
-                int size = hex(data, position + 54, 8);
+                long ino = hexLong(data, position + 6, 8);
+                long mode = hexLong(data, position + 14, 8);
+                long uid = hexLong(data, position + 22, 8);
+                long gid = hexLong(data, position + 30, 8);
+                long nlink = hexLong(data, position + 38, 8);
+                long mtime = hexLong(data, position + 46, 8);
+                long sizeLong = hexLong(data, position + 54, 8);
+                long devMajor = hexLong(data, position + 62, 8);
+                long devMinor = hexLong(data, position + 70, 8);
+                long rdevMajor = hexLong(data, position + 78, 8);
+                long rdevMinor = hexLong(data, position + 86, 8);
                 int nameSize = hex(data, position + 94, 8);
-                if (size < 0 || nameSize < 1 || position + 110 + nameSize > data.length) break;
+                long check = hexLong(data, position + 102, 8);
+                if (ino < 0 || mode < 0 || uid < 0 || gid < 0 || nlink < 0 || mtime < 0
+                        || sizeLong < 0 || sizeLong > Integer.MAX_VALUE || devMajor < 0 || devMinor < 0
+                        || rdevMajor < 0 || rdevMinor < 0 || check < 0 || nameSize < 1
+                        || position + 110L + nameSize > data.length) break;
+                int size = (int) sizeLong;
                 int nameStart = position + 110;
                 String name = new String(data, nameStart, nameSize - 1, StandardCharsets.UTF_8);
                 int contentStart = align4(nameStart + nameSize);
-                int contentEnd = contentStart + size;
-                if (contentEnd < contentStart || contentEnd > data.length) break;
+                long contentEndLong = contentStart + (long) size;
+                if (contentEndLong < contentStart || contentEndLong > data.length) break;
+                int contentEnd = (int) contentEndLong;
                 if ("TRAILER!!!".equals(name)) {
                     cursor = align4(contentEnd);
                     break;
                 }
                 byte[] content = new byte[size];
                 System.arraycopy(data, contentStart, content, 0, size);
-                entries.add(new Entry(name, content));
+                entries.add(new Entry(name, magic, ino, mode, uid, gid, nlink, mtime,
+                        devMajor, devMinor, rdevMajor, rdevMinor, content));
                 position = align4(contentEnd);
                 cursor = position;
             }
@@ -269,7 +286,8 @@ public final class RanchuRamdiskPatcher {
             byte[] name = entry.name.getBytes(StandardCharsets.UTF_8);
             byte[] nameWithNull = new byte[name.length + 1];
             System.arraycopy(name, 0, nameWithNull, 0, name.length);
-            writeHeader(output, entry.content.length, nameWithNull.length);
+            long check = "070702".equals(entry.magic) ? checksum(entry.content) : 0;
+            writeHeader(output, entry, entry.content.length, nameWithNull.length, check);
             output.write(nameWithNull);
             pad4(output);
             output.write(entry.content);
@@ -282,11 +300,19 @@ public final class RanchuRamdiskPatcher {
         return output.toByteArray();
     }
 
-    private static void writeHeader(ByteArrayOutputStream output, int size, int nameSize) throws IOException {
-        StringBuilder header = new StringBuilder("070701");
-        int[] fields = {0, 0100644, 0, 0, 1, 0, size, 0, 0, 0, 0, nameSize, 0};
-        for (int field : fields) header.append(String.format(Locale.US, "%08x", field));
+    private static void writeHeader(ByteArrayOutputStream output, Entry entry, int size, int nameSize,
+                                    long check) throws IOException {
+        StringBuilder header = new StringBuilder(entry.magic);
+        long[] fields = {entry.ino, entry.mode, entry.uid, entry.gid, entry.nlink, entry.mtime, size,
+                entry.devMajor, entry.devMinor, entry.rdevMajor, entry.rdevMinor, nameSize, check};
+        for (long field : fields) header.append(String.format(Locale.US, "%08x", field));
         output.write(header.toString().getBytes(StandardCharsets.US_ASCII));
+    }
+
+    private static long checksum(byte[] content) {
+        long sum = 0;
+        for (byte value : content) sum = (sum + (value & 0xffL)) & 0xffffffffL;
+        return sum;
     }
 
     private static void pad4(ByteArrayOutputStream output) {
@@ -305,7 +331,12 @@ public final class RanchuRamdiskPatcher {
     }
 
     private static int hex(byte[] data, int offset, int length) {
-        try { return Integer.parseUnsignedInt(ascii(data, offset, length), 16); }
+        long value = hexLong(data, offset, length);
+        return value < 0 || value > Integer.MAX_VALUE ? -1 : (int) value;
+    }
+
+    private static long hexLong(byte[] data, int offset, int length) {
+        try { return Long.parseUnsignedLong(ascii(data, offset, length), 16); }
         catch (NumberFormatException error) { return -1; }
     }
 
@@ -324,8 +355,45 @@ public final class RanchuRamdiskPatcher {
 
     private static final class Entry {
         final String name;
+        final String magic;
+        final long ino;
+        final long mode;
+        final long uid;
+        final long gid;
+        final long nlink;
+        final long mtime;
+        final long devMajor;
+        final long devMinor;
+        final long rdevMajor;
+        final long rdevMinor;
         final byte[] content;
-        Entry(String name, byte[] content) { this.name = name; this.content = content; }
+
+        Entry(String name, String magic, long ino, long mode, long uid, long gid, long nlink, long mtime,
+              long devMajor, long devMinor, long rdevMajor, long rdevMinor, byte[] content) {
+            this.name = name;
+            this.magic = magic;
+            this.ino = ino;
+            this.mode = mode;
+            this.uid = uid;
+            this.gid = gid;
+            this.nlink = nlink;
+            this.mtime = mtime;
+            this.devMajor = devMajor;
+            this.devMinor = devMinor;
+            this.rdevMajor = rdevMajor;
+            this.rdevMinor = rdevMinor;
+            this.content = content;
+        }
+
+        static Entry regular(String name, byte[] content) {
+            return new Entry(name, "070701", 0, 0100644, 0, 0, 1, 0,
+                    0, 0, 0, 0, content);
+        }
+
+        Entry withContent(byte[] replacement) {
+            return new Entry(name, magic, ino, mode, uid, gid, nlink, mtime,
+                    devMajor, devMinor, rdevMajor, rdevMinor, replacement);
+        }
     }
 
     private static final class PatchResult {
