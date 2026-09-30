@@ -172,9 +172,27 @@ jobs:
           export SDL_AUDIODRIVER=dummy
           qemu="$PWD/qemu/aarch64-softmmu/qemu-system-aarch64"
           booted=0
+          emulator_pid=0
+          stop_emulator() {
+            if [[ "$emulator_pid" == 0 ]]; then return; fi
+            if kill -0 "$emulator_pid" 2>/dev/null; then
+              # setsid gives each cold attempt its own process group.  Killing
+              # only xvfb-run can leave QEMU alive and holding userdata.img.
+              kill -TERM -- "-$emulator_pid" 2>/dev/null || true
+              kill -TERM "$emulator_pid" 2>/dev/null || true
+              for _ in $(seq 1 10); do
+                if ! kill -0 "$emulator_pid" 2>/dev/null; then break; fi
+                sleep 1
+              done
+              kill -KILL -- "-$emulator_pid" 2>/dev/null || true
+              kill -KILL "$emulator_pid" 2>/dev/null || true
+            fi
+            wait "$emulator_pid" 2>/dev/null || true
+            emulator_pid=0
+          }
           for attempt in 1 2; do
             rm -f serial.log qemu.stdout qemu.stderr monitor.sock framebuffer.ppm
-            xvfb-run -a -s '-screen 0 1080x1920x24' \
+            setsid --wait xvfb-run -a -s '-screen 0 1080x1920x24' \
               "$qemu" \
                 -accel tcg,thread=multi \
                 -M ranchu \
@@ -211,21 +229,13 @@ jobs:
             if [[ "$booted" == 1 ]]; then
               break
             fi
-            if kill -0 "$emulator_pid" 2>/dev/null; then
-              kill "$emulator_pid" 2>/dev/null || true
-              wait "$emulator_pid" 2>/dev/null || true
-            fi
+            stop_emulator
             echo "Ranchu attempt $attempt did not reach an Android marker; retrying cold." >&2
           done
           if [[ -S monitor.sock ]]; then
             timeout 5s bash -c "printf 'screendump framebuffer.ppm\\n' | socat - UNIX-CONNECT:monitor.sock" || true
           fi
-          if kill -0 "$emulator_pid" 2>/dev/null; then
-            kill "$emulator_pid" 2>/dev/null || true
-            wait "$emulator_pid" 2>/dev/null || true
-          else
-            wait "$emulator_pid" 2>/dev/null || true
-          fi
+          stop_emulator
           tail -300 serial.log 2>/dev/null || true
           cat qemu.stdout 2>/dev/null || true
           cat qemu.stderr 2>/dev/null || true
