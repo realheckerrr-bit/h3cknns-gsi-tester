@@ -218,6 +218,9 @@ jobs:
         run: |
           set -uo pipefail
           vendor_img=$(find vendor -maxdepth 1 -type f \( -name vendor_a.img -o -name vendor.img \) -print -quit)
+          product_img=$(find product -maxdepth 1 -type f -name product.img -print -quit)
+          system_ext_img=$(find system-ext -maxdepth 1 -type f -name system_ext.img -print -quit)
+          odm_img=$(find odm -maxdepth 1 -type f -name odm.img -print -quit)
           qemu-system-aarch64 \
             -M virt,gic-version=2,mte=on,usb=off,dump-guest-core=off \
             -cpu max -m 2048 -smp 4 -rtc base=utc \
