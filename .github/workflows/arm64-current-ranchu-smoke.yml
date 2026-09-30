@@ -73,7 +73,9 @@ jobs:
             --enable-trace-backends=nop
           make -f Makefile -j"$(nproc)"
           test -x aarch64-softmmu/qemu-system-aarch64
-          aarch64-softmmu/qemu-system-aarch64 -machine help | grep -E '^ranchu '
+          machines=$(aarch64-softmmu/qemu-system-aarch64 -machine help 2>&1 || true)
+          printf '%s\n' "$machines"
+          grep -E '^ranchu ' <<< "$machines"
 
       - name: Download Android Emulator Ranchu guest pack
         shell: bash
