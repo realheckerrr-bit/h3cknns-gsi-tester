@@ -364,10 +364,10 @@ def main():
         if cuttlefish and base == "init.rc":
             marker = b"setenforce 0"
             if marker not in content:
-            content += (b"\n\n# GSI tester permissive compatibility mode\n"
-                        b"on post-fs\n    setenforce 0\n"
-                        b"on post-fs-data\n    setenforce 0\n"
-                        b"on boot\n    setenforce 0\n")
+                content += (b"\n\n# GSI tester permissive compatibility mode\n"
+                            b"on post-fs\n    setenforce 0\n"
+                            b"on post-fs-data\n    setenforce 0\n"
+                            b"on boot\n    setenforce 0\n")
                 changed = True
         patched.append((header, name, content))
     if not changed:
