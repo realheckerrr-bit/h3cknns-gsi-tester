@@ -1,6 +1,7 @@
 package org.libsdl.app;
 
 import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -8,6 +9,9 @@ import android.os.Looper;
 import android.view.PixelCopy;
 import android.view.Surface;
 import android.view.ViewGroup;
+import android.view.Window;
+import android.view.WindowManager;
+import android.view.View;
 import android.widget.RelativeLayout;
 
 import com.realheckerrr.gsilab.QemuRunner;
@@ -27,16 +31,32 @@ public final class GsiSDLActivity extends SDLActivity {
 
     @Override
     protected void onCreate(Bundle state) {
+        // QEMU owns the native event loop; SDLActivity must never start its
+        // placeholder SDLMain thread during the first resume transition.
+        // Set this before the superclass enters SDL's lifecycle callbacks.
+        mExternalNativeLoop = true;
         super.onCreate(state);
         if (mBrokenLibraries) return;
 
-        // QEMU owns the native event loop; SDLActivity only supplies the Android surface.
-        mExternalNativeLoop = true;
+        Window window = getWindow();
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        window.setStatusBarColor(Color.BLACK);
+        window.setNavigationBarColor(Color.BLACK);
+        window.getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                        | View.SYSTEM_UI_FLAG_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+
         mSurface = new SDLSurface(this);
+        mSurface.setFocusable(true);
+        mSurface.setFocusableInTouchMode(true);
         RelativeLayout layout = new RelativeLayout(this);
+        layout.setBackgroundColor(Color.BLACK);
         layout.addView(mSurface, new RelativeLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         setContentView(layout);
+        mSurface.requestFocus();
         active = this;
         frameState = FRAME_UNKNOWN;
         frameProbeInFlight = false;
@@ -107,6 +127,10 @@ public final class GsiSDLActivity extends SDLActivity {
         frameProbeInFlight = false;
         frameState = FRAME_UNKNOWN;
         super.onDestroy();
+        // SDLActivity.initialize() does not reset this Limbo extension flag;
+        // clear it so a later SDL Activity cannot inherit the external-loop
+        // mode accidentally.
+        mExternalNativeLoop = false;
     }
 
     @Override
