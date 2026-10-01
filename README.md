@@ -68,6 +68,17 @@ GitHub Actions is configured in `.github/workflows/android.yml`.
 
 For a real host-side boot check, run the separate **Android Emulator GSI boot smoke test** workflow. Its defaults fetch the official ARM64 Ranchu guest archive and an official ARM64 AOSP GSI, adapt the same Ranchu disk layout, and upload the serial log. You can override the GSI URL and checksum in the workflow source.
 
+### Pixel device smoke test
+
+The APK is ARM64-only and includes the QEMU engine. With USB debugging enabled on an ARM64 Pixel:
+
+1. Install `app-debug.apk` from the GitHub release.
+2. In the app, tap **Download official Ranchu guest** and select your GSI ZIP.
+3. Wait for both preflight reports to finish, then tap **Start VM**.
+4. Confirm that the separate SDL guest window shows Android UI; export the report if it fails.
+
+This hardware check is still required because a host-side serial boot marker does not prove that the Android-linked graphics renderer displays a frame on every phone.
+
 The project uses Java 17, Android Gradle Plugin 8.6.0, compile SDK 35, AndroidX, and Material Components 1.14.0. Unit tests cover raw/gzip GSI imports and official-style guest archives before the APK is assembled.
 
 ## Limitations
