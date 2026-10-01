@@ -30,14 +30,14 @@ public final class QemuBootPlan {
         out.append("  system source: ").append(gsi == null ? "missing" : gsi.inputName).append('\n');
         out.append("  guest source: ").append(guest == null ? "missing" : guest.inputName).append('\n');
         out.append("\nThe final runner will extract only verified guest entries into app-private storage and invoke:\n");
-        out.append("  libqemu-system-aarch64.so -M ranchu (Cuttlefish=virt, generic=virt) -cpu cortex-a57 -m 4096 -smp 2\n");
+        out.append("  libqemu-system-aarch64.so -M virt (ARM64 Ranchu/Cuttlefish) -cpu cortex-a57 -m 4096 -smp 2\n");
         out.append("  Ranchu recovery retry: -accel tcg,thread=single -cpu cortex-a53 -smp 1\n");
         out.append("    -kernel <kernel> -initrd <ramdisk.img>\n");
         out.append("    Ranchu graphics: minigbm + virtio-gpu-asg + androidboot.hardware.egl=emulation + gfxstream/GoldfishPipe\n");
         out.append("    -drive file=<system.img>,format=raw,readonly=on + profile-specific virtio block device\n");
         out.append("    -drive file=<cache/userdata/vendor>,format=raw + profile-specific disk order\n");
         out.append("    -drive file=<vendor.img or super/vendor_a>,format=raw,readonly=on\n");
-        out.append("  Ranchu is the verified broad-GSI profile and uses virtio-mmio in userdata/system/vendor order.\n");
+        out.append("  ARM64 Ranchu is the verified broad-GSI profile and uses virtio-mmio disks plus PCI virtio-gpu.\n");
         out.append("  Cuttlefish uses virtio-blk-pci-non-transitional and is experimental with arbitrary GSI/vendor APEX combinations.\n");
         out.append("    -drive file=<userdata.img>,format=raw -display sdl -serial <console.log>\n");
         if (!enginePresent) out.append("\nSTATUS: not runnable; rebuild with the embedded QEMU engine.\n");

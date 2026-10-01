@@ -56,7 +56,7 @@ public final class QemuBootSession {
         args.add(assets.ranchu && recoveryProfile ? "tcg,thread=single" : "tcg,thread=multi");
         args.add("-M");
         args.add(assets.ranchu
-                ? "ranchu"
+                ? "virt"
                 : assets.cuttlefish
                 ? "virt,gic-version=2,mte=on,usb=off,dump-guest-core=off"
                 : "virt,gic-version=3");
@@ -145,8 +145,8 @@ public final class QemuBootSession {
             addDrive(args, "vendor", assets.vendor, true, false, rom);
         }
         if (assets.ranchu) {
-            // Android's gfxstream launcher uses the PCI virtio GPU for the
-            // virtio-gpu-asg transport, including on the ARM64 Ranchu path.
+            // Android's ARM64 gfxstream launcher uses the PCI virtio GPU on
+            // the virt machine for the virtio-gpu-asg transport.
             args.add("-device");
             args.add("virtio-gpu-pci,id=gpu0");
         } else if (assets.cuttlefish) {
