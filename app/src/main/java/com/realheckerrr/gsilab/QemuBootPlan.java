@@ -33,6 +33,7 @@ public final class QemuBootPlan {
         out.append("  libqemu-system-aarch64.so -M ranchu (Cuttlefish=virt, generic=virt) -cpu cortex-a57 -m 4096 -smp 2\n");
         out.append("  Ranchu recovery retry: -accel tcg,thread=single -cpu cortex-a53 -smp 1\n");
         out.append("    -kernel <kernel> -initrd <ramdisk.img>\n");
+        out.append("    Ranchu graphics: qemu.gles=1 androidboot.hardware.egl=emulation + gfxstream/GoldfishPipe\n");
         out.append("    -drive file=<system.img>,format=raw,readonly=on + profile-specific virtio block device\n");
         out.append("    -drive file=<cache/userdata/vendor>,format=raw + profile-specific disk order\n");
         out.append("    -drive file=<vendor.img or super/vendor_a>,format=raw,readonly=on\n");

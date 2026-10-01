@@ -112,7 +112,7 @@ public final class QemuBootSession {
                 : assets.ranchu
                 ? "console=ttyAMA0,115200 androidboot.console=ttyAMA1 androidboot.hardware=ranchu "
                 + "androidboot.verifiedbootstate=orange androidboot.qemu=1 "
-                + "androidboot.qemu.vsync=60 androidboot.hardwareegl=emulation "
+                + "androidboot.qemu.vsync=60 qemu.gles=1 androidboot.hardware.egl=emulation "
                 + "androidboot.hardware.vulkan=ranchu androidboot.qemu.cpuvulkan.version=4202496 "
                 + "androidboot.qemu.gltransport.name=pipe "
                 + "androidboot.hardware.gralloc=ranchu androidboot.hardware.hwcomposer=ranchu "
