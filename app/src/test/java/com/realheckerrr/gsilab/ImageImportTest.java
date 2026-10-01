@@ -131,6 +131,8 @@ public final class ImageImportTest {
         BootAssets assets = BootAssets.prepare(gsi, guest, output);
         assertTrue(assets.ranchu);
         assertArrayEquals(system, Files.readAllBytes(assets.system.toPath()));
+        assertEquals("userdata.auto.img", assets.userdata.getName());
+        assertEquals(2L * 1024L * 1024L * 1024L, assets.userdata.length());
     }
 
     @Test

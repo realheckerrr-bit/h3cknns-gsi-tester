@@ -15,6 +15,8 @@ import java.util.zip.ZipFile;
 
 /** Extracts only the known boot files and converts Android sparse images to raw ext4. */
 public final class BootAssets {
+    private static final long DEFAULT_USERDATA_BYTES = 2L * 1024L * 1024L * 1024L;
+
     public final File system;
     public final File kernel;
     public final File ramdisk;
@@ -96,6 +98,7 @@ public final class BootAssets {
                 "vendor_a.img.gz", "vendor_a.img.xz", "vendor-qemu.img", "vendor-qemu.img.gz", "vendor-qemu.img.xz");
         File userdata = copyBundleEntry(guestBundle, output, "userdata.img", "userdata.img.gz", "userdata.img.xz",
                 "userdata-qemu.img", "userdata-qemu.img.gz", "userdata-qemu.img.xz");
+        if (userdata == null) userdata = createSparseUserdata(output);
         if (userdata != null && isSparse(userdata)) {
             userdata = materializeImage(userdata, new File(output, "userdata.raw.img"));
         }
@@ -124,6 +127,20 @@ public final class BootAssets {
                     new File(output, "ramdisk.cuttlefish.img"));
         }
         return new BootAssets(system, kernel, ramdisk, vendor, userdata, cache, encryptionKey, qemu, rom, cuttlefish, ranchu);
+    }
+
+    /**
+     * A patched guest fstab still needs a writable /data block even when a
+     * downloaded guest bundle omits userdata.img. A sparse file keeps the APK
+     * storage cost small; Android's formattable userdata entry initializes it
+     * during first-stage boot.
+     */
+    private static File createSparseUserdata(File output) throws IOException {
+        File target = new File(output, "userdata.auto.img");
+        try (RandomAccessFile file = new RandomAccessFile(target, "rw")) {
+            if (file.length() < DEFAULT_USERDATA_BYTES) file.setLength(DEFAULT_USERDATA_BYTES);
+        }
+        return target;
     }
 
     private static File copyBundleEntry(File bundle, File output, String... names) throws IOException {

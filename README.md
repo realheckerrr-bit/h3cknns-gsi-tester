@@ -54,7 +54,7 @@ The app also provides **Download official Ranchu guest** in the base-guest secti
 
 The **Android Emulator GSI boot smoke test** workflow exercises that official `kernel-ranchu` guest pack with the Android 17 ARM64 AOSP GSI and stores the serial log as an artifact. The verified run reaches Android's `class_start main` action, so this is the recommended broad-GSI profile; it does not require a Pixel factory image.
 
-Gzip assets are expanded into private app storage and imported files are never mounted or modified.
+Gzip assets are expanded into private app storage and imported files are never mounted or modified. If a guest ZIP omits `userdata.img`, the app creates a sparse 2 GiB private userdata disk so the patched `/data` fstab entry still has a writable block device.
 
 If a GSI ZIP contains `super.img` instead of `system.img`, the app extracts the
 `system_a`/`system_b` logical partition into its private VM workspace before
