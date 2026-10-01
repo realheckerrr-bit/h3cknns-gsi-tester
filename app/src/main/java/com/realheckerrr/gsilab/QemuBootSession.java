@@ -56,7 +56,7 @@ public final class QemuBootSession {
         args.add(assets.ranchu && recoveryProfile ? "tcg,thread=single" : "tcg,thread=multi");
         args.add("-M");
         args.add(assets.ranchu
-                ? "virt"
+                ? "virt,gic-version=2"
                 : assets.cuttlefish
                 ? "virt,gic-version=2,mte=on,usb=off,dump-guest-core=off"
                 : "virt,gic-version=3");

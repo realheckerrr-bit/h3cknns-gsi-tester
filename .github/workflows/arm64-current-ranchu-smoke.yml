@@ -204,7 +204,7 @@ jobs:
             setsid --wait xvfb-run -a -s '-screen 0 1080x1920x24' \
               "$qemu" \
                 -accel "$accel" \
-                -M virt \
+                -M virt,gic-version=2 \
                 -cpu "$cpu" \
                 -m 4096 \
                 -smp "$smp" \
