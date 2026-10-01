@@ -284,6 +284,10 @@ jobs:
             for _ in $(seq 1 300); do
             if grep -Eiq 'sys\.boot_completed|boot animation stopped|starting service .zygote|Android runtime started|class_start main.*succeeded' serial.log 2>/dev/null; then
               booted=1
+              # class_start main can precede SurfaceFlinger's first frame.
+              # Keep the guest alive long enough to verify the SDL framebuffer,
+              # not just the serial boot milestone.
+              sleep 30
               import -window root -silent display.png 2>/dev/null || true
               break
             fi
