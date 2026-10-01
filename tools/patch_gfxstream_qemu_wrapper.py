@@ -21,17 +21,50 @@ NEW = '''    pipe_ops = gsi_android_pipe_init(rendererSo);
 
 WINDOW_FUNCTIONS = '''
 static decltype(gfxstream_backend_setup_window)* s_gfxstream_setup_window = nullptr;
+static void* s_gsi_native_window = nullptr;
+static int32_t s_gsi_window_x = 0;
+static int32_t s_gsi_window_y = 0;
+static int32_t s_gsi_window_width = 0;
+static int32_t s_gsi_window_height = 0;
+static int32_t s_gsi_fb_width = 0;
+static int32_t s_gsi_fb_height = 0;
+
+static void gsi_apply_gfxstream_window() {
+    if (s_gfxstream_setup_window != nullptr && s_gsi_native_window != nullptr) {
+        s_gfxstream_setup_window(s_gsi_native_window, s_gsi_window_x, s_gsi_window_y,
+                                 s_gsi_window_width, s_gsi_window_height,
+                                 s_gsi_fb_width, s_gsi_fb_height);
+    }
+}
 
 extern "C" void gsi_gfxstream_setup_window(void* native_window,
                                              int32_t window_x, int32_t window_y,
                                              int32_t window_width, int32_t window_height,
                                              int32_t fb_width, int32_t fb_height) {
-    if (s_gfxstream_setup_window != nullptr) {
-        s_gfxstream_setup_window(native_window, window_x, window_y, window_width,
-                                 window_height, fb_width, fb_height);
-    }
+    s_gsi_native_window = native_window;
+    s_gsi_window_x = window_x;
+    s_gsi_window_y = window_y;
+    s_gsi_window_width = window_width;
+    s_gsi_window_height = window_height;
+    s_gsi_fb_width = fb_width;
+    s_gsi_fb_height = fb_height;
+    gsi_apply_gfxstream_window();
 }
 '''
+
+INIT_MARKER = '''VG_EXPORT int stream_renderer_init(struct stream_renderer_param* stream_renderer_params,
+                                   uint64_t num_params) {
+    return s_render.stream_renderer_init(stream_renderer_params, num_params);
+}'''
+
+INIT_REPLACEMENT = '''VG_EXPORT int stream_renderer_init(struct stream_renderer_param* stream_renderer_params,
+                                   uint64_t num_params) {
+    int ret = s_render.stream_renderer_init(stream_renderer_params, num_params);
+    if (ret == 0) {
+        gsi_apply_gfxstream_window();
+    }
+    return ret;
+}'''
 
 
 def main() -> None:
@@ -73,6 +106,8 @@ def main() -> None:
         if setup_marker not in updated:
             raise SystemExit("gfxstream service-op setup was not found")
         updated = updated.replace(setup_marker, setup_code, 1)
+    if INIT_MARKER in updated:
+        updated = updated.replace(INIT_MARKER, INIT_REPLACEMENT, 1)
     path.write_text(updated)
 
 
