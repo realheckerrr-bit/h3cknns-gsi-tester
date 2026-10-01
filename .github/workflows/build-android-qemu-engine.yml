@@ -178,6 +178,8 @@ jobs:
             "$wrapper_source"
           python3 "$GITHUB_WORKSPACE/tools/patch_qemu_sdl_gfxstream_window.py" \
             "$qemu/ui/sdl2.c"
+          grep -F 'gsi_apply_gfxstream_window();' "$wrapper_source"
+          grep -F 'sdl2_setup_gfxstream_window(scon);' "$qemu/ui/sdl2.c"
           export PATH="$ndk:$PATH"
           # SDL 2.0.8 declares the GLES shader-source callback with the
           # pre-NDK-r27 const signature.
