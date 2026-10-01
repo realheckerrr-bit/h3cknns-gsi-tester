@@ -152,11 +152,8 @@ jobs:
           wrapper_object="$qemu/android-qemu2-glue/virtio-gpu-gfxstream-renderer.o"
           bridge_source="$qemu/android-qemu2-glue/emulation/goldfish_pipe_bridge.cpp"
           bridge_object="$qemu/android-qemu2-glue/emulation/goldfish_pipe_bridge.o"
-          entry_source="$qemu/android-qemu2-glue/qemu_entry_bridge.cpp"
-          entry_object="$qemu/android-qemu2-glue/qemu_entry_bridge.o"
           test -s "$wrapper_source"
           test -s "$bridge_source"
-          cp "$GITHUB_WORKSPACE/tools/qemu_entry_bridge.cpp" "$entry_source"
           python3 "$GITHUB_WORKSPACE/tools/patch_qemu_gfxstream_direct.py" \
             "$qemu/hw/display/virtio-gpu-3d.c"
           python3 - "$wrapper_source" <<'PY'
@@ -480,16 +477,6 @@ jobs:
               "-Iandroid/emu/utils/include "
               "-I../glib -I../glib/glib -I../glib/gmodule -I../glib/io -I../glib/android "
               "-I$(GFXSTREAM_ROOT)/include -I$(GFXSTREAM_ROOT)/host/include "
-              "-c android-qemu2-glue/qemu_entry_bridge.cpp "
-              "-o android-qemu2-glue/qemu_entry_bridge.o && "
-              "$(CXX) -target aarch64-none-linux-android21 $(CFLAGS) $(QEMU_CFLAGS) $(QEMU_CXXFLAGS) -std=c++17 "
-              "-DANDROID -DCONFIG_ANDROID -DCONFIG_STREAM_RENDERER "
-              "-I. -Iinclude -Iandroid/android-emu -Iandroid/android-emu-base -Iandroid/emu/agents/include "
-              "-I$(GFXSTREAM_ROOT)/../aemu/host-common/include "
-              "-I$(GFXSTREAM_ROOT)/../aemu/base/include "
-              "-Iandroid/emu/utils/include "
-              "-I../glib -I../glib/glib -I../glib/gmodule -I../glib/io -I../glib/android "
-              "-I$(GFXSTREAM_ROOT)/include -I$(GFXSTREAM_ROOT)/host/include "
               "-c android-qemu2-glue/emulation/virtio-gpu-gfxstream-renderer.cpp "
               "-o android-qemu2-glue/virtio-gpu-gfxstream-renderer.o &&"
           )
@@ -504,8 +491,7 @@ jobs:
           marker = "qemu-static: $(all-obj-y) $(COMMON_LDADDS)"
           addition = (
               "all-obj-y += ../android-qemu2-glue/virtio-gpu-gfxstream-renderer.o "
-              "../android-qemu2-glue/emulation/goldfish_pipe_bridge.o "
-              "../android-qemu2-glue/qemu_entry_bridge.o\n\n"
+              "../android-qemu2-glue/emulation/goldfish_pipe_bridge.o\n\n"
           )
           if "virtio-gpu-gfxstream-renderer.o" not in text:
               if marker not in text:
