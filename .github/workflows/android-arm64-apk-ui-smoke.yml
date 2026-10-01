@@ -26,7 +26,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME}}"
+          sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+          if [[ -z "$sdk_root" ]]; then
+            sdk_root="$(cd "$(dirname "$(command -v sdkmanager)")/../../.." && pwd)"
+          fi
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager --install \
             "platform-tools" \
