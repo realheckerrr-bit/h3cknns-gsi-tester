@@ -11,8 +11,8 @@ android {
         applicationId = "com.realheckerrr.gsilab"
         minSdk = 23
         targetSdk = 35
-        versionCode = 35
-        versionName = "0.1.33"
+        versionCode = 36
+        versionName = "0.1.34"
 
         ndk {
             abiFilters += listOf("arm64-v8a")
