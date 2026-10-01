@@ -96,7 +96,6 @@ jobs:
           echo no | avdmanager create avd \
             --name gsi-arm64 \
             --package 'system-images;android-35;google_apis;arm64-v8a' \
-            --device pixel_2 \
             --force
           avd_dir="$ANDROID_AVD_HOME/avd/gsi-arm64.avd"
           test -f "$avd_dir/config.ini"
