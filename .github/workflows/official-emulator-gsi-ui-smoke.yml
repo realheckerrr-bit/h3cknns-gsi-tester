@@ -108,7 +108,7 @@ jobs:
             --package 'system-images;android-35;google_apis;arm64-v8a' \
             --device "$device_id" \
             --force
-          avd_dir="$ANDROID_AVD_HOME/avd/gsi-arm64.avd"
+          avd_dir="$ANDROID_AVD_HOME/gsi-arm64.avd"
           test -f "$avd_dir/config.ini"
           sed -i "s|^image.sysdir.1=.*|image.sysdir.1=$PWD/guest/|" "$avd_dir/config.ini"
           printf '%s\n' \
