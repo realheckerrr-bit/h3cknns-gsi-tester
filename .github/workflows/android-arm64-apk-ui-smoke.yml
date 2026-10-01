@@ -1,0 +1,106 @@
+name: ARM64 APK guest UI smoke test
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "APK release tag to test"
+        required: true
+        default: "v0.1.37"
+
+permissions:
+  contents: read
+
+jobs:
+  ui-smoke:
+    # The project already uses this ARM64 runner for the Ranchu boot smoke;
+    # it lets the APK's arm64 QEMU runtime execute natively inside the test
+    # Android emulator instead of relying on x86 translation.
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    steps:
+      - name: Check out app source
+        uses: actions/checkout@v4
+
+      - name: Install Android emulator and ARM64 system image
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME}}"
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager --install \
+            "platform-tools" \
+            "emulator" \
+            "platforms;android-35" \
+            "system-images;android-35;google_apis;arm64-v8a"
+          echo no | avdmanager create avd \
+            --name gsi-tester-arm64 \
+            --package "system-images;android-35;google_apis;arm64-v8a" \
+            --device "pixel_2" \
+            --force
+          printf '%s\n' "$sdk_root" > sdk-root.txt
+
+      - name: Start ARM64 Android emulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_root="$(cat sdk-root.txt)"
+          nohup "$sdk_root/emulator/emulator" \
+            -avd gsi-tester-arm64 \
+            -no-window -no-audio -no-snapshot -no-boot-anim \
+            -gpu swiftshader_indirect -memory 4096 -partition-size 16384 \
+            > emulator.log 2>&1 &
+          echo $! > emulator.pid
+          adb wait-for-device
+          for attempt in $(seq 1 180); do
+            if [[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == "1" ]]; then
+              break
+            fi
+            sleep 2
+          done
+          test "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1"
+          adb shell settings put global window_animation_scale 0
+          adb shell settings put global transition_animation_scale 0
+          adb shell settings put global animator_duration_scale 0
+
+      - name: Download exact APK and guest assets
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 --retry-delay 3 \
+            -o gsi-tester.apk \
+            "https://github.com/realheckerrr-bit/h3cknns-gsi-tester/releases/download/${RELEASE_TAG}/h3cknns-gsi-tester-${RELEASE_TAG#v}.apk"
+          curl --fail --location --retry 3 --retry-delay 3 \
+            -o ranchu-guest.zip \
+            https://dl.google.com/android/repository/sys-img/google_apis/arm64-v8a-35_r08.zip
+          curl --fail --location --retry 3 --retry-delay 3 \
+            -o aosp-gsi.zip \
+            https://dl.google.com/developers/android/vic/images/gsi/aosp_arm64-exp-AP4A.241205.013-12621605-14e72a7c.zip
+          echo '14e72a7c1b6b6600ba4f7b6057c79e531bbb9aa763e9e998ab5e1a8709e5075b  aosp-gsi.zip' \
+            | sha256sum --check --status
+          adb install -r -t gsi-tester.apk
+          adb push ranchu-guest.zip /sdcard/Download/official-ranchu-android35.zip
+          adb push aosp-gsi.zip /sdcard/Download/aosp-gsi.zip
+
+      - name: Exercise real Material UI flow and capture guest screen
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/android_apk_ui_smoke.py \
+            --gsi /sdcard/Download/aosp-gsi.zip \
+            --guest /sdcard/Download/official-ranchu-android35.zip \
+            --boot-timeout 600 \
+            --screenshot guest-screen.png
+
+      - name: Upload Android emulator and guest evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: arm64-apk-guest-ui-smoke
+          path: |
+            emulator.log
+            guest-screen.png
+            gsi-tester.apk
+          if-no-files-found: ignore
