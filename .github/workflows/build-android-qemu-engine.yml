@@ -512,9 +512,9 @@ jobs:
             NDK_TOOLCHAIN_VERSION=clang USE_AAUDIO=false \
             USE_KVM=false \
             BUILD_THREADS="$(nproc)"
-          file "$jni/libs/arm64-v8a/libqemu-system-aarch64.so"
+          file "$jni/../libs/arm64-v8a/libqemu-system-aarch64.so"
           readelf_bin="$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf"
-          "$readelf_bin" --symbols "$jni/libs/arm64-v8a/libqemu-system-aarch64.so" \
+          "$readelf_bin" --symbols "$jni/../libs/arm64-v8a/libqemu-system-aarch64.so" \
             | grep -E 'gsi_gfxstream_setup_window|gsi_android_pipe_init' \
             | tee "$GITHUB_WORKSPACE/qemu-gfxstream-symbols.txt"
 
