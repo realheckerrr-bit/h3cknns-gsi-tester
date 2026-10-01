@@ -1,0 +1,33 @@
+INPUT
+  name: 1790868340583_aosp-android15-arm64-gsi.zip
+  container: ZIP
+  system entry: system.img
+  system size: 1.74 GiB
+  image format: raw ext4 image
+  SHA-256: cf9607ef258614ec2ea57a5a134d34d37c297360c2db9d19cf940e96b1b07e8a
+
+COMPATIBILITY GATE
+  candidate: yes
+  warning: ZIP contains 3 entries; only the selected system image was analyzed.
+
+GUEST BUNDLE
+  name: 1790868367200_ranchu-android35-arm64.zip
+  entries: 27
+  kernel: arm64-v8a/kernel-ranchu
+  ramdisk: arm64-v8a/ramdisk.img
+  vendor: arm64-v8a/vendor.img
+  userdata: missing
+  cache: missing
+  encryption key: arm64-v8a/encryptionkey.img
+  bundled QEMU: missing
+  SHA-256: dd0ed92f34600bd9edc6ec2f28d49bb6a12370edf36acc50b88425f73cbbcc6f
+  boot assets: present
+  warning: The bundle has no engine override; this APK uses its bundled ARM64 QEMU runtime.
+
+HOST RUNTIME
+  ARM64 host: yes
+  AVF feature advertised: yes
+  MANAGE_VIRTUAL_MACHINE: not granted
+  direct AVF app backend: privileged
+  bundled QEMU backend: checked by VM backend
+  result: AVF is privileged on this device; a normal sideloaded APK cannot use it.
