@@ -8,6 +8,11 @@ A GSI is the generic system partition, not a complete device. A real guest also 
 
 The APK packages a pinned ARM64 QEMU runtime together with all of its native dependencies, so users do not install a second QEMU engine APK. It can make a real boot attempt on an ARM64 Android host. Ranchu/Cuttlefish launches open an SDL guest display and stream the guest serial log into the report. The guest assets still need a matching Android `virt` or emulator-style boot contract.
 
+While a VM is running, the display Activity samples its SDL surface with Android's
+PixelCopy API and reports whether it has observed non-black pixels. This is a
+display-surface check, not a guarantee that every frame contains a usable Android
+home screen.
+
 The app watches the serial console for Android boot markers. If Ranchu remains alive without a marker for three minutes, it performs one clean cold retry using a conservative single-threaded ARM64 TCG profile and reports the retry state in the Material UI.
 
 ## Guest bundle input

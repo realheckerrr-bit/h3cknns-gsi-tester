@@ -74,6 +74,7 @@ public final class MainActivity extends Activity {
     private boolean bootMarkerSeen;
     private long bootStartedAt;
     private int coldRetryCount;
+    private int lastDisplayFrameState = -1;
     private final Runnable consolePoller = new Runnable() {
         @Override
         public void run() {
@@ -87,9 +88,18 @@ public final class MainActivity extends Activity {
             if (session.hasAndroidBootMarker() || hasAndroidBootMarker(console)) {
                 bootMarkerSeen = true;
             }
+            org.libsdl.app.GsiSDLActivity.probeFrame();
+            int displayFrameState = org.libsdl.app.GsiSDLActivity.getFrameState();
+            if (displayFrameState != lastDisplayFrameState) {
+                lastDisplayFrameState = displayFrameState;
+                if (displayFrameState != org.libsdl.app.GsiSDLActivity.FRAME_UNKNOWN) {
+                    appendLog("Guest display frame: " + displayFrameDescription(displayFrameState) + ".");
+                }
+            }
             reportText.setText(analysis.render() + "\n" + guestAnalysis.render()
                     + "\n\nQEMU STATE\n  process: " + (running ? "running" : "exited")
                     + "\n  android marker: " + (bootMarkerSeen ? "observed" : "waiting")
+                    + "\n  display frame: " + displayFrameDescription(displayFrameState)
                     + "\n\nQEMU CONSOLE\n" + console);
             boolean markerTimedOut = bootStartedAt > 0
                     && System.currentTimeMillis() - bootStartedAt >= BOOT_MARKER_TIMEOUT_MS;
@@ -115,6 +125,19 @@ public final class MainActivity extends Activity {
                 || lower.contains("starting service .zygote")
                 || lower.contains("android runtime started")
                 || (lower.contains("class_start main") && lower.contains("succeeded"));
+    }
+
+    private static String displayFrameDescription(int state) {
+        switch (state) {
+            case org.libsdl.app.GsiSDLActivity.FRAME_NONBLANK:
+                return "non-black pixels observed";
+            case org.libsdl.app.GsiSDLActivity.FRAME_BLANK:
+                return "surface is blank";
+            case org.libsdl.app.GsiSDLActivity.FRAME_UNAVAILABLE:
+                return "PixelCopy unavailable on this Android version";
+            default:
+                return "waiting for a sample";
+        }
     }
 
     @Override
@@ -538,6 +561,7 @@ public final class MainActivity extends Activity {
             bootMarkerSeen = false;
             bootStartedAt = 0L;
             coldRetryCount = 0;
+            lastDisplayFrameState = -1;
             launchInProgress = true;
             bootButton.setEnabled(false);
             bootButton.setText("Opening guest display...");
@@ -703,6 +727,9 @@ public final class MainActivity extends Activity {
                 if (analysis != null) report.append(analysis.render()).append('\n');
                 if (guestAnalysis != null) report.append(guestAnalysis.render()).append('\n');
                 report.append(RuntimeProbe.inspect(this).render());
+                report.append("\n\nVM DISPLAY\n  frame: ")
+                        .append(displayFrameDescription(org.libsdl.app.GsiSDLActivity.getFrameState()))
+                        .append('\n');
                 ParcelFileDescriptor descriptor = getContentResolver().openFileDescriptor(uri, "w");
                 if (descriptor == null) throw new IOException("Could not open the export destination.");
                 try (OutputStream output = new ParcelFileDescriptor.AutoCloseOutputStream(descriptor)) {
