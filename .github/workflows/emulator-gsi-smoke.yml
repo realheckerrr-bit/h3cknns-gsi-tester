@@ -233,7 +233,9 @@ jobs:
           }
           for attempt in 1 2; do
             rm -f serial.log qemu.stdout qemu.stderr
-            setsid --wait "$qemu_bin" \
+            # Exercise the same SDL display mode that the APK opens in
+            # GsiSDLActivity, with Xvfb providing a CI display surface.
+            setsid --wait xvfb-run -a -s "-screen 0 1080x1920x24 -ac" "$qemu_bin" \
             -accel tcg,thread=multi \
             -M ranchu \
             -cpu cortex-a57 \
@@ -250,7 +252,7 @@ jobs:
             -drive if=none,format=raw,id=vendor,file="$PWD/guest/vendor.raw.img",readonly=on \
             -device virtio-blk-device,drive=vendor \
             -device virtio-gpu-device,id=gpu0,xres=1080,yres=1920 \
-            -display none \
+            -display sdl \
             -monitor none \
             -serial file:serial.log \
             -no-reboot \
