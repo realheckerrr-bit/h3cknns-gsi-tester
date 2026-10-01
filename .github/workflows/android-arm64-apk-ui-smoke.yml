@@ -22,14 +22,29 @@ jobs:
       - name: Check out app source
         uses: actions/checkout@v4
 
+      - name: Install Android SDK command-line tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends openjdk-17-jre-headless unzip
+          sdk_root="$RUNNER_TEMP/android-sdk"
+          mkdir -p "$sdk_root/cmdline-tools"
+          curl --fail --location --retry 3 --retry-delay 3 \
+            -o "$RUNNER_TEMP/android-commandline-tools.zip" \
+            https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -q "$RUNNER_TEMP/android-commandline-tools.zip" -d "$sdk_root/cmdline-tools"
+          mv "$sdk_root/cmdline-tools/cmdline-tools" "$sdk_root/cmdline-tools/latest"
+          echo "ANDROID_SDK_ROOT=$sdk_root" >> "$GITHUB_ENV"
+          echo "$sdk_root/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "$sdk_root/platform-tools" >> "$GITHUB_PATH"
+          echo "$sdk_root/emulator" >> "$GITHUB_PATH"
+
       - name: Install Android emulator and ARM64 system image
         shell: bash
         run: |
           set -euo pipefail
-          sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
-          if [[ -z "$sdk_root" ]]; then
-            sdk_root="$(cd "$(dirname "$(command -v sdkmanager)")/../../.." && pwd)"
-          fi
+          sdk_root="$ANDROID_SDK_ROOT"
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager --install \
             "platform-tools" \
