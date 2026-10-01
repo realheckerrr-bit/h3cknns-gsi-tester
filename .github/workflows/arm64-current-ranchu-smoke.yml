@@ -255,6 +255,40 @@ jobs:
             echo 'No Android boot marker was observed from current ARM64 Ranchu QEMU.' >&2
             exit 1
           fi
+          if [[ ! -s framebuffer.ppm ]]; then
+            echo 'Android reached a serial boot marker but produced no framebuffer.' >&2
+            exit 1
+          fi
+          python3 - <<'PY'
+          from pathlib import Path
+
+          data = Path('framebuffer.ppm').read_bytes()
+          header_end = 0
+          newlines = 0
+          for index, byte in enumerate(data):
+              if byte == 10:
+                  newlines += 1
+                  if newlines == 3:
+                      header_end = index + 1
+                      break
+          if header_end == 0:
+              raise SystemExit('framebuffer.ppm has no valid PPM header')
+          pixels = data[header_end:]
+          if len(pixels) < 3:
+              raise SystemExit('framebuffer.ppm contains no pixels')
+          pixel_count = len(pixels) // 3
+          non_black = sum(
+              1 for index in range(0, pixel_count * 3, 3)
+              if sum(pixels[index:index + 3]) > 24
+          )
+          ratio = non_black / pixel_count
+          print(f'Framebuffer non-black ratio: {ratio:.4f}')
+          if ratio < 0.01:
+              raise SystemExit(
+                  'Android serial booted, but the captured framebuffer is effectively blank; '
+                  'the standalone smoke binary has no usable gfxstream capsets.'
+              )
+          PY
 
       - name: Upload ARM64 boot logs and framebuffer
         if: always()
