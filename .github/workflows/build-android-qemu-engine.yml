@@ -176,6 +176,8 @@ jobs:
           PY
           python3 "$GITHUB_WORKSPACE/tools/patch_gfxstream_qemu_wrapper.py" \
             "$wrapper_source"
+          python3 "$GITHUB_WORKSPACE/tools/patch_qemu_sdl_gfxstream_window.py" \
+            "$qemu/ui/sdl2.c"
           export PATH="$ndk:$PATH"
           # SDL 2.0.8 declares the GLES shader-source callback with the
           # pre-NDK-r27 const signature.
@@ -511,6 +513,10 @@ jobs:
             USE_KVM=false \
             BUILD_THREADS="$(nproc)"
           file "$jni/libs/arm64-v8a/libqemu-system-aarch64.so"
+          readelf_bin="$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf"
+          "$readelf_bin" --symbols "$jni/libs/arm64-v8a/libqemu-system-aarch64.so" \
+            | grep -E 'gsi_gfxstream_setup_window|gsi_android_pipe_init' \
+            | tee "$GITHUB_WORKSPACE/qemu-gfxstream-symbols.txt"
 
       - name: Package engine artifact
         shell: bash
