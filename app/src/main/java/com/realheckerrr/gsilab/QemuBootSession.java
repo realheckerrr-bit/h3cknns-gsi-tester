@@ -145,12 +145,10 @@ public final class QemuBootSession {
             addDrive(args, "vendor", assets.vendor, true, false, rom);
         }
         if (assets.ranchu) {
-            // Ranchu exposes its guest devices on virtio-mmio. The bundled
-            // Android engine supplies the gfxstream/GoldfishPipe bridge for
-            // the Ranchu display path on the real Android host.
+            // Android's gfxstream launcher uses the PCI virtio GPU for the
+            // virtio-gpu-asg transport, including on the ARM64 Ranchu path.
             args.add("-device");
-            args.add("virtio-gpu-device"
-                    + ",id=gpu0,xres=1080,yres=1920");
+            args.add("virtio-gpu-pci,id=gpu0");
         } else if (assets.cuttlefish) {
             // Cuttlefish uses the virt machine's PCI bus. Its guest kernel
             // loads virtio-gpu.ko from PCI, not from Ranchu's MMIO transports.
