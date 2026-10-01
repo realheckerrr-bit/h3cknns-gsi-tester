@@ -94,15 +94,12 @@ jobs:
           export ANDROID_AVD_HOME="$ANDROID_USER_HOME/avd"
           mkdir -p "$ANDROID_USER_HOME" "$ANDROID_AVD_HOME"
           device_id=$(avdmanager list device \
-            | sed -n 's/^id: //p' \
-            | tr -d '\r"' \
-            | grep -Ei 'pixel|nexus' \
-            | head -1 || true)
+            | awk -F': | or ' 'tolower($0) ~ /pixel|nexus/ && /^id:/ { print $2; exit }' \
+            | tr -d '\r"' || true)
           if [[ -z "$device_id" ]]; then
             device_id=$(avdmanager list device \
-              | sed -n 's/^id: //p' \
-              | tr -d '\r"' \
-              | head -1)
+              | awk -F': | or ' '/^id:/ { print $2; exit }' \
+              | tr -d '\r"')
           fi
           [[ -n "$device_id" ]]
           echo "Using emulator device profile: $device_id"
