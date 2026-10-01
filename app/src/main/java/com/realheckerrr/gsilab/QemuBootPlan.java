@@ -36,7 +36,8 @@ public final class QemuBootPlan {
         out.append("    -drive file=<system.img>,format=raw,readonly=on + profile-specific virtio block device\n");
         out.append("    -drive file=<cache/userdata/vendor>,format=raw + profile-specific disk order\n");
         out.append("    -drive file=<vendor.img or super/vendor_a>,format=raw,readonly=on\n");
-        out.append("  Cuttlefish uses virtio-blk-pci-non-transitional; Ranchu uses virtio-mmio in userdata/system/vendor order.\n");
+        out.append("  Ranchu is the verified broad-GSI profile and uses virtio-mmio in userdata/system/vendor order.\n");
+        out.append("  Cuttlefish uses virtio-blk-pci-non-transitional and is experimental with arbitrary GSI/vendor APEX combinations.\n");
         out.append("    -drive file=<userdata.img>,format=raw -display sdl -serial <console.log>\n");
         if (!enginePresent) out.append("\nSTATUS: not runnable; rebuild with the embedded QEMU engine.\n");
         else out.append("\nSTATUS: self-contained engine detected; no separate QEMU APK is required.\n");

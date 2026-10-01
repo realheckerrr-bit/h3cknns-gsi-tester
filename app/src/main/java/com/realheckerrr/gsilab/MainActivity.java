@@ -164,7 +164,7 @@ public final class MainActivity extends Activity {
         analyzeButton.setOnClickListener(view -> analyzeInput());
         imageSection.addView(analyzeButton);
 
-        LinearLayout guestSection = cardSection(page, "2  BASE GUEST BUNDLE", "Use the official ARM64 Ranchu emulator ZIP for the ready-made test guest.");
+        LinearLayout guestSection = cardSection(page, "2  BASE GUEST BUNDLE", "Use the official ARM64 Ranchu emulator ZIP for the broad-GSI test guest.");
         guestText = text("No guest bundle selected", 14, TEXT);
         guestText.setPadding(0, dp(12), 0, dp(4));
         guestSection.addView(guestText);
@@ -188,7 +188,7 @@ public final class MainActivity extends Activity {
 
         LinearLayout backendSection = cardSection(page, "4  VM BACKEND", "A transparent ARM64 QEMU launch path for testing, not a promise that arbitrary hardware images will boot.");
         TextView backendNote = text(
-                "For this tester, use the official ARM64 emulator archive arm64-v8a-35_r08.zip: it supplies kernel-ranchu, ramdisk.img, vendor.img.gz, userdata.img, and the QEMU guest contract. The app adapts its fstab for the selected GSI and opens the guest display. Pixel factory images remain device-specific rather than universal VM bases.",
+                "Recommended: arm64-v8a-35_r08.zip. It supplies kernel-ranchu, ramdisk.img, vendor.img.gz, userdata.img, and the QEMU guest contract. The Ranchu profile has reached Android 17's main boot action with the official ARM64 GSI. The app adapts its fstab for the selected GSI and opens the guest display. Pixel factory images remain device-specific rather than universal VM bases.",
                 14, MUTED);
         backendNote.setPadding(0, dp(12), 0, dp(4));
         backendSection.addView(backendNote);

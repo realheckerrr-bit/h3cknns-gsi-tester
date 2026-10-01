@@ -83,6 +83,9 @@ public final class GuestBundleAnalyzer {
             vendor = superImage + " (vendor logical partition)";
             warnings.add("vendor will be extracted from the Cuttlefish super image at boot preparation time.");
         }
+        if (superImage != null || (kernel != null && kernel.toLowerCase(Locale.US).contains("16k"))) {
+            warnings.add("Cuttlefish virt is an experimental profile for arbitrary GSIs; use the official Ranchu ZIP for the broad-GSI test path.");
+        }
         if (vendor == null) errors.add("The bundle has no vendor.img or super.img; a GSI cannot provide the hardware interface.");
         if (qemu == null) warnings.add("The bundle has no engine override; this APK uses its bundled ARM64 QEMU runtime.");
         boolean candidate = errors.isEmpty();

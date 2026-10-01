@@ -14,11 +14,11 @@ on:
       gsi_url:
         description: "Official ARM64 GSI ZIP URL"
         required: true
-        default: https://dl.google.com/developers/android/vic/images/gsi/aosp_arm64-exp-AP4A.241205.013-12621605-14e72a7c.zip
+        default: https://dl.google.com/developers/android/cinnamonbun/images/gsi/aosp_arm64-exp-CP41.260831.007-16416850-5e61c946.zip
       gsi_sha256:
         description: "SHA-256 for the GSI ZIP (empty disables the check)"
         required: false
-        default: 14e72a7c1b6b6600ba4f7b6057c79e531bbb9aa763e9e998ab5e1a8709e5075b
+        default: 5e61c946ee45680365336968827bf62509d90f66ed78938f88e4deedda40a7fe
 
 permissions:
   contents: read
@@ -148,7 +148,7 @@ jobs:
           fi
           test -s guest/userdata.img
 
-      - name: Download and verify official Android 15 ARM64 AOSP GSI
+      - name: Download and verify official Android 17 ARM64 AOSP GSI
         if: inputs.system_source != 'stock'
         shell: bash
         env:
