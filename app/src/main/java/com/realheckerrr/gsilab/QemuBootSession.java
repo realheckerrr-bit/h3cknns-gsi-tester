@@ -113,7 +113,7 @@ public final class QemuBootSession {
                 ? "console=ttyAMA0,115200 androidboot.console=ttyAMA1 androidboot.hardware=ranchu "
                 + "androidboot.verifiedbootstate=orange androidboot.qemu=1 "
                 + "androidboot.qemu.vsync=60 qemu.gles=1 androidboot.hardware.egl=emulation "
-                + "androidboot.cpuvulkan.version=0 androidboot.hardware.vulkan=ranchu "
+                + "androidboot.qemu.cpuvulkan.version=0 androidboot.hardware.vulkan=ranchu "
                 + "androidboot.hardware.gltransport=virtio-gpu-asg "
                 + "androidboot.qemu.gltransport.name=virtio-gpu-asg "
                 + "androidboot.hardware.gralloc=minigbm androidboot.hardware.hwcomposer=ranchu "
