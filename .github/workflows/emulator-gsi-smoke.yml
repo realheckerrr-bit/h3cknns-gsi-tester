@@ -38,7 +38,7 @@ jobs:
             autoconf automake bc bison build-essential cpio e2fsprogs flex \
             gettext libfdt-dev libglib2.0-dev libpixman-1-dev libslirp-dev \
             gdb libtool lz4 libsdl2-dev ninja-build pkg-config python3 \
-            rsync socat unzip x11-xserver-utils xvfb xz-utils
+            imagemagick rsync socat unzip x11-xserver-utils xvfb xz-utils
 
       - name: Fetch current Android Ranchu QEMU source
         shell: bash
@@ -215,6 +215,22 @@ jobs:
           test -x "$qemu_bin"
           booted=0
           emulator_pid=0
+          xvfb_pid=0
+          xvfb_display_file="$RUNNER_TEMP/gsi-tester-xvfb.display"
+          xvfb_log="$RUNNER_TEMP/gsi-tester-xvfb.log"
+          rm -f "$xvfb_display_file" "$xvfb_log"
+          Xvfb -displayfd 9 -screen 0 1080x1920x24 -ac \
+            >"$xvfb_log" 2>&1 9>"$xvfb_display_file" &
+          xvfb_pid=$!
+          for _ in $(seq 1 20); do
+            if [[ -s "$xvfb_display_file" ]]; then break; fi
+            sleep 1
+          done
+          if [[ ! -s "$xvfb_display_file" ]]; then
+            cat "$xvfb_log" >&2 || true
+            exit 1
+          fi
+          export DISPLAY=":$(tr -d '\n' < "$xvfb_display_file")"
           stop_emulator() {
             if [[ "$emulator_pid" == 0 ]]; then return; fi
             if kill -0 "$emulator_pid" 2>/dev/null; then
@@ -231,11 +247,18 @@ jobs:
             wait "$emulator_pid" 2>/dev/null || true
             emulator_pid=0
           }
+          stop_xvfb() {
+            if [[ "$xvfb_pid" != 0 ]] && kill -0 "$xvfb_pid" 2>/dev/null; then
+              kill "$xvfb_pid" 2>/dev/null || true
+              wait "$xvfb_pid" 2>/dev/null || true
+            fi
+            xvfb_pid=0
+          }
           for attempt in 1 2; do
             rm -f serial.log qemu.stdout qemu.stderr
             # Exercise the same SDL display mode that the APK opens in
-            # GsiSDLActivity, with Xvfb providing a CI display surface.
-            setsid --wait xvfb-run -a -s "-screen 0 1080x1920x24 -ac" "$qemu_bin" \
+            # GsiSDLActivity, with a real Xvfb surface for framebuffer capture.
+            setsid --wait "$qemu_bin" \
             -accel tcg,thread=multi \
             -M ranchu \
             -cpu cortex-a57 \
@@ -261,6 +284,7 @@ jobs:
             for _ in $(seq 1 300); do
             if grep -Eiq 'sys\.boot_completed|boot animation stopped|starting service .zygote|Android runtime started|class_start main.*succeeded' serial.log 2>/dev/null; then
               booted=1
+              import -window root -silent display.png 2>/dev/null || true
               break
             fi
             if ! kill -0 "$emulator_pid" 2>/dev/null; then
@@ -275,6 +299,8 @@ jobs:
             echo "Ranchu attempt $attempt did not reach an Android marker; retrying cold." >&2
           done
           stop_emulator
+          stop_xvfb
+          cp "$xvfb_log" xvfb.log 2>/dev/null || true
           tail -300 serial.log 2>/dev/null || true
           cat qemu.stdout 2>/dev/null || true
           cat qemu.stderr 2>/dev/null || true
@@ -292,4 +318,6 @@ jobs:
             serial.log
             qemu.stdout
             qemu.stderr
+            display.png
+            xvfb.log
           if-no-files-found: ignore
