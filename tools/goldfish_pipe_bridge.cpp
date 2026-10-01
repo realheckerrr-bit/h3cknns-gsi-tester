@@ -5,6 +5,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 extern "C" {
 #include "host-common/goldfish_pipe.h"
@@ -50,6 +51,9 @@ struct NoOpVmLock {
 template <typename T>
 bool load(void* library, const char* symbol, T* target) {
     *target = reinterpret_cast<T>(dlsym(library, symbol));
+    if (*target == nullptr) {
+        fprintf(stderr, "gfxstream AndroidPipe bridge: missing %s\n", symbol);
+    }
     return *target != nullptr;
 }
 
@@ -130,15 +134,18 @@ static const GoldfishPipeServiceOps kServiceOps = {
 extern "C" const GoldfishPipeServiceOps* gsi_android_pipe_init(void* backend) {
     if (backend == nullptr) return nullptr;
 
-    if (!load(backend, "_Z23android_pipe_guest_openPv", &s_pipe.open) ||
-        !load(backend, "_Z34android_pipe_guest_open_with_flagsPvj", &s_pipe.openWithFlags) ||
-        !load(backend, "_Z24android_pipe_guest_closePv15PipeCloseReason", &s_pipe.close) ||
-        !load(backend, "_Z23android_pipe_guest_pollPv", &s_pipe.poll) ||
-        !load(backend, "_Z23android_pipe_guest_recvPvP17AndroidPipeBufferi", &s_pipe.recv) ||
-        !load(backend, "_Z28android_pipe_wait_guest_recvPv", &s_pipe.waitRecv) ||
-        !load(backend, "_Z23android_pipe_guest_sendPPvPK17AndroidPipeBufferi", &s_pipe.send) ||
-        !load(backend, "_Z28android_pipe_wait_guest_sendPv", &s_pipe.waitSend) ||
-        !load(backend, "_Z26android_pipe_guest_wake_onPvj", &s_pipe.wakeOn) ||
+    // AndroidPipe's guest-facing functions are declared with C linkage. The
+    // previous bridge used guessed C++ mangled names, so every lookup failed
+    // and gfxstream had no pipe service to use for GL/Vulkan commands.
+    if (!load(backend, "android_pipe_guest_open", &s_pipe.open) ||
+        !load(backend, "android_pipe_guest_open_with_flags", &s_pipe.openWithFlags) ||
+        !load(backend, "android_pipe_guest_close", &s_pipe.close) ||
+        !load(backend, "android_pipe_guest_poll", &s_pipe.poll) ||
+        !load(backend, "android_pipe_guest_recv", &s_pipe.recv) ||
+        !load(backend, "android_pipe_wait_guest_recv", &s_pipe.waitRecv) ||
+        !load(backend, "android_pipe_guest_send", &s_pipe.send) ||
+        !load(backend, "android_pipe_wait_guest_send", &s_pipe.waitSend) ||
+        !load(backend, "android_pipe_guest_wake_on", &s_pipe.wakeOn) ||
         !load(backend, "_ZN7android11AndroidPipe13initThreadingEPNS_6VmLockE",
               &s_pipe.initThreading)) {
         return nullptr;
