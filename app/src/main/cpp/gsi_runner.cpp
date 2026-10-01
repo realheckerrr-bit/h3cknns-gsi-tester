@@ -16,6 +16,7 @@ using qemu_init_fn = void (*)(int, char**, char**);
 using qemu_main_loop_fn = void (*)();
 using qemu_cleanup_fn = void (*)();
 using qemu_shutdown_fn = void (*)();
+using gsi_qemu_run_main_fn = int (*)(int, char**);
 
 struct Runner {
     void* library = nullptr;
@@ -35,6 +36,16 @@ void free_args(Runner* runner) {
 void* qemu_thread(void* opaque) {
     auto* runner = static_cast<Runner*>(opaque);
     runner->running.store(true);
+    dlerror();
+    auto run_main = reinterpret_cast<gsi_qemu_run_main_fn>(
+            dlsym(runner->library, "gsi_qemu_run_main"));
+    const char* run_main_error = dlerror();
+    if (run_main != nullptr && run_main_error == nullptr) {
+        run_main(runner->argc, runner->argv);
+        runner->running.store(false);
+        return nullptr;
+    }
+
     auto init = reinterpret_cast<qemu_init_fn>(dlsym(runner->library, "qemu_init"));
     auto loop = reinterpret_cast<qemu_main_loop_fn>(dlsym(runner->library, "qemu_main_loop"));
     auto cleanup = reinterpret_cast<qemu_cleanup_fn>(dlsym(runner->library, "qemu_cleanup"));
