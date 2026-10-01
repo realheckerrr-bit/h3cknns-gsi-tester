@@ -133,6 +133,7 @@ jobs:
           adb start-server
           "$emulator_bin" \
             -avd gsi-arm64 \
+            -engine classic \
             -no-window \
             -no-audio \
             -no-boot-anim \
