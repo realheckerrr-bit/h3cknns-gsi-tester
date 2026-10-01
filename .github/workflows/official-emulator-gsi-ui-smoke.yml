@@ -90,8 +90,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          export ANDROID_AVD_HOME="$RUNNER_TEMP/android-avd"
-          mkdir -p "$ANDROID_AVD_HOME"
+          export ANDROID_USER_HOME="$RUNNER_TEMP/android-user"
+          export ANDROID_AVD_HOME="$ANDROID_USER_HOME/avd"
+          mkdir -p "$ANDROID_USER_HOME" "$ANDROID_AVD_HOME"
           echo no | avdmanager create avd \
             --name gsi-arm64 \
             --package 'system-images;android-35;google_apis;arm64-v8a' \
@@ -114,8 +115,9 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
-          export ANDROID_AVD_HOME="$RUNNER_TEMP/android-avd"
-          export ANDROID_EMULATOR_HOME="$RUNNER_TEMP/android-emulator"
+          export ANDROID_USER_HOME="$RUNNER_TEMP/android-user"
+          export ANDROID_AVD_HOME="$ANDROID_USER_HOME/avd"
+          export ANDROID_EMULATOR_HOME="$ANDROID_USER_HOME/emulator"
           mkdir -p "$ANDROID_EMULATOR_HOME"
           emulator_bin="$ANDROID_SDK_ROOT/emulator/emulator"
           adb start-server
