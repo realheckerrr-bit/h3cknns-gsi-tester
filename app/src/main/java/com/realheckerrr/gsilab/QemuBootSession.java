@@ -143,11 +143,12 @@ public final class QemuBootSession {
             addDrive(args, "vendor", assets.vendor, true, false, rom);
         }
         if (assets.cuttlefish || assets.ranchu) {
-            // Ranchu exposes virtio-mmio, while Cuttlefish's virt machine
-            // exposes a PCI bus. Using the mmio GPU on virt makes QEMU
-            // reject the command line before Android can start.
+            // Keep the Ranchu block devices on virtio-mmio, but use the
+            // Android emulator's PCI virtio-gpu transport. The Ranchu guest
+            // loads virtio_pci_modern_dev for its graphics stack, and the
+            // bundled engine supplies the gfxstream/GoldfishPipe bridge.
             args.add("-device");
-            args.add((assets.cuttlefish ? "virtio-gpu-pci" : "virtio-gpu-device")
+            args.add("virtio-gpu-pci"
                     + ",id=gpu0,xres=1080,yres=1920");
         }
         // The bundled QEMU is built with SDL2 but without host OpenGL. Android's SDL backend presents the
