@@ -242,6 +242,9 @@ jobs:
             echo "Ranchu attempt $attempt did not reach an Android marker; retrying cold." >&2
           done
           if [[ -S monitor.sock ]]; then
+            # SurfaceFlinger can start after the serial boot marker. Keep the
+            # guest alive before capturing the same display QEMU exposes.
+            sleep 30
             timeout 5s bash -c "printf 'screendump framebuffer.ppm\\n' | socat - UNIX-CONNECT:monitor.sock" || true
           fi
           stop_emulator
