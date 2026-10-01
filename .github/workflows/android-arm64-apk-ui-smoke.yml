@@ -13,10 +13,10 @@ permissions:
 
 jobs:
   ui-smoke:
-    # The project already uses this ARM64 runner for the Ranchu boot smoke;
-    # it lets the APK's arm64 QEMU runtime execute natively inside the test
-    # Android emulator instead of relying on x86 translation.
-    runs-on: ubuntu-24.04-arm
+    # The Android Emulator SDK publishes its Linux host binary for x86_64.
+    # The Google API image supplies ARM native-code translation for the APK's
+    # arm64 libraries, so this still exercises the real packaged ABI path.
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
       - name: Check out app source
@@ -50,10 +50,10 @@ jobs:
             "platform-tools" \
             "emulator" \
             "platforms;android-35" \
-            "system-images;android-35;google_apis;arm64-v8a"
+            "system-images;android-35;google_apis;x86_64"
           echo no | avdmanager create avd \
             --name gsi-tester-arm64 \
-            --package "system-images;android-35;google_apis;arm64-v8a" \
+            --package "system-images;android-35;google_apis;x86_64" \
             --device "pixel_2" \
             --force
           printf '%s\n' "$sdk_root" > sdk-root.txt
