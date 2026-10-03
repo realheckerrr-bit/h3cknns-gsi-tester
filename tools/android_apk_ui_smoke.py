@@ -40,7 +40,10 @@ def dump_ui() -> ET.Element:
     output = adb("exec-out", "uiautomator", "dump", "/dev/tty", timeout=45)
     xml_start = output.find("<?xml")
     if xml_start >= 0:
-        return ET.fromstring(output[xml_start:])
+        xml_end = output.find("</hierarchy>", xml_start)
+        if xml_end >= 0:
+            xml_end += len("</hierarchy>")
+            return ET.fromstring(output[xml_start:xml_end])
     # Keep a shell-writable fallback for emulator images whose uiautomator
     # build refuses /dev/tty.
     adb("shell", "uiautomator", "dump", UI_DUMP_PATH, timeout=45)
