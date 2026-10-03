@@ -55,6 +55,10 @@ public final class GsiSDLActivity extends SDLActivity {
         layout.setBackgroundColor(Color.BLACK);
         layout.addView(mSurface, new RelativeLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        // SDLActivity's input-method path expects this container to be
+        // available even though the normal SDLMain layout is intentionally
+        // disabled for the externally-owned QEMU loop.
+        mLayout = layout;
         setContentView(layout);
         mSurface.requestFocus();
         active = this;

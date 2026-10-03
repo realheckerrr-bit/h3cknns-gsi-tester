@@ -156,6 +156,15 @@ public final class QemuBootSession {
             args.add("virtio-gpu-pci,id=gpu0"
                     + (rom == null ? "" : ",romfile=" + rom.getName()));
         }
+        if (assets.ranchu || assets.cuttlefish) {
+            // The SDL surface feeds QEMU's input layer; expose the same
+            // tablet/keyboard devices that Android emulator guests expect so
+            // taps and hardware-key events reach the guest UI.
+            args.add("-device");
+            args.add("virtio-tablet-pci");
+            args.add("-device");
+            args.add("virtio-keyboard-pci");
+        }
         // The bundled QEMU is built with SDL2 but without host OpenGL. Android's SDL backend presents the
         // guest framebuffer as the VM screen while the activity remains the
         // controller/log view; generic fallback guests stay serial-only.

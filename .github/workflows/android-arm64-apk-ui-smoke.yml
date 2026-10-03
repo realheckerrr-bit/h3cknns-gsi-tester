@@ -6,7 +6,7 @@ on:
       release_tag:
         description: "APK release tag to test"
         required: true
-        default: "v0.1.37"
+        default: "v0.1.38"
 
 permissions:
   contents: read
