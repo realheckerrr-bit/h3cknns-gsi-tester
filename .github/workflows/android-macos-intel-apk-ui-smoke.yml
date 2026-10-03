@@ -79,7 +79,7 @@ jobs:
             sleep 2
           done
           test "$(adb get-state)" = "device"
-          for attempt in $(seq 1 300); do
+          for attempt in $(seq 1 600); do
             if [[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == "1" ]]; then break; fi
             sleep 2
           done
