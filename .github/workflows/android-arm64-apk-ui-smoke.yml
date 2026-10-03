@@ -61,6 +61,10 @@ jobs:
             --path "$avd_home/gsi-tester-arm64.avd" \
             --force
           echo "ANDROID_AVD_HOME=$avd_home" >> "$GITHUB_ENV"
+          echo "AVD files:"
+          find "$avd_home" -maxdepth 2 -type f -print -exec ls -lh {} \;
+          echo "Registered AVDs:"
+          "$sdk_root/emulator/emulator" -list-avds || true
           printf '%s\n' "$sdk_root" > sdk-root.txt
 
       - name: Start ARM64 Android emulator
@@ -68,13 +72,21 @@ jobs:
         run: |
           set -euo pipefail
           sdk_root="$(cat sdk-root.txt)"
+          dump_emulator_log() {
+            status=$?
+            echo "emulator exit status: $status"
+            echo "--- emulator.log ---"
+            tail -n 200 emulator.log || true
+            exit "$status"
+          }
+          trap dump_emulator_log EXIT
           nohup "$sdk_root/emulator/emulator" \
             -avd gsi-tester-arm64 \
             -no-window -no-audio -no-snapshot -no-boot-anim \
-            -gpu swiftshader_indirect -memory 4096 -partition-size 16384 \
+            -gpu swiftshader_indirect -memory 4096 -partition-size 16384 -verbose \
             > emulator.log 2>&1 &
           echo $! > emulator.pid
-          adb wait-for-device
+          timeout 120s adb wait-for-device
           for attempt in $(seq 1 180); do
             if [[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == "1" ]]; then
               break
@@ -85,6 +97,7 @@ jobs:
           adb shell settings put global window_animation_scale 0
           adb shell settings put global transition_animation_scale 0
           adb shell settings put global animator_duration_scale 0
+          trap - EXIT
 
       - name: Download exact APK and guest assets
         shell: bash
