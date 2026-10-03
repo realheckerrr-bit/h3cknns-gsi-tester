@@ -128,6 +128,10 @@ public final class MainActivity extends Activity {
                 || (lower.contains("class_start main") && lower.contains("succeeded"));
     }
 
+    private boolean ciAutoStartRequested() {
+        return BuildConfig.DEBUG && getIntent().getBooleanExtra("ci_auto_start", false);
+    }
+
     private static String displayFrameDescription(int state) {
         switch (state) {
             case org.libsdl.app.GsiSDLActivity.FRAME_NONBLANK:
@@ -436,6 +440,12 @@ public final class MainActivity extends Activity {
                     exportButton.setEnabled(true);
                     refreshBootButton();
                     appendLog("CI-staged GSI and guest ready for the Material UI smoke flow.");
+                    if (ciAutoStartRequested()) {
+                        // Keep this debug-only bridge on the real button
+                        // listener path while avoiding flaky uiautomator file
+                        // dumps on nested-QEMU emulator images.
+                        mainHandler.postDelayed(() -> analyzeButton.performClick(), 300L);
+                    }
                 });
             } catch (Exception error) {
                 mainHandler.post(() -> appendLog("ERROR preparing CI-staged assets: " + error.getMessage()));
@@ -578,6 +588,10 @@ public final class MainActivity extends Activity {
                     appendLog(result.bootCandidate
                             ? "Preflight passed: image is a boot candidate pending a real guest bundle."
                             : "Preflight did not pass: inspect the report before continuing.");
+                    if (ciAutoStartRequested() && result.bootCandidate
+                            && guestAnalysis != null && guestAnalysis.bootCandidate) {
+                        mainHandler.postDelayed(() -> bootButton.performClick(), 300L);
+                    }
                 });
             } catch (Exception error) {
                 mainHandler.post(() -> {

@@ -175,6 +175,9 @@ def main() -> int:
             "--ez",
             "ci_private_stage",
             "true",
+            "--ez",
+            "ci_auto_start",
+            "true",
             "--es",
             "ci_gsi_name",
             gsi_name,
@@ -186,11 +189,11 @@ def main() -> int:
         adb("shell", "monkey", "-p", PACKAGE, "1")
         click(["Select GSI image or ZIP"])
         click_picker_file(gsi_name)
-    click(["Analyze image"], timeout=180, enabled=True)
     if not args.private_staged:
+        click(["Analyze image"], timeout=180, enabled=True)
         click(["Select guest bundle ZIP"], timeout=180)
         click_picker_file(guest_name)
-    click(["Start VM"], timeout=300, enabled=True)
+        click(["Start VM"], timeout=300, enabled=True)
 
     console = wait_for_console_marker(args.boot_timeout)
     activity = foreground_activity()
