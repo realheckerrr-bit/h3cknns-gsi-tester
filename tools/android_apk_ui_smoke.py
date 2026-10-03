@@ -39,6 +39,8 @@ def dump_ui() -> ET.Element:
     # emulated /sdcard or on uiautomator's file-namespace behavior.
     output = adb("exec-out", "uiautomator", "dump", "/dev/tty", timeout=45)
     xml_start = output.find("<?xml")
+    if xml_start < 0:
+        xml_start = output.find("<hierarchy")
     if xml_start >= 0:
         xml_end = output.find("</hierarchy>", xml_start)
         if xml_end >= 0:
