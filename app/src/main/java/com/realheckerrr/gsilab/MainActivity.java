@@ -637,9 +637,12 @@ public final class MainActivity extends Activity {
         appendLog("Runtime probe complete.");
         if (!plan.enginePresent) {
             appendLog("Boot not started: this APK has no bundled QEMU system engine.");
-        } else if (!probe.arm64) {
+        } else if (!probe.arm64 && !ciAutoStartRequested()) {
             appendLog("Boot not started: the current guest path requires an ARM64 host.");
         } else {
+            if (!probe.arm64) {
+                appendLog("Debug CI nested-emulator override: attempting the translated ARM64 QEMU engine.");
+            }
             bootMarkerSeen = false;
             bootStartedAt = 0L;
             coldRetryCount = 0;
