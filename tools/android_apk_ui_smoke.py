@@ -14,6 +14,7 @@ import xml.etree.ElementTree as ET
 
 PACKAGE = "com.realheckerrr.gsilab"
 DISPLAY_ACTIVITY = "org.libsdl.app.GsiSDLActivity"
+UI_DUMP_PATH = "/data/local/tmp/gsi-tester-window.xml"
 BOUNDS = re.compile(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]")
 
 
@@ -34,8 +35,10 @@ def adb(*args: str, check: bool = True, timeout: int = 30) -> str:
 
 
 def dump_ui() -> ET.Element:
-    adb("shell", "uiautomator", "dump", "/sdcard/window.xml")
-    return ET.fromstring(adb("shell", "cat", "/sdcard/window.xml"))
+    # The hosted emulator exposes /data/local/tmp to the shell reliably, while
+    # its emulated /sdcard may reject shell writes during nested-QEMU runs.
+    adb("shell", "uiautomator", "dump", UI_DUMP_PATH)
+    return ET.fromstring(adb("shell", "cat", UI_DUMP_PATH))
 
 
 def visible_nodes(root: ET.Element):

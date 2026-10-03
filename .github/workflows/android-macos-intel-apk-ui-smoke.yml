@@ -127,10 +127,13 @@ jobs:
           package=com.realheckerrr.gsilab
           app_dir="/data/user/0/$package"
           adb shell run-as "$package" mkdir -p "$app_dir/files/ci-inbox"
-          adb exec-out cat /data/local/tmp/official-ranchu-android35.zip |
-            adb shell run-as "$package" tee "$app_dir/files/ci-inbox/official-ranchu-android35.zip" > /dev/null
-          adb exec-out cat /data/local/tmp/aosp-gsi.zip |
-            adb shell run-as "$package" tee "$app_dir/files/ci-inbox/aosp-gsi.zip" > /dev/null
+          adb shell chmod 644 /data/local/tmp/official-ranchu-android35.zip /data/local/tmp/aosp-gsi.zip
+          adb shell run-as "$package" cp \
+            /data/local/tmp/official-ranchu-android35.zip \
+            "$app_dir/files/ci-inbox/official-ranchu-android35.zip"
+          adb shell run-as "$package" cp \
+            /data/local/tmp/aosp-gsi.zip \
+            "$app_dir/files/ci-inbox/aosp-gsi.zip"
           adb shell run-as "$package" ls -l "$app_dir/files/ci-inbox"
 
       - name: Exercise real Material UI flow and capture guest screen
