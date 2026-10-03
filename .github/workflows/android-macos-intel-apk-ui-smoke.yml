@@ -56,6 +56,9 @@ jobs:
             --device "pixel_2" \
             --path "$avd_home/gsi-tester-intel.avd" \
             --force
+          perl -0pi -e 's/^disk\.dataPartition\.size=.*$/disk.dataPartition.size=16G/m' \
+            "$avd_home/gsi-tester-intel.avd/config.ini"
+          grep -F 'disk.dataPartition.size=16G' "$avd_home/gsi-tester-intel.avd/config.ini"
           "$sdk_root/emulator/emulator" -list-avds
 
       - name: Start accelerated Android emulator
