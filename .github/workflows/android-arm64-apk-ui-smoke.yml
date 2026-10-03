@@ -53,10 +53,10 @@ jobs:
             "platform-tools" \
             "emulator" \
             "platforms;android-35" \
-            "system-images;android-35;google_apis;arm64-v8a"
+            "system-images;android-35;google_apis;x86_64"
           echo no | avdmanager create avd \
             --name gsi-tester-arm64 \
-            --package "system-images;android-35;google_apis;arm64-v8a" \
+            --package "system-images;android-35;google_apis;x86_64" \
             --device "pixel_2" \
             --path "$avd_home/gsi-tester-arm64.avd" \
             --force
@@ -72,6 +72,11 @@ jobs:
         run: |
           set -euo pipefail
           sdk_root="$(cat sdk-root.txt)"
+          if [[ ! -r /dev/kvm ]]; then
+            echo "::error::This ARM64 APK UI smoke test requires an x86_64 runner with readable /dev/kvm."
+            echo "::error::The hosted GitHub runner does not provide KVM, and the Android emulator cannot run this x86_64 image in software mode."
+            exit 1
+          fi
           dump_emulator_log() {
             status=$?
             echo "emulator exit status: $status"
@@ -82,14 +87,14 @@ jobs:
           trap dump_emulator_log EXIT
           nohup "$sdk_root/emulator/emulator" \
             -avd gsi-tester-arm64 \
-            -sysdir "$sdk_root/system-images/android-35/google_apis/arm64-v8a" \
-            -accel off \
+            -sysdir "$sdk_root/system-images/android-35/google_apis/x86_64" \
+            -accel auto \
             -no-window -no-audio -no-snapshot -no-boot-anim \
             -gpu swiftshader_indirect -memory 4096 -partition-size 16384 -verbose \
             > emulator.log 2>&1 &
           echo $! > emulator.pid
-          timeout 600s adb wait-for-device
-          for attempt in $(seq 1 600); do
+          timeout 300s adb wait-for-device
+          for attempt in $(seq 1 300); do
             if [[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == "1" ]]; then
               break
             fi
