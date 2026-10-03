@@ -19,6 +19,8 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import org.tukaani.xz.XZOutputStream;
+import org.apache.commons.compress.archivers.sevenz.SevenZArchiveEntry;
+import org.apache.commons.compress.archivers.sevenz.SevenZOutputFile;
 
 import org.junit.Test;
 
@@ -47,6 +49,26 @@ public final class ImageImportTest {
         assertEquals("raw ext4 image", result.imageFormat);
         assertTrue(result.bootCandidate);
         assertTrue(result.warnings.get(0).contains("XZ"));
+    }
+
+    @Test
+    public void analyzesSevenZipGsiImage() throws Exception {
+        byte[] ext4 = ext4Image(4096);
+        File raw = tempFile("system.img");
+        Files.write(raw.toPath(), ext4);
+        File archive = tempFile("system.img.7z");
+        try (SevenZOutputFile sevenZ = new SevenZOutputFile(archive)) {
+            SevenZArchiveEntry entry = sevenZ.createArchiveEntry(raw, "system.img");
+            sevenZ.putArchiveEntry(entry);
+            sevenZ.write(ext4);
+            sevenZ.closeArchiveEntry();
+        }
+
+        GsiAnalysis result = GsiAnalyzer.analyze(archive);
+
+        assertEquals("raw ext4 image", result.imageFormat);
+        assertTrue(result.bootCandidate);
+        assertTrue(result.warnings.stream().anyMatch(value -> value.contains("7z")));
     }
 
     @Test

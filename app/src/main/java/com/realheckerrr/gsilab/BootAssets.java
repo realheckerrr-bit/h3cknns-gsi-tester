@@ -48,7 +48,9 @@ public final class BootAssets {
     public static BootAssets prepare(File gsi, File guestBundle, File output) throws IOException {
         if (!output.isDirectory() && !output.mkdirs()) throw new IOException("Cannot create VM working directory.");
         File systemSource = new File(output, "system.source.img");
-        if (gsi.getName().toLowerCase(Locale.US).endsWith(".zip")) {
+        if (SevenZImageExtractor.looksLike7z(gsi)) {
+            SevenZImageExtractor.extractSystemImage(gsi, systemSource);
+        } else if (gsi.getName().toLowerCase(Locale.US).endsWith(".zip")) {
             copyGsiEntry(gsi, systemSource);
         } else {
             copyMaybeGzip(gsi, systemSource);

@@ -30,6 +30,17 @@ public final class GsiAnalyzer {
         if (looksLikeZip(input)) {
             return analyzeZip(input);
         }
+        if (SevenZImageExtractor.looksLike7z(input)) {
+            File extracted = File.createTempFile("gsi-preflight-", ".system.img",
+                    input.getParentFile());
+            try {
+                SevenZImageExtractor.extractSystemImage(input, extracted);
+                return analyzeImage(extracted, "7z archive", "system.img (from 7z)",
+                        "7z container was decompressed before header analysis.");
+            } finally {
+                if (extracted.isFile() && !extracted.delete()) extracted.deleteOnExit();
+            }
+        }
         return analyzeImage(input, "raw input");
     }
 
@@ -96,6 +107,11 @@ public final class GsiAnalyzer {
     }
 
     private static GsiAnalysis analyzeImage(File input, String container) throws IOException {
+        return analyzeImage(input, container, input.getName(), null);
+    }
+
+    private static GsiAnalysis analyzeImage(File input, String container, String displayName,
+                                            String extraWarning) throws IOException {
         List<String> warnings = new ArrayList<>();
         List<String> errors = new ArrayList<>();
         ImageScan scan;
@@ -112,11 +128,12 @@ public final class GsiAnalyzer {
         if (input.getName().toLowerCase(Locale.US).endsWith(".lz4")) {
             warnings.add("LZ4 input was decompressed before header analysis.");
         }
+        if (extraWarning != null) warnings.add(extraWarning);
         if (scan.format.equals("unknown")) {
             warnings.add("Image header is not recognized as Android sparse, ext4, EROFS, or F2FS.");
         }
         boolean candidate = scan.bytes > 0 && !scan.format.equals("unknown");
-        return new GsiAnalysis(input.getName(), container, input.getName(), scan.bytes, scan.format,
+        return new GsiAnalysis(displayName, container, displayName, scan.bytes, scan.format,
                 scan.sha256, candidate, warnings, errors);
     }
 

@@ -11,8 +11,8 @@ android {
         applicationId = "com.realheckerrr.gsilab"
         minSdk = 23
         targetSdk = 35
-        versionCode = 40
-        versionName = "0.1.38"
+        versionCode = 41
+        versionName = "0.1.39"
 
         ndk {
             abiFilters += listOf("arm64-v8a")
@@ -44,6 +44,7 @@ android {
 
 dependencies {
     implementation("com.google.android.material:material:1.14.0")
+    implementation("org.apache.commons:commons-compress:1.27.1")
     implementation("org.tukaani:xz:1.10")
     testImplementation("junit:junit:4.13.2")
 }
