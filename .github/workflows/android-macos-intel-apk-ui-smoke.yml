@@ -121,7 +121,7 @@ jobs:
             https://dl.google.com/developers/android/vic/images/gsi/aosp_arm64-exp-AP4A.241205.013-12621605-14e72a7c.zip
           echo '14e72a7c1b6b6600ba4f7b6057c79e531bbb9aa763e9e998ab5e1a8709e5075b  aosp-gsi.zip' \
             | shasum -a 256 -c -
-          adb install -r -t gsi-tester.apk
+          adb install --no-streaming --no-incremental -r -t gsi-tester.apk
           adb push ranchu-guest.zip /data/local/tmp/official-ranchu-android35.zip
           adb push aosp-gsi.zip /data/local/tmp/aosp-gsi.zip
           package=com.realheckerrr.gsilab
