@@ -25,6 +25,7 @@ import com.google.android.material.textview.MaterialTextView;
 
 import java.io.File;
 import java.io.BufferedInputStream;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -148,6 +149,11 @@ public final class MainActivity extends Activity {
         setContentView(buildView());
         appendLog("h3cknn's GSI tester " + BuildConfig.VERSION_NAME + " ready.");
         appendLog("Import a GSI and a compatible guest bundle to prepare a VM launch.");
+        if (BuildConfig.DEBUG && getIntent().getBooleanExtra("ci_private_stage", false)) {
+            prepareCiPrivateStage(
+                    getIntent().getStringExtra("ci_gsi_name"),
+                    getIntent().getStringExtra("ci_guest_name"));
+        }
     }
 
     private View buildView() {
@@ -382,6 +388,68 @@ public final class MainActivity extends Activity {
                 });
             }
         });
+    }
+
+    /**
+     * Debug-only bridge for emulator smoke tests whose Android 35 shell cannot
+     * write the emulated /sdcard.  The workflow copies the assets into this
+     * debuggable app's private files/ci-inbox directory with run-as, and this
+     * method feeds them through the same private import/analyzer path used by
+     * the document picker.
+     */
+    private void prepareCiPrivateStage(String gsiName, String guestName) {
+        if (gsiName == null || guestName == null) return;
+        worker.execute(() -> {
+            try {
+                File inbox = new File(getFilesDir(), "ci-inbox");
+                File gsiSource = new File(inbox, safeName(gsiName));
+                File guestSource = new File(inbox, safeName(guestName));
+                if (!gsiSource.isFile() || !guestSource.isFile()) {
+                    throw new IOException("CI-staged assets are missing from private app storage.");
+                }
+                File imports = new File(getFilesDir(), "imports");
+                File guests = new File(getFilesDir(), "guest-bundles");
+                if (!imports.isDirectory() && !imports.mkdirs()) {
+                    throw new IOException("Cannot create app import directory.");
+                }
+                if (!guests.isDirectory() && !guests.mkdirs()) {
+                    throw new IOException("Cannot create guest bundle directory.");
+                }
+                File gsiDestination = new File(imports, "ci_" + safeName(gsiName));
+                File guestDestination = new File(guests, "ci_" + safeName(guestName));
+                copyFile(gsiSource, gsiDestination);
+                copyFile(guestSource, guestDestination);
+                GsiAnalysis gsiResult = GsiAnalyzer.analyze(gsiDestination);
+                GuestBundleAnalysis guestResult = GuestBundleAnalyzer.analyze(guestDestination);
+                selectedFile = gsiDestination;
+                guestFile = guestDestination;
+                mainHandler.post(() -> {
+                    analysis = gsiResult;
+                    guestAnalysis = guestResult;
+                    selectedText.setText("Selected: " + gsiName + "\nStored privately in app storage");
+                    guestText.setText("Selected: " + guestName + "\n"
+                            + (guestResult.bootCandidate
+                            ? "Kernel, ramdisk, and vendor entries found"
+                            : "Bundle is incomplete; see the report"));
+                    reportText.setText(guestResult.render());
+                    analyzeButton.setEnabled(true);
+                    exportButton.setEnabled(true);
+                    refreshBootButton();
+                    appendLog("CI-staged GSI and guest ready for the Material UI smoke flow.");
+                });
+            } catch (Exception error) {
+                mainHandler.post(() -> appendLog("ERROR preparing CI-staged assets: " + error.getMessage()));
+            }
+        });
+    }
+
+    private static void copyFile(File source, File destination) throws IOException {
+        try (InputStream input = new FileInputStream(source);
+             FileOutputStream output = new FileOutputStream(destination)) {
+            byte[] buffer = new byte[1024 * 1024];
+            int read;
+            while ((read = input.read(buffer)) != -1) output.write(buffer, 0, read);
+        }
     }
 
     private void importGuestBundle(Uri uri) {

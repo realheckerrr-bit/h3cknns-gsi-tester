@@ -140,18 +140,42 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--gsi", required=True)
     parser.add_argument("--guest", required=True)
+    parser.add_argument(
+        "--private-staged",
+        action="store_true",
+        help="Use debug-app private CI staging instead of the public DocumentsUI picker",
+    )
     parser.add_argument("--boot-timeout", type=int, default=600)
     parser.add_argument("--screenshot", default="guest-screen.png")
     args = parser.parse_args()
 
     gsi_name = os.path.basename(args.gsi)
     guest_name = os.path.basename(args.guest)
-    adb("shell", "monkey", "-p", PACKAGE, "1")
-    click(["Select GSI image or ZIP"])
-    click_picker_file(gsi_name)
+    if args.private_staged:
+        adb(
+            "shell",
+            "am",
+            "start",
+            "-n",
+            f"{PACKAGE}/.MainActivity",
+            "--ez",
+            "ci_private_stage",
+            "true",
+            "--es",
+            "ci_gsi_name",
+            gsi_name,
+            "--es",
+            "ci_guest_name",
+            guest_name,
+        )
+    else:
+        adb("shell", "monkey", "-p", PACKAGE, "1")
+        click(["Select GSI image or ZIP"])
+        click_picker_file(gsi_name)
     click(["Analyze image"], timeout=180, enabled=True)
-    click(["Select guest bundle ZIP"], timeout=180)
-    click_picker_file(guest_name)
+    if not args.private_staged:
+        click(["Select guest bundle ZIP"], timeout=180)
+        click_picker_file(guest_name)
     click(["Start VM"], timeout=300, enabled=True)
 
     console = wait_for_console_marker(args.boot_timeout)
