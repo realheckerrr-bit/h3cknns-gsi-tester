@@ -124,6 +124,7 @@ jobs:
           echo '14e72a7c1b6b6600ba4f7b6057c79e531bbb9aa763e9e998ab5e1a8709e5075b  aosp-gsi.zip' \
             | sha256sum --check --status
           adb install -r -t gsi-tester.apk
+          adb shell mkdir -p /sdcard/Download
           adb push ranchu-guest.zip /sdcard/Download/official-ranchu-android35.zip
           adb push aosp-gsi.zip /sdcard/Download/aosp-gsi.zip
 
