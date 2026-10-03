@@ -82,6 +82,7 @@ jobs:
           trap dump_emulator_log EXIT
           nohup "$sdk_root/emulator/emulator" \
             -avd gsi-tester-arm64 \
+            -sysdir "$sdk_root/system-images/android-35/google_apis/x86_64" \
             -no-window -no-audio -no-snapshot -no-boot-anim \
             -gpu swiftshader_indirect -memory 4096 -partition-size 16384 -verbose \
             > emulator.log 2>&1 &
