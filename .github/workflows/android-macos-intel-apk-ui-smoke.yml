@@ -55,6 +55,7 @@ jobs:
             --device "pixel_2" \
             --path "$avd_home/gsi-tester-intel.avd" \
             --force
+          "$sdk_root/emulator/mksdcard" 4096M "$avd_home/sdcard.img"
           "$sdk_root/emulator/emulator" -list-avds
 
       - name: Start accelerated Android emulator
@@ -65,6 +66,7 @@ jobs:
           nohup "$sdk_root/emulator/emulator" \
             -avd gsi-tester-intel \
             -sysdir "$sdk_root/system-images/android-35/google_apis/x86_64" \
+            -sdcard "$ANDROID_AVD_HOME/sdcard.img" \
             -accel on \
             -no-window -no-audio -no-snapshot -no-boot-anim \
             -gpu swiftshader_indirect -memory 4096 -partition-size 16384 -verbose \
