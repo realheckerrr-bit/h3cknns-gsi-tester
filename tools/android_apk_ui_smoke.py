@@ -37,7 +37,7 @@ def adb(*args: str, check: bool = True, timeout: int = 30) -> str:
 def dump_ui() -> ET.Element:
     # Prefer stdout so the smoke test does not depend on the emulator's
     # emulated /sdcard or on uiautomator's file-namespace behavior.
-    output = adb("exec-out", "uiautomator", "dump", "/dev/tty", timeout=45)
+    output = adb("exec-out", "uiautomator", "dump", "/proc/self/fd/1", timeout=45)
     xml_start = output.find("<?xml")
     if xml_start < 0:
         xml_start = output.find("<hierarchy")
