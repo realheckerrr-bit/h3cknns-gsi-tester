@@ -1,6 +1,6 @@
 # h3cknn's GSI tester for Android
 
-h3cknn's GSI tester is a from-scratch Android test harness for importing and preflighting Generic System Images. It accepts raw system images, gzip/XZ/LZ4-compressed images, dynamic-partition `super.img` containers, or ZIPs containing those files (including common `system_a.img` and architecture-named GSI entries), calculates hashes, recognizes Android sparse/raw-ext4/EROFS/F2FS headers, and reports whether the input is a plausible GSI candidate.
+h3cknn's GSI tester is a from-scratch Android test harness for importing and preflighting Generic System Images. It accepts raw system images, gzip/XZ/LZ4-compressed images, 7z archives containing `system.img`, dynamic-partition `super.img` containers, or ZIPs containing those files (including common `system_a.img` and architecture-named GSI entries), calculates hashes, recognizes Android sparse/raw-ext4/EROFS/F2FS headers, and reports whether the input is a plausible GSI candidate.
 
 ## Scope
 

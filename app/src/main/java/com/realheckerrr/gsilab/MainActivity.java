@@ -173,12 +173,12 @@ public final class MainActivity extends Activity {
         subtitle.setPadding(0, dp(4), 0, dp(18));
         page.addView(subtitle);
 
-        LinearLayout imageSection = cardSection(page, "1  GSI IMAGE", "Choose a raw or compressed system image, or a ZIP containing one.");
+        LinearLayout imageSection = cardSection(page, "1  GSI IMAGE", "Choose a raw/compressed image, ZIP, or 7z archive containing a GSI.");
         selectedText = text("No image selected", 14, TEXT);
         selectedText.setPadding(0, dp(12), 0, dp(4));
         imageSection.addView(selectedText);
 
-        MaterialButton selectButton = outlinedButton("Select GSI image or ZIP");
+        MaterialButton selectButton = outlinedButton("Select GSI image, ZIP, or 7z");
         selectButton.setOnClickListener(view -> chooseInput());
         imageSection.addView(selectButton);
 
