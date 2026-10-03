@@ -35,9 +35,15 @@ def adb(*args: str, check: bool = True, timeout: int = 30) -> str:
 
 
 def dump_ui() -> ET.Element:
-    # The hosted emulator exposes /data/local/tmp to the shell reliably, while
-    # its emulated /sdcard may reject shell writes during nested-QEMU runs.
-    adb("shell", "uiautomator", "dump", UI_DUMP_PATH)
+    # Prefer stdout so the smoke test does not depend on the emulator's
+    # emulated /sdcard or on uiautomator's file-namespace behavior.
+    output = adb("exec-out", "uiautomator", "dump", "/dev/tty", timeout=45)
+    xml_start = output.find("<?xml")
+    if xml_start >= 0:
+        return ET.fromstring(output[xml_start:])
+    # Keep a shell-writable fallback for emulator images whose uiautomator
+    # build refuses /dev/tty.
+    adb("shell", "uiautomator", "dump", UI_DUMP_PATH, timeout=45)
     return ET.fromstring(adb("shell", "cat", UI_DUMP_PATH))
 
 
