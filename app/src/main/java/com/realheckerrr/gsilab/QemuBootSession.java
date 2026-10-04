@@ -112,8 +112,10 @@ public final class QemuBootSession {
                 : assets.ranchu
                 ? "console=ttyAMA0,115200 androidboot.console=ttyAMA1 androidboot.hardware=ranchu "
                 + "androidboot.verifiedbootstate=orange androidboot.qemu=1 "
-                + "androidboot.qemu.vsync=60 qemu.gles=1 androidboot.hardware.egl=emulation "
-                + "androidboot.qemu.cpuvulkan.version=0 androidboot.hardware.vulkan=ranchu "
+                + "androidboot.qemu.vsync=60 qemu.gles=1 "
+                // Match the Android Emulator host-renderer profile: the
+                // guest sees a Vulkan 1.1-capable gfxstream host.
+                + "androidboot.qemu.cpuvulkan.version=4202496 androidboot.hardware.vulkan=ranchu "
                 + "androidboot.hardware.gltransport=virtio-gpu-asg "
                 + "androidboot.qemu.gltransport.name=virtio-gpu-asg "
                 + "androidboot.hardware.gralloc=minigbm androidboot.hardware.hwcomposer=ranchu "
