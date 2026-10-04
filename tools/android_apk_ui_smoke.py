@@ -146,6 +146,18 @@ def wait_for_console_marker(timeout: int) -> str:
     raise RuntimeError("Android boot marker was not observed in the APK console log.\n" + last[-6000:])
 
 
+def wait_for_guest_frame(timeout: int) -> str:
+    """Wait for the app's PixelCopy probe to observe real guest pixels."""
+    deadline = time.time() + timeout
+    last = ""
+    while time.time() < deadline:
+        last = adb("logcat", "-d", "-s", "h3cknn-gsi-ui:I", check=False)
+        if "Guest display frame: non-black pixels observed." in last:
+            return last
+        time.sleep(2)
+    raise RuntimeError("Guest SDL surface stayed blank; no non-black guest frame was observed.\n" + last[-6000:])
+
+
 def foreground_activity() -> str:
     return adb("shell", "dumpsys", "activity", "activities", check=False)
 
@@ -195,7 +207,11 @@ def main() -> int:
         click_picker_file(guest_name)
         click(["Start VM"], timeout=300, enabled=True)
 
-    console = wait_for_console_marker(args.boot_timeout)
+    # The Android init property marker is not guaranteed to be routed to the
+    # guest serial file by every Ranchu build. The app's PixelCopy probe is a
+    # stronger UI-facing signal: it only succeeds after SDL/QEMU has produced
+    # visible pixels on the guest surface.
+    frame_log = wait_for_guest_frame(args.boot_timeout)
     activity = foreground_activity()
     if DISPLAY_ACTIVITY not in activity:
         raise RuntimeError("Android serial booted, but the guest display Activity is not foreground")
@@ -205,8 +221,8 @@ def main() -> int:
     if result.returncode != 0 or os.path.getsize(args.screenshot) == 0:
         raise RuntimeError("Guest display screenshot was empty")
 
-    print("Guest display Activity is foreground and Android boot marker was observed.")
-    print(console[-6000:])
+    print("Guest display Activity is foreground and PixelCopy observed non-black guest pixels.")
+    print(frame_log[-6000:])
     return 0
 
 

@@ -42,11 +42,11 @@ public final class GsiSDLActivity extends SDLActivity {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         window.setStatusBarColor(Color.BLACK);
         window.setNavigationBarColor(Color.BLACK);
-        window.getDecorView().setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                        | View.SYSTEM_UI_FLAG_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+        // Keep the host bars visible while the guest surface is being tested.
+        // Hiding them with IMMERSIVE_STICKY triggers Android's one-time
+        // "Viewing full screen" tutorial over the guest screenshot on a
+        // freshly-created emulator, which makes the first UI capture useless.
+        window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
 
         mSurface = new SDLSurface(this);
         mSurface.setFocusable(true);

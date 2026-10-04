@@ -96,7 +96,10 @@ public final class MainActivity extends Activity {
             if (displayFrameState != lastDisplayFrameState) {
                 lastDisplayFrameState = displayFrameState;
                 if (displayFrameState != org.libsdl.app.GsiSDLActivity.FRAME_UNKNOWN) {
-                    appendLog("Guest display frame: " + displayFrameDescription(displayFrameState) + ".");
+                    String frameMessage = "Guest display frame: "
+                            + displayFrameDescription(displayFrameState) + ".";
+                    appendLog(frameMessage);
+                    Log.i(LOG_TAG, frameMessage);
                 }
             }
             reportText.setText(analysis.render() + "\n" + guestAnalysis.render()
