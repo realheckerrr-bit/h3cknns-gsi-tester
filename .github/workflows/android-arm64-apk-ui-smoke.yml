@@ -72,15 +72,17 @@ jobs:
         run: |
           set -euo pipefail
           sdk_root="$(cat sdk-root.txt)"
-          # Prefer KVM when the hosted runner exposes it, but keep the test
-          # useful on runners that only permit QEMU TCG. The APK contains an
-          # ARM64 engine; Google API images provide the Android native-code
-          # translation layer needed by this x86_64 host image.
-          accel=off
-          if [[ -r /dev/kvm ]]; then
-            accel=auto
+          # Android's x86_64 emulator does not support TCG-only execution.
+          # Hosted Linux runners expose KVM but commonly leave it unreadable
+          # to the runner account, so repair that device permission first.
+          if [[ -e /dev/kvm ]]; then
+            sudo chmod a+rw /dev/kvm || true
           fi
-          echo "Android emulator acceleration mode: $accel"
+          if [[ ! -r /dev/kvm ]]; then
+            echo "::error::The Linux runner has no usable /dev/kvm; x86_64 Android emulator cannot run."
+            exit 1
+          fi
+          echo "Android emulator acceleration mode: on"
           dump_emulator_log() {
             status=$?
             echo "emulator exit status: $status"
@@ -92,7 +94,7 @@ jobs:
           nohup "$sdk_root/emulator/emulator" \
             -avd gsi-tester-arm64 \
             -sysdir "$sdk_root/system-images/android-35/google_apis/x86_64" \
-            -accel "$accel" \
+            -accel on \
             -no-window -no-audio -no-snapshot -no-boot-anim \
             -gpu swiftshader_indirect -memory 4096 -partition-size 16384 -verbose \
             > emulator.log 2>&1 &
