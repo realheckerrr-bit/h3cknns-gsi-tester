@@ -14,6 +14,10 @@ import java.util.Arrays;
 /** Patches the Ranchu vendor fstab without rebuilding the ext4 filesystem. */
 public final class RanchuVendorPatcher {
     private static final long SECTOR_SIZE = 512L;
+    // vendor.img is a binary filesystem, not a plain-text init script. A
+    // random binary region can contain a very long run without a newline;
+    // never copy that whole region onto the Java heap while looking for fstab.
+    private static final int MAX_PATCH_LINE_BYTES = 64 * 1024;
 
     private RanchuVendorPatcher() {}
 
@@ -32,6 +36,10 @@ public final class RanchuVendorPatcher {
             int changed = 0;
             for (int end = 0; end <= size; end++) {
                 if (end != size && image.get(end) != '\n') continue;
+                if (end - start > MAX_PATCH_LINE_BYTES) {
+                    start = end + 1;
+                    continue;
+                }
                 byte[] original = new byte[end - start];
                 image.position(start);
                 image.get(original);
