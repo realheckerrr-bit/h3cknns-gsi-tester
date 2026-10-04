@@ -19,7 +19,17 @@ public final class QemuBootPlan {
 
     public static QemuBootPlan inspect(Context context) {
         File engine = new File(context.getApplicationInfo().nativeLibraryDir, "libqemu-system-aarch64.so");
-        return new QemuBootPlan(engine, QemuRunner.enginePresent(context.getApplicationInfo().nativeLibraryDir));
+        boolean present = QemuRunner.enginePresent(context.getApplicationInfo().nativeLibraryDir);
+        if (!present) {
+            try {
+                engine = QemuRunner.ensureEngine(context);
+                present = true;
+            } catch (Exception ignored) {
+                // The report below remains explicit and the boot path will
+                // surface the same failure if the user tries to start it.
+            }
+        }
+        return new QemuBootPlan(engine, present);
     }
 
     public String render(GsiAnalysis gsi, GuestBundleAnalysis guest) {

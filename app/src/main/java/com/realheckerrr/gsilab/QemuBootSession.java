@@ -45,7 +45,7 @@ public final class QemuBootSession {
                 : (assets.ranchu ? null : copyBundledRom(context, work));
         File engine = assets.qemu != null
                 ? assets.qemu
-                : new File(context.getApplicationInfo().nativeLibraryDir, "libqemu-system-aarch64.so");
+                : QemuRunner.ensureEngine(context);
         if (!engine.isFile()) throw new IOException("No usable libqemu-system-aarch64.so was found.");
         File log = new File(work, "console.log");
         if (log.exists() && !log.delete()) throw new IOException("Cannot reset console log.");
