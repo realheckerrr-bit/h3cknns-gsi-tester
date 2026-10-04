@@ -13,6 +13,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.ParcelFileDescriptor;
 import android.provider.OpenableColumns;
+import android.util.Log;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -38,6 +39,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public final class MainActivity extends Activity {
+    private static final String LOG_TAG = "h3cknn-gsi-ui";
     private static final int PICK_INPUT = 1001;
     private static final int EXPORT_REPORT = 1002;
     private static final int PICK_GUEST = 1003;
@@ -129,7 +131,11 @@ public final class MainActivity extends Activity {
     }
 
     private boolean ciAutoStartRequested() {
-        return BuildConfig.DEBUG && getIntent().getBooleanExtra("ci_auto_start", false);
+        boolean requested = getIntent().getBooleanExtra("ci_auto_start", false);
+        boolean enabled = BuildConfig.DEBUG && requested;
+        Log.i(LOG_TAG, "ci_auto_start requested=" + requested + " debug=" + BuildConfig.DEBUG
+                + " enabled=" + enabled);
+        return enabled;
     }
 
     private static String displayFrameDescription(int state) {
@@ -151,6 +157,11 @@ public final class MainActivity extends Activity {
         getWindow().setStatusBarColor(BACKGROUND);
         getWindow().setNavigationBarColor(BACKGROUND);
         setContentView(buildView());
+        Log.i(LOG_TAG, "onCreate debug=" + BuildConfig.DEBUG
+                + " ci_private_stage=" + getIntent().getBooleanExtra("ci_private_stage", false)
+                + " ci_auto_start=" + getIntent().getBooleanExtra("ci_auto_start", false)
+                + " gsi=" + getIntent().getStringExtra("ci_gsi_name")
+                + " guest=" + getIntent().getStringExtra("ci_guest_name"));
         appendLog("h3cknn's GSI tester " + BuildConfig.VERSION_NAME + " ready.");
         appendLog("Import a GSI and a compatible guest bundle to prepare a VM launch.");
         if (BuildConfig.DEBUG && getIntent().getBooleanExtra("ci_private_stage", false)) {
@@ -403,6 +414,7 @@ public final class MainActivity extends Activity {
      */
     private void prepareCiPrivateStage(String gsiName, String guestName) {
         if (gsiName == null || guestName == null) return;
+        Log.i(LOG_TAG, "private stage started gsi=" + gsiName + " guest=" + guestName);
         worker.execute(() -> {
             try {
                 File inbox = new File(getFilesDir(), "ci-inbox");
@@ -411,6 +423,8 @@ public final class MainActivity extends Activity {
                 if (!gsiSource.isFile() || !guestSource.isFile()) {
                     throw new IOException("CI-staged assets are missing from private app storage.");
                 }
+                Log.i(LOG_TAG, "private stage sources present gsiBytes=" + gsiSource.length()
+                        + " guestBytes=" + guestSource.length());
                 File imports = new File(getFilesDir(), "imports");
                 File guests = new File(getFilesDir(), "guest-bundles");
                 if (!imports.isDirectory() && !imports.mkdirs()) {
@@ -424,7 +438,12 @@ public final class MainActivity extends Activity {
                 copyFile(gsiSource, gsiDestination);
                 copyFile(guestSource, guestDestination);
                 GsiAnalysis gsiResult = GsiAnalyzer.analyze(gsiDestination);
+                Log.i(LOG_TAG, "GSI analysis complete candidate=" + gsiResult.bootCandidate
+                        + " format=" + gsiResult.format);
                 GuestBundleAnalysis guestResult = GuestBundleAnalyzer.analyze(guestDestination);
+                Log.i(LOG_TAG, "guest analysis complete candidate=" + guestResult.bootCandidate
+                        + " kernel=" + guestResult.kernel + " ramdisk=" + guestResult.ramdisk
+                        + " vendor=" + guestResult.vendor);
                 selectedFile = gsiDestination;
                 guestFile = guestDestination;
                 mainHandler.post(() -> {
@@ -440,6 +459,7 @@ public final class MainActivity extends Activity {
                     exportButton.setEnabled(true);
                     refreshBootButton();
                     appendLog("CI-staged GSI and guest ready for the Material UI smoke flow.");
+                    Log.i(LOG_TAG, "private stage ready; scheduling analyze click");
                     if (ciAutoStartRequested()) {
                         // Keep this debug-only bridge on the real button
                         // listener path while avoiding flaky uiautomator file
@@ -448,6 +468,7 @@ public final class MainActivity extends Activity {
                     }
                 });
             } catch (Exception error) {
+                Log.e(LOG_TAG, "private stage failed", error);
                 mainHandler.post(() -> appendLog("ERROR preparing CI-staged assets: " + error.getMessage()));
             }
         });
@@ -573,6 +594,7 @@ public final class MainActivity extends Activity {
 
     private void analyzeInput() {
         if (selectedFile == null) return;
+        Log.i(LOG_TAG, "analyze click selected=" + selectedFile + " guest=" + guestFile);
         analyzeButton.setEnabled(false);
         bootButton.setEnabled(false);
         appendLog("Analyzing headers and calculating SHA-256...");
@@ -588,6 +610,8 @@ public final class MainActivity extends Activity {
                     appendLog(result.bootCandidate
                             ? "Preflight passed: image is a boot candidate pending a real guest bundle."
                             : "Preflight did not pass: inspect the report before continuing.");
+                    Log.i(LOG_TAG, "analyze result candidate=" + result.bootCandidate
+                            + " guestCandidate=" + (guestAnalysis != null && guestAnalysis.bootCandidate));
                     if (ciAutoStartRequested() && result.bootCandidate
                             && guestAnalysis != null && guestAnalysis.bootCandidate) {
                         mainHandler.postDelayed(() -> bootButton.performClick(), 300L);
@@ -604,6 +628,8 @@ public final class MainActivity extends Activity {
     }
 
     private void probeRuntime() {
+        Log.i(LOG_TAG, "start button path selected=" + selectedFile + " guest=" + guestFile
+                + " analysis=" + (analysis != null) + " guestAnalysis=" + (guestAnalysis != null));
         if (selectedFile == null) {
             appendLog("Select a GSI image or ZIP first.");
             refreshBootButton();
@@ -632,6 +658,9 @@ public final class MainActivity extends Activity {
         }
         RuntimeProbe probe = RuntimeProbe.inspect(this);
         QemuBootPlan plan = QemuBootPlan.inspect(this);
+        Log.i(LOG_TAG, "runtime probe arm64=" + probe.arm64 + " engine=" + plan.enginePresent
+                + " gsiCandidate=" + analysis.bootCandidate
+                + " guestCandidate=" + guestAnalysis.bootCandidate);
         reportText.setText(analysis.render() + "\n" + guestAnalysis.render() + "\n"
                 + probe.render() + "\n" + plan.render(analysis, guestAnalysis));
         appendLog("Runtime probe complete.");
@@ -653,7 +682,9 @@ public final class MainActivity extends Activity {
             appendLog("Preparing private VM files and opening the guest display...");
             try {
                 startActivityForResult(new Intent(this, org.libsdl.app.GsiSDLActivity.class), GUEST_DISPLAY);
+                Log.i(LOG_TAG, "GsiSDLActivity launch requested");
             } catch (Exception error) {
+                Log.e(LOG_TAG, "GsiSDLActivity launch failed", error);
                 launchInProgress = false;
                 bootButton.setText("Start VM");
                 bootButton.setEnabled(true);
@@ -670,6 +701,8 @@ public final class MainActivity extends Activity {
 
     private void waitForGuestDisplay(long deadline) {
         if (!launchInProgress) return;
+        Log.i(LOG_TAG, "guest display ready=" + org.libsdl.app.GsiSDLActivity.isDisplayReady()
+                + " open=" + org.libsdl.app.GsiSDLActivity.isDisplayOpen());
         if (!org.libsdl.app.GsiSDLActivity.isDisplayReady()) {
             if (System.currentTimeMillis() < deadline) {
                 mainHandler.postDelayed(() -> waitForGuestDisplay(deadline), 100L);
@@ -704,6 +737,7 @@ public final class MainActivity extends Activity {
                     mainHandler.post(consolePoller);
                 });
             } catch (Exception error) {
+                Log.e(LOG_TAG, "QEMU start failed", error);
                 mainHandler.post(() -> {
                     launchInProgress = false;
                     org.libsdl.app.GsiSDLActivity.closeDisplay();

@@ -176,6 +176,9 @@ jobs:
         run: |
           adb logcat -d > logcat.txt 2>&1 || true
           adb shell dumpsys activity activities > activity.txt 2>&1 || true
+          adb exec-out screencap -p > app-screen.png 2>/dev/null || true
+          adb shell uiautomator dump /data/local/tmp/gsi-tester-window.xml >/dev/null 2>&1 || true
+          adb shell cat /data/local/tmp/gsi-tester-window.xml > ui.xml 2>/dev/null || true
 
       - name: Upload Android emulator and guest evidence
         if: always()
@@ -188,4 +191,6 @@ jobs:
             gsi-tester.apk
             logcat.txt
             activity.txt
+            app-screen.png
+            ui.xml
           if-no-files-found: ignore
