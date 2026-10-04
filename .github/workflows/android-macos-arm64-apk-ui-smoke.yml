@@ -71,10 +71,14 @@ jobs:
         run: |
           set -euo pipefail
           sdk_root="$ANDROID_SDK_ROOT"
+          # GitHub's macOS ARM64 VM does not expose usable nested HVF. The
+          # Android emulator can run this ARM64 guest through QEMU TCG, so
+          # force the portable path instead of letting -accel auto select the
+          # unavailable HVF backend.
           nohup "$sdk_root/emulator/emulator" \
             -avd gsi-tester-macos-arm64 \
             -sysdir "$sdk_root/system-images/android-35/google_apis/arm64-v8a" \
-            -accel auto \
+            -accel off \
             -no-window -no-audio -no-snapshot -no-boot-anim \
             -gpu swiftshader_indirect -memory 2048 -partition-size 16384 -verbose \
             > emulator.log 2>&1 &
