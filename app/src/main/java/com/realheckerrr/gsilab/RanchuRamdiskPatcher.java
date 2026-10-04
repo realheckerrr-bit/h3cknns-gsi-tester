@@ -157,6 +157,12 @@ public final class RanchuRamdiskPatcher {
             }
             offset += 4;
             while (offset + 4 <= input.length) {
+                // Some Android ramdisks are produced as concatenated legacy
+                // LZ4 frames.  The next frame starts immediately after the
+                // previous block, without a zero-sized terminator.  Treat
+                // that magic as a frame boundary instead of interpreting it
+                // as an impossibly large block length.
+                if (littleInt(input, offset) == LZ4_MAGIC) break;
                 int blockSize = littleInt(input, offset);
                 offset += 4;
                 if (blockSize == 0) break;
