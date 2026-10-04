@@ -439,7 +439,7 @@ public final class MainActivity extends Activity {
                 copyFile(guestSource, guestDestination);
                 GsiAnalysis gsiResult = GsiAnalyzer.analyze(gsiDestination);
                 Log.i(LOG_TAG, "GSI analysis complete candidate=" + gsiResult.bootCandidate
-                        + " format=" + gsiResult.format);
+                        + " format=" + gsiResult.imageFormat);
                 GuestBundleAnalysis guestResult = GuestBundleAnalyzer.analyze(guestDestination);
                 Log.i(LOG_TAG, "guest analysis complete candidate=" + guestResult.bootCandidate
                         + " kernel=" + guestResult.kernel + " ramdisk=" + guestResult.ramdisk
