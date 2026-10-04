@@ -1,0 +1,163 @@
+name: ARM64 macOS APK guest UI smoke test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  ui-smoke:
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - name: Check out app source
+        uses: actions/checkout@v4
+
+      - name: Verify native ARM64 runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = "arm64"
+          sysctl -n hw.optional.arm64
+
+      - name: Install Android SDK command-line tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_root="$RUNNER_TEMP/android-sdk"
+          tools_root="$sdk_root/cmdline-tools"
+          mkdir -p "$tools_root"
+          curl --fail --location --retry 3 \
+            -o "$RUNNER_TEMP/cmdline-tools.zip" \
+            https://dl.google.com/android/repository/commandlinetools-mac-11076708_latest.zip
+          unzip -q "$RUNNER_TEMP/cmdline-tools.zip" -d "$tools_root"
+          mv "$tools_root/cmdline-tools" "$tools_root/latest"
+          echo "ANDROID_SDK_ROOT=$sdk_root" >> "$GITHUB_ENV"
+          echo "$tools_root/latest/bin" >> "$GITHUB_PATH"
+          yes | "$tools_root/latest/bin/sdkmanager" --licenses >/dev/null || true
+
+      - name: Install native ARM64 Android emulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_root="$ANDROID_SDK_ROOT"
+          avd_home="$RUNNER_TEMP/android-avd"
+          mkdir -p "$avd_home"
+          export ANDROID_AVD_HOME="$avd_home"
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager --install \
+            "platform-tools" \
+            "emulator" \
+            "platforms;android-35" \
+            "system-images;android-35;google_apis;arm64-v8a"
+          echo no | avdmanager create avd \
+            --name gsi-tester-macos-arm64 \
+            --package "system-images;android-35;google_apis;arm64-v8a" \
+            --device "pixel_2" \
+            --path "$avd_home/gsi-tester-macos-arm64.avd" \
+            --force
+          perl -0pi -e 's/^disk\.dataPartition\.size=.*$/disk.dataPartition.size=16G/m' \
+            "$avd_home/gsi-tester-macos-arm64.avd/config.ini"
+          echo "ANDROID_AVD_HOME=$avd_home" >> "$GITHUB_ENV"
+          echo "AVD files:"
+          find "$avd_home" -maxdepth 2 -type f -print -exec ls -lh {} \;
+          echo "Registered AVDs:"
+          "$sdk_root/emulator/emulator" -list-avds
+
+      - name: Start native ARM64 Android emulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_root="$ANDROID_SDK_ROOT"
+          nohup "$sdk_root/emulator/emulator" \
+            -avd gsi-tester-macos-arm64 \
+            -sysdir "$sdk_root/system-images/android-35/google_apis/arm64-v8a" \
+            -accel auto \
+            -no-window -no-audio -no-snapshot -no-boot-anim \
+            -gpu swiftshader_indirect -memory 2048 -partition-size 16384 -verbose \
+            > emulator.log 2>&1 &
+          echo $! > emulator.pid
+          for attempt in $(seq 1 300); do
+            if [[ "$(adb get-state 2>/dev/null || true)" == "device" ]]; then break; fi
+            sleep 2
+          done
+          test "$(adb get-state)" = "device"
+          for attempt in $(seq 1 600); do
+            if [[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == "1" ]]; then break; fi
+            sleep 2
+          done
+          test "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1"
+          adb shell settings put global window_animation_scale 0
+          adb shell settings put global transition_animation_scale 0
+          adb shell settings put global animator_duration_scale 0
+
+      - name: Download debuggable APK and guest assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}"
+          run_id="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "${api}/actions/workflows/android.yml/runs?status=success&branch=main&per_page=20" |
+            GITHUB_SHA="$GITHUB_SHA" python3 -c 'import json,os,sys; runs=json.load(sys.stdin)["workflow_runs"]; print(next(run["id"] for run in runs if run["head_sha"] == os.environ["GITHUB_SHA"]))')"
+          artifact_id="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "${api}/actions/runs/${run_id}/artifacts" |
+            python3 -c 'import json,sys; print(next(a["id"] for a in json.load(sys.stdin)["artifacts"] if a["name"] == "h3cknns-gsi-tester-debug-apk"))')"
+          curl --fail --location --retry 3 --retry-delay 3 \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -o debug-apk-artifact.zip \
+            "${api}/actions/artifacts/${artifact_id}/zip"
+          unzip -j -o debug-apk-artifact.zip '*.apk' -d .
+          mv app-debug.apk gsi-tester.apk
+          curl --fail --location --retry 3 --retry-delay 3 \
+            -o ranchu-guest.zip \
+            https://dl.google.com/android/repository/sys-img/google_apis/arm64-v8a-35_r08.zip
+          curl --fail --location --retry 3 --retry-delay 3 \
+            -o aosp-gsi.zip \
+            https://dl.google.com/developers/android/vic/images/gsi/aosp_arm64-exp-AP4A.241205.013-12621605-14e72a7c.zip
+          echo '14e72a7c1b6b6600ba4f7b6057c79e531bbb9aa763e9e998ab5e1a8709e5075b  aosp-gsi.zip' \
+            | shasum -a 256 -c -
+          adb install --no-streaming --no-incremental -r -t gsi-tester.apk
+          adb push ranchu-guest.zip /data/local/tmp/official-ranchu-android35.zip
+          adb push aosp-gsi.zip /data/local/tmp/aosp-gsi.zip
+          package=com.realheckerrr.gsilab
+          app_dir="/data/user/0/$package"
+          adb shell run-as "$package" mkdir -p "$app_dir/files/ci-inbox"
+          adb shell chmod 644 /data/local/tmp/official-ranchu-android35.zip /data/local/tmp/aosp-gsi.zip
+          adb shell run-as "$package" cp \
+            /data/local/tmp/official-ranchu-android35.zip \
+            "$app_dir/files/ci-inbox/official-ranchu-android35.zip"
+          adb shell run-as "$package" cp \
+            /data/local/tmp/aosp-gsi.zip \
+            "$app_dir/files/ci-inbox/aosp-gsi.zip"
+          adb shell run-as "$package" ls -l "$app_dir/files/ci-inbox"
+
+      - name: Exercise real Material UI flow and capture guest screen
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/android_apk_ui_smoke.py \
+            --gsi /data/local/tmp/aosp-gsi.zip \
+            --guest /data/local/tmp/official-ranchu-android35.zip \
+            --private-staged \
+            --boot-timeout 600 \
+            --screenshot guest-screen.png
+
+      - name: Upload Android emulator and guest evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm64-apk-guest-ui-smoke
+          path: |
+            emulator.log
+            guest-screen.png
+            gsi-tester.apk
+          if-no-files-found: ignore
